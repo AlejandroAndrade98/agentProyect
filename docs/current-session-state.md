@@ -14,10 +14,10 @@ Plataforma SaaS multiempresa de CRM ligero potenciado por IA para vendedores, ag
 
 ## 3. Fases Completadas
 - [x] **Fase 0:** Documentación técnica, visión de producto y ADRs.
-- [x] **Fase 1 (Scaffolding):** Estructura de carpetas, archivos raíz, shells de apps/packages y Dockerfiles mínimos.
+- [x] **Fase 1 (Scaffolding):** Estructura de carpetas, archivos raíz, shells de apps/packages y Dockerfiles mínimos. Validado con `pnpm build` exitoso.
 
 ## 4. Estado Actual
-El proyecto ha superado la Fase 0 y está en la etapa final de validación de la Fase 1. Se ha configurado el monorepo, pero la instalación de dependencias (`pnpm install`) ha presentado fallos críticos de compatibilidad de versiones.
+La Fase 1 ha sido completada exitosamente. El entorno de desarrollo está estable y el scaffolding del monorepo compila correctamente.
 
 ## 5. Archivos Importantes Creados
 - `package.json`, `turbo.json`, `pnpm-workspace.yaml`.
@@ -32,36 +32,21 @@ El proyecto ha superado la Fase 0 y está en la etapa final de validación de la
 - **Docker:** Contexto de construcción en la raíz para permitir acceso a paquetes compartidos.
 - **Build:** Uso de comandos filtrados (`pnpm --filter`) en Dockerfiles.
 
-## 7. Problemas Encontrados
-- **Incompatibilidad de Node:** Diferencia entre Node v22 (Local) y Node v20 (Docker).
-- **Fallos de postinstall:** Errores en `@prisma/engines` y `@nestjs/core` debido a versiones "latest" incompatibles con el entorno.
-- **Bloqueos de Archivos:** Errores de "Device or resource busy" al intentar borrar `node_modules` en Windows.
+## 7. Resolución de Problemas de Instalación (Fase 1)
+Se resolvieron fallos críticos de `pnpm install` mediante las siguientes acciones:
+- **Causa Raíz:** `npm/pnpm` tenía configurado `script-shell` como `cmd.exe`, provocando que los scripts de `postinstall` entraran en modo interactivo y fallaran.
+- **Corrección:** Eliminación de `script-shell` de las configuraciones de npm y pnpm.
+- **Entorno Establecido:**
+  - **Node:** v20.20.2 (vía nvm)
+  - **pnpm:** v9.0.0 (vía corepack)
+  - **Prisma:** v5.22.0 (fijado para evitar inestabilidades de "latest")
+- **Validación Final:** `pnpm install` y `pnpm build` completados exitosamente.
 
-## 8. Problema Actual con `pnpm install`
-El comando `pnpm install` falla durante la ejecución de scripts de post-instalación de Prisma y NestJS debido a la versión de Node y al uso de versiones inestables (latest) de las librerías.
+## 8. Próximos Pasos Exactos
+1. Iniciar **Fase 2 (Prisma Schema y Migraciones)**.
+2. Definir el esquema de base de datos multi-tenant.
+3. Generar la primera migración y validar la conexión con PostgreSQL.
 
-## 9. Cambios para Node 20 y Prisma 5.22.0
-Para resolver la inestabilidad se ha implementado:
-- Creación de `.nvmrc` y `.node-version` con el valor `20`.
-- Restricción de `engines` en `package.json` raíz (`>=20 <21`).
-- Downgrade de Prisma a la versión estable `5.22.0` en `packages/database/package.json`.
-- Eliminación de todas las dependencias "latest" sustituyéndolas por versiones estables.
-
-## 10. Próximos Pasos Exactos
-1. Limpiar procesos `pnpm` activos y eliminar `node_modules` y `pnpm-lock.yaml` residuales.
-2. Ejecutar `pnpm install --no-frozen-lockfile` con Node 20 activo.
-3. Validar que el `pnpm-lock.yaml` real se genere correctamente.
-4. Validar que `pnpm build` (vía Turbo) reconozca los scripts base.
-5. Cerrar oficialmente la Fase 1.
-6. Iniciar Fase 2 (Prisma Schema y Migraciones).
-
-## 11. Comandos Pendientes
-- `pnpm install --no-frozen-lockfile --reporter=append-only`
-- `pnpm --version`
-- `ls -lh pnpm-lock.yaml`
-
-## 12. Cosas que NO se deben hacer todavía
+## 9. Cosas que NO se deben hacer todavía
 - **NO** implementar lógica de negocio ni endpoints.
-- **NO** crear el esquema de Prisma final.
 - **NO** implementar autenticación ni servicios de IA.
-- **NO** avanzar a la Fase 2 hasta que `pnpm install` sea exitoso y estable.
