@@ -15,15 +15,17 @@ Plataforma SaaS multiempresa de CRM ligero potenciado por IA para vendedores, ag
 ## 3. Fases Completadas
 - [x] **Fase 0:** Documentación técnica, visión de producto y ADRs.
 - [x] **Fase 1 (Scaffolding):** Estructura de carpetas, archivos raíz, shells de apps/packages y Dockerfiles mínimos. Validado con `pnpm build` exitoso.
+- [x] **Fase 2 (Database & Seed):** Definición de esquema Prisma multi-tenant, migración inicial aplicada y seed de datos demo.
 
 ## 4. Estado Actual
-La Fase 1 ha sido completada exitosamente. El entorno de desarrollo está estable y el scaffolding del monorepo compila correctamente.
+La Fase 2 ha sido completada exitosamente. El esquema de base de datos está validado, la migración inicial aplicada y los datos demo insertados. PostgreSQL está corriendo en Docker (localhost:15432).
 
 ## 5. Archivos Importantes Creados
 - `package.json`, `turbo.json`, `pnpm-workspace.yaml`.
 - `docker-compose.yml`, `.env.example`.
 - `apps/web/`, `apps/api/`, `apps/worker/` (Shells con Dockerfiles y tsconfigs).
-- `packages/database/`, `packages/shared/`, `packages/ai/` (Shells).
+- `packages/database/prisma/schema.prisma`, `packages/database/prisma/seed.ts`.
+- `packages/database/prisma/migrations/20260507034039_init/`.
 - `docs/` (Vision, Architecture, Security, etc.) y `docs/adr/`.
 
 ## 6. Decisiones Técnicas Tomadas
@@ -42,11 +44,20 @@ Se resolvieron fallos críticos de `pnpm install` mediante las siguientes accion
   - **Prisma:** v5.22.0 (fijado para evitar inestabilidades de "latest")
 - **Validación Final:** `pnpm install` y `pnpm build` completados exitosamente.
 
-## 8. Próximos Pasos Exactos
-1. Iniciar **Fase 2 (Prisma Schema y Migraciones)**.
-2. Definir el esquema de base de datos multi-tenant.
-3. Generar la primera migración y validar la conexión con PostgreSQL.
+## 8. Detalles de la Fase 2
+- **Schema Prisma:** Validado y formateado.
+- **Migración Inicial:** `20260507034039_init` aplicada con éxito.
+- **Seed Ejecutado:**
+  - Org: "Demo Organization" (slug: demo)
+  - User: "owner@example.com" (Role: OWNER)
+  - Products: Cabify Ads, Programmatic Ads, DOOH, Connected TV.
+- **Infraestructura:** PostgreSQL corriendo en localhost:15432.
 
-## 9. Cosas que NO se deben hacer todavía
-- **NO** implementar lógica de negocio ni endpoints.
-- **NO** implementar autenticación ni servicios de IA.
+## 9. Próximos Pasos Exactos
+1. Iniciar **Fase 3 (Backend Base)**.
+2. Implementar configuración global, health checks y conexión a DB.
+3. Implementar Auth (JWT, Refresh Tokens) y gestión de Usuarios/Organizaciones.
+
+## 10. Cosas que NO se deben hacer todavía
+- **NO** implementar lógica de negocio comercial ni endpoints de IA.
+- **NO** implementar la interfaz de usuario final.

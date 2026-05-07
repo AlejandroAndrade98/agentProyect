@@ -1,0 +1,485 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  SALES
+  VIEWER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ImportanceLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Source {
+  MANUAL
+  AI_SUGGESTION
+  IMPORT
+  EMAIL
+  MEETING
+  OTHER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum AiSuggestionType {
+  ANALYZE_MESSAGE
+  GENERATE_REPLY
+  EXTRACT_IMPORTANT_DATA
+  SUMMARIZE_LEAD
+  SUGGEST_NEXT_STEPS
+}
+
+enum AiSuggestionStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  EDITED_AND_ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum AiExtractionStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  EDITED_AND_ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum EntityType {
+  COMPANY
+  CONTACT
+  LEAD
+  TASK
+  NOTE
+}
+
+enum InsightType {
+  EXPERTISE
+  PREFERENCE
+  COMMERCIAL_INTEREST
+  FOLLOW_UP
+  DECISION_MAKER
+  BUDGET_SIGNAL
+  TIMING_SIGNAL
+  GENERAL_NOTE
+}
+
+enum ExportType {
+  CONTACTS
+  COMPANIES
+  LEADS
+  TASKS
+  AI_SUGGESTIONS
+  ACCEPTED_AI_INSIGHTS
+  FULL_ORGANIZATION_SUMMARY
+}
+
+enum ExportFormat {
+  CSV
+  JSON
+  XLSX
+  PDF
+}
+
+enum ExportJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model Organization {
+  id                    String    @id @default(cuid())
+  name                  String
+  slug                  String    @unique
+  industry              String?
+  plan                  String    @default("FREE")
+  maxUsers              Int       @default(1)
+  maxActiveLeads        Int       @default(100)
+  maxAiRequestsPerMonth Int       @default(50)
+  maxStorageMb          Int       @default(100)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  archivedAt            DateTime?
+  deletedAt             DateTime?
+
+  users              User[]
+  companies          Company[]
+  contacts           Contact[]
+  leads              Lead[]
+  tasks              Task[]
+  notes              Note[]
+  products           Product[]
+  aiSuggestions      AiSuggestion[]
+  aiExtractions      AiExtraction[]
+  acceptedAiInsights AcceptedAiInsight[]
+  exportJobs         ExportJob[]
+  usageRecords       UsageRecord[]
+  auditLogs          AuditLog[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String
+  passwordHash   String
+  role           Role
+  isActive       Boolean      @default(true)
+  deletedAt      DateTime?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads               Lead[]
+  tasks               Task[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]          @relation("AuditLogActor")
+  aiSuggestions       AiSuggestion[]      @relation("AiSuggestionCreatedBy")
+  reviewedSuggestions AiSuggestion[]      @relation("AiSuggestionReviewedBy")
+  aiExtractions       AiExtraction[]      @relation("AiExtractionCreatedBy")
+  reviewedExtractions AiExtraction[]      @relation("AiExtractionReviewedBy")
+  approvedInsights    AcceptedAiInsight[] @relation("AcceptedInsightApprovedBy")
+  createdNotes        Note[]              @relation("NoteCreatedBy")
+
+  @@index([organizationId])
+  @@index([organizationId, role])
+  @@index([organizationId, isActive])
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  category       String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  archivedAt     DateTime?
+  deletedAt      DateTime?
+
+  @@index([organizationId])
+}
+
+model Company {
+  id              String          @id @default(cuid())
+  name            String
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  website         String?
+  industry        String?
+  city            String?
+  country         String?
+  notes           String?
+  importanceLevel ImportanceLevel @default(MEDIUM)
+  source          Source          @default(MANUAL)
+  archivedAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  contacts    Contact[]
+  leads       Lead[]
+  linkedNotes Note[]    @relation("CompanyNotes")
+
+  @@index([organizationId])
+  @@index([organizationId, importanceLevel])
+}
+
+model Contact {
+  id              String          @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  companyId       String?
+  company         Company?        @relation(fields: [companyId], references: [id])
+  jobTitle        String?
+  linkedinUrl     String?
+  city            String?
+  country         String?
+  notes           String?
+  expertise       String?
+  importanceLevel ImportanceLevel @default(MEDIUM)
+  source          Source          @default(MANUAL)
+  archivedAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  leads       Lead[]
+  tasks       Task[]
+  linkedNotes Note[] @relation("ContactNotes")
+
+  @@index([organizationId])
+  @@index([organizationId, importanceLevel])
+}
+
+model Lead {
+  id                String          @id @default(cuid())
+  title             String
+  description       String?
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id])
+  companyId         String?
+  company           Company?        @relation(fields: [companyId], references: [id])
+  contactId         String?
+  contact           Contact?        @relation(fields: [contactId], references: [id])
+  assignedToUserId  String?
+  user              User?           @relation(fields: [assignedToUserId], references: [id])
+  status            LeadStatus      @default(NEW)
+  priority          Priority        @default(MEDIUM)
+  importanceLevel   ImportanceLevel @default(MEDIUM)
+  source            Source          @default(MANUAL)
+  estimatedBudget   Float?
+  expectedCloseDate DateTime?
+  nextStep          String?
+  lastContactAt     DateTime?
+  archivedAt        DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  tasks       Task[]
+  linkedNotes Note[] @relation("LeadNotes")
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, importanceLevel])
+}
+
+model Task {
+  id               String          @id @default(cuid())
+  title            String
+  description      String?
+  organizationId   String
+  organization     Organization    @relation(fields: [organizationId], references: [id])
+  leadId           String?
+  lead             Lead?           @relation(fields: [leadId], references: [id])
+  contactId        String?
+  contact          Contact?        @relation(fields: [contactId], references: [id])
+  assignedToUserId String?
+  user             User?           @relation(fields: [assignedToUserId], references: [id])
+  status           TaskStatus      @default(TODO)
+  priority         Priority        @default(MEDIUM)
+  importanceLevel  ImportanceLevel @default(MEDIUM)
+  dueDate          DateTime?
+  completedAt      DateTime?
+  archivedAt       DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, importanceLevel])
+}
+
+model Note {
+  id              String          @id @default(cuid())
+  title           String?
+  content         String
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  companyId       String?
+  company         Company?        @relation("CompanyNotes", fields: [companyId], references: [id])
+  contactId       String?
+  contact         Contact?        @relation("ContactNotes", fields: [contactId], references: [id])
+  leadId          String?
+  lead            Lead?           @relation("LeadNotes", fields: [leadId], references: [id])
+  createdByUserId String
+  createdBy       User            @relation("NoteCreatedBy", fields: [createdByUserId], references: [id])
+  importanceLevel ImportanceLevel @default(MEDIUM)
+  source          Source          @default(MANUAL)
+  archivedAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organizationId])
+}
+
+model AiSuggestion {
+  id               String             @id @default(cuid())
+  organizationId   String
+  organization     Organization       @relation(fields: [organizationId], references: [id])
+  userId           String?
+  user             User?              @relation("AiSuggestionCreatedBy", fields: [userId], references: [id])
+  provider         String
+  type             AiSuggestionType
+  status           AiSuggestionStatus @default(PENDING_REVIEW)
+  inputText        String
+  inputHash        String
+  outputJson       Json?
+  outputText       String?
+  tokensInput      Int?
+  tokensOutput     Int?
+  estimatedCostUsd Float?
+  reviewedByUserId String?
+  reviewedBy       User?              @relation("AiSuggestionReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt       DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([expiresAt])
+}
+
+model AiExtraction {
+  id                String              @id @default(cuid())
+  organizationId    String
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  userId            String?
+  user              User?               @relation("AiExtractionCreatedBy", fields: [userId], references: [id])
+  sourceType        String
+  sourceId          String?
+  rawInputHash      String
+  suggestedDataJson Json
+  status            AiExtractionStatus  @default(PENDING_REVIEW)
+  confidenceScore   Float?
+  reviewedByUserId  String?
+  reviewedBy        User?               @relation("AiExtractionReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  acceptedInsights  AcceptedAiInsight[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([expiresAt])
+}
+
+model AcceptedAiInsight {
+  id                   String          @id @default(cuid())
+  organizationId       String
+  organization         Organization    @relation(fields: [organizationId], references: [id])
+  sourceAiExtractionId String?
+  sourceAiExtraction   AiExtraction?   @relation(fields: [sourceAiExtractionId], references: [id])
+  entityType           EntityType
+  entityId             String
+  insightType          InsightType
+  content              String
+  importanceLevel      ImportanceLevel @default(MEDIUM)
+  approvedByUserId     String?
+  approvedBy           User?           @relation("AcceptedInsightApprovedBy", fields: [approvedByUserId], references: [id])
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, importanceLevel])
+  @@index([entityType, entityId])
+}
+
+model ExportJob {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  type           ExportType
+  format         ExportFormat
+  status         ExportJobStatus @default(PENDING)
+  filePath       String?
+  filtersJson    Json?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([expiresAt])
+}
+
+model UsageRecord {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  month            Int
+  year             Int
+  aiRequestsCount  Int          @default(0)
+  tokensInput      Int          @default(0)
+  tokensOutput     Int          @default(0)
+  estimatedCostUsd Float        @default(0)
+  activeUsersCount Int          @default(0)
+  activeLeadsCount Int          @default(0)
+  storageUsedMb    Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, month, year])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  action         String
+  entityType     String?
+  entityId       String?
+  metadataJson   Json?
+  actorUserId    String?
+  actor          User?         @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
