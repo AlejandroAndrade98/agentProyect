@@ -1,0 +1,11 @@
+# Development overrides
+services:
+  api:
+    volumes:
+      - ./apps/api:/app
+  web:
+    volumes:
+      - ./apps/web:/app
+  worker:
+    volumes:
+      - ./apps/worker:/app

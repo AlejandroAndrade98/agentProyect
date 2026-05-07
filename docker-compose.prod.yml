@@ -1,0 +1,8 @@
+# Production base configuration
+services:
+  api:
+    restart: always
+  web:
+    restart: always
+  worker:
+    restart: always
