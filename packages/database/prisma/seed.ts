@@ -34,7 +34,7 @@ async function main() {
     where: { email: 'owner@example.com' },
     update: {
       name: 'Demo Owner',
-      passwordHash: 'placeholder-hash-for-dev-only',
+      passwordHash: '$2b$10$obBeNp05FSzijxOIYQzyz.uZTpvnQ9pgCtdpfCuZVa1pCHHmNncGu',
       role: 'OWNER',
       isActive: true,
       organizationId: organization.id,
@@ -42,7 +42,7 @@ async function main() {
     create: {
       email: 'owner@example.com',
       name: 'Demo Owner',
-      passwordHash: 'placeholder-hash-for-dev-only',
+      passwordHash: '$2b$10$obBeNp05FSzijxOIYQzyz.uZTpvnQ9pgCtdpfCuZVa1pCHHmNncGu',
       role: 'OWNER',
       isActive: true,
       organizationId: organization.id,
