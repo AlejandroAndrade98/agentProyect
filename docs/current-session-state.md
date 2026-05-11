@@ -85,6 +85,8 @@ Niveles de importancia:
 - [x] **Fase 3, Backend Base, Bloque 3.1:** Infraestructura base del API completada y validada.
 - [x] **Fase 3, Backend Base, Bloque 3.2:** Auth Core completado y validado.
 - [x] **Fase 3, Backend Base, Bloque 3.3:** Refresh Tokens & Logout completado y validado en pasos críticos.
+- [x] **Fase 3, Backend Base, Bloque 3.4A:** Infraestructura de guards, decorators y contexto de usuario autenticado implementada, compilada y commiteada.
+- [x] **Fase 3, Backend Base, Bloque 3.5:** Endpoints privados `users/me` y `organizations/current` implementados y validados en runtime.
 
 ## 7. Estado Actual
 
@@ -95,6 +97,8 @@ Bloques completados:
 - **Bloque 3.1:** ConfigModule, DatabaseModule, PrismaService y HealthModule.
 - **Bloque 3.2:** Auth Core con login, bcrypt y JWT access token.
 - **Bloque 3.3:** Refresh tokens persistentes, rotación y logout.
+- **Bloque 3.4A:** JwtAuthGuard, RolesGuard, Roles decorator, CurrentUser decorator y contexto base de usuario autenticado.
+- **Bloque 3.5:** `GET /api/users/me` y `GET /api/organizations/current` protegidos con `JwtAuthGuard`.
 
 Estado actual exacto:
 
@@ -109,13 +113,21 @@ Estado actual exacto:
 - `passwordHash` no se expone en respuestas.
 - `pnpm build` pasó después de implementar logout.
 
+- `JwtAuthGuard` existe y valida access tokens desde `Authorization: Bearer <accessToken>`.
+- `RolesGuard` existe y permite validar roles mediante metadata.
+- `@Roles()` existe para declarar roles permitidos.
+- `@CurrentUser()` existe para acceder al usuario autenticado desde controladores.
+- El usuario autenticado queda representado como `id`, `organizationId` y `role`.
+- `pnpm build` pasó después de implementar 3.4A.
+- Commit realizado: `5450742 feat(api): add auth guards and user context`.
+
 Próximo paso seguro:
 
-- Revisar el estado con `git status` y `git diff`.
-- Actualizar documentación si hace falta.
-- Luego preparar **solo el plan técnico del Bloque 3.4**, sin implementar todavía.
-
-No avanzar todavía a 3.4 sin plan aprobado.
+- Ejecutar `pnpm build`.
+- Revisar `git status`.
+- Hacer commit del Bloque 3.5.
+- Luego planear **Bloque 3.6: Validaciones finales de Backend Base**.
+- No avanzar a Fase 4 todavía.
 
 ## 8. Archivos Importantes Creados
 
@@ -599,9 +611,186 @@ Pendiente menor:
   - `login -> logout -> refresh con token revocado = 401`
   - `logout repetido -> 200 OK`
 
-## 15. Problemas Resueltos Durante Bloque 3.3
 
-### 15.1 Sintaxis incorrecta de variable de entorno
+## 15. Detalles de Fase 3, Bloque 3.4A: Guards, Roles y Current User
+
+Estado: implementado, compilado y commiteado.
+
+Objetivo:
+
+- Crear la infraestructura base para proteger rutas privadas.
+- Validar access tokens enviados por header `Authorization: Bearer <accessToken>`.
+- Exponer el contexto del usuario autenticado a futuros controladores.
+- Preparar la base tenant-aware para que futuros services filtren por `organizationId`.
+
+Archivos creados:
+
+- `apps/api/src/auth/guards/jwt-auth.guard.ts`
+- `apps/api/src/auth/guards/roles.guard.ts`
+- `apps/api/src/auth/decorators/current-user.decorator.ts`
+- `apps/api/src/auth/decorators/roles.decorator.ts`
+- `apps/api/src/auth/interfaces/current-user.interface.ts`
+
+Archivos modificados:
+
+- `apps/api/src/auth/auth.module.ts`
+- `.gitignore`
+
+Implementación:
+
+- `JwtAuthGuard`:
+  - Extrae el token desde `Authorization: Bearer <token>`.
+  - Valida el JWT access token usando `JwtService`.
+  - Usa `JWT_ACCESS_SECRET` desde `ConfigService`.
+  - Rechaza tokens ausentes, inválidos o expirados con `401 Unauthorized`.
+  - Adjunta `request.user` con:
+    - `id`
+    - `organizationId`
+    - `role`
+
+- `RolesGuard`:
+  - Lee roles requeridos usando `Reflector`.
+  - Usa metadata definida por `@Roles()`.
+  - Retorna `403 Forbidden` si el usuario no tiene un rol permitido.
+
+- `@CurrentUser()`:
+  - Permite obtener el usuario autenticado en controladores.
+  - También permite obtener una propiedad específica, por ejemplo `@CurrentUser('organizationId')`.
+
+- `@Roles()`:
+  - Permite declarar roles permitidos en endpoints protegidos.
+
+Interfaz de usuario autenticado:
+
+```ts
+export interface CurrentUser {
+  id: string;
+  organizationId: string;
+  role: Role;
+}
+```
+
+Validación:
+
+- `pnpm build` exitoso.
+- Commit realizado:
+
+```text
+5450742 feat(api): add auth guards and user context
+```
+
+Pendiente en ese momento:
+
+- Todavía no había endpoints protegidos reales para probar runtime.
+- La validación funcional de guards se haría en Bloque 3.5 con:
+  - `GET /api/users/me`
+  - `GET /api/organizations/current`
+
+## 16. Detalles de Fase 3, Bloque 3.5: Users/me y Organizations/current
+
+Estado: implementado y validado en runtime.
+
+Objetivo:
+
+- Crear endpoints privados reales para validar `JwtAuthGuard`.
+- Probar `@CurrentUser()` con un access token real.
+- Validar que el backend puede leer `userId`, `organizationId` y `role` desde el JWT.
+- Consultar datos con filtrado multi-tenant explícito.
+
+Archivos creados:
+
+- `apps/api/src/users/users.module.ts`
+- `apps/api/src/users/users.controller.ts`
+- `apps/api/src/users/users.service.ts`
+- `apps/api/src/organizations/organizations.module.ts`
+- `apps/api/src/organizations/organizations.controller.ts`
+- `apps/api/src/organizations/organizations.service.ts`
+
+Archivos modificados:
+
+- `apps/api/src/app.module.ts`
+- `apps/api/src/auth/auth.module.ts`
+
+Endpoints implementados:
+
+- `GET /api/users/me`
+- `GET /api/organizations/current`
+
+Implementación de `GET /api/users/me`:
+
+- Ruta protegida con `JwtAuthGuard`.
+- Usa `@CurrentUser()` para obtener:
+  - `id`
+  - `organizationId`
+  - `role`
+- `UsersService` consulta usuario usando:
+  - `id: currentUser.id`
+  - `organizationId: currentUser.organizationId`
+  - `deletedAt: null`
+- Retorna solo campos seguros:
+  - `id`
+  - `email`
+  - `name`
+  - `role`
+  - `organizationId`
+  - `isActive`
+  - `createdAt`
+  - `updatedAt`
+- No retorna `passwordHash`.
+- No retorna relaciones.
+
+Implementación de `GET /api/organizations/current`:
+
+- Ruta protegida con `JwtAuthGuard`.
+- Usa `@CurrentUser()` para obtener `organizationId`.
+- `OrganizationsService` consulta organización usando:
+  - `id: currentUser.organizationId`
+  - `deletedAt: null`
+  - `archivedAt: null`
+- Retorna campos seguros:
+  - `id`
+  - `name`
+  - `slug`
+  - `industry`
+  - `plan`
+  - `maxUsers`
+  - `maxActiveLeads`
+  - `maxAiRequestsPerMonth`
+  - `maxStorageMb`
+  - `createdAt`
+  - `updatedAt`
+
+Fix aplicado:
+
+- `JwtAuthGuard` dependía de `JwtService`.
+- Al usar el guard desde `UsersModule` y `OrganizationsModule`, Nest necesitaba acceso a `JwtService`.
+- Se corrigió exportando `JwtModule` desde `AuthModule`:
+
+```ts
+exports: [JwtModule, JwtAuthGuard, RolesGuard]
+```
+
+Validaciones realizadas:
+
+- API arrancó correctamente.
+- Endpoints mapeados:
+  - `GET /api/users/me`
+  - `GET /api/organizations/current`
+- Login exitoso con `owner@example.com`.
+- `GET /api/users/me` sin token devuelve `401 Unauthorized`.
+- `GET /api/organizations/current` sin token devuelve `401 Unauthorized`.
+- `GET /api/users/me` con token válido devuelve `200 OK` y datos seguros del usuario.
+- `GET /api/organizations/current` con token válido devuelve `200 OK` y datos seguros de la organización.
+- `passwordHash` no se expone.
+
+Resultado:
+
+- Bloque 3.5 validado correctamente.
+- Guards y contexto de usuario funcionan en runtime.
+
+## 17. Problemas Resueltos Durante Bloque 3.3
+
+### 17.1 Sintaxis incorrecta de variable de entorno
 
 Problema:
 
@@ -631,7 +820,7 @@ export DATABASE_URL="postgresql://postgres:postgres@localhost:15432/sales_ai_db?
 $env:DATABASE_URL="postgresql://postgres:postgres@localhost:15432/sales_ai_db?schema=public"; pnpm --filter @sales-ai/api dev
 ```
 
-### 15.2 Puerto 4000 ocupado
+### 17.2 Puerto 4000 ocupado
 
 Problema:
 
@@ -644,7 +833,7 @@ Corrección en PowerShell:
 $pidToKill = (Get-NetTCPConnection -LocalPort 4000 -ErrorAction SilentlyContinue).OwningProcess; if ($pidToKill) { Stop-Process -Id $pidToKill -Force; Write-Output "Process $pidToKill killed" } else { Write-Output "No process found on port 4000" }
 ```
 
-### 15.3 Logout quedó temporalmente roto
+### 17.3 Logout quedó temporalmente roto
 
 Problema:
 
@@ -661,7 +850,7 @@ Corrección:
 - Se agregó método `logout(dto: RefreshTokenDto)` en `AuthService`.
 - `pnpm build` pasó después del fix.
 
-## 16. Comandos Útiles Actuales
+## 18 Comandos Útiles Actuales
 
 Levantar PostgreSQL:
 
@@ -711,7 +900,7 @@ Ver diff de Auth:
 git diff -- apps/api/src/auth/auth.service.ts apps/api/src/auth/auth.controller.ts apps/api/src/auth/interfaces/auth-response.interface.ts apps/api/src/auth/dto/refresh-token.dto.ts apps/api/src/config/configuration.ts
 ```
 
-## 17. Próximos Pasos Exactos
+## 19. Próximos Pasos Exactos
 
 Siguiente paso inmediato:
 
@@ -730,7 +919,7 @@ Bloque 3.4 esperado:
 - Protección inicial de rutas privadas
 - No implementar todavía módulos comerciales.
 
-## 18. Cosas que NO se deben hacer todavía
+## 20. Cosas que NO se deben hacer todavía
 
 - **NO** avanzar a Fase 4.
 - **NO** implementar IA real.
