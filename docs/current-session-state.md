@@ -87,10 +87,12 @@ Niveles de importancia:
 - [x] **Fase 3, Backend Base, Bloque 3.3:** Refresh Tokens & Logout completado y validado en pasos críticos.
 - [x] **Fase 3, Backend Base, Bloque 3.4A:** Infraestructura de guards, decorators y contexto de usuario autenticado implementada, compilada y commiteada.
 - [x] **Fase 3, Backend Base, Bloque 3.5:** Endpoints privados `users/me` y `organizations/current` implementados y validados en runtime.
+- [x] **Fase 3, Backend Base, Bloque 3.6:** Validaciones finales completadas. Backend base cerrado.
+
 
 ## 7. Estado Actual
 
-La Fase 3 está en progreso.
+La Fase 3 Backend Base quedó completada y validada.
 
 Bloques completados:
 
@@ -99,6 +101,12 @@ Bloques completados:
 - **Bloque 3.3:** Refresh tokens persistentes, rotación y logout.
 - **Bloque 3.4A:** JwtAuthGuard, RolesGuard, Roles decorator, CurrentUser decorator y contexto base de usuario autenticado.
 - **Bloque 3.5:** `GET /api/users/me` y `GET /api/organizations/current` protegidos con `JwtAuthGuard`.
+- **Bloque 3.6:** Validaciones finales de Backend Base.
+
+Próximo paso seguro:
+
+- Planear Fase 4.
+- No implementar Fase 4 sin revisar primero alcance, entidades y endpoints.
 
 Estado actual exacto:
 
@@ -918,6 +926,35 @@ Bloque 3.4 esperado:
 - Validación de JWT access token
 - Protección inicial de rutas privadas
 - No implementar todavía módulos comerciales.
+
+## Detalles de Fase 3, Bloque 3.6: Validaciones Finales
+
+Estado: completado.
+
+Objetivo:
+
+- Confirmar que Backend Base funciona completo antes de pasar a Fase 4.
+- Validar build, API, auth, refresh/logout, guards y endpoints privados.
+
+Validaciones realizadas:
+
+- `GET /api/health` devuelve `200 OK`.
+- `POST /api/auth/login` funciona con usuario demo.
+- Login devuelve `accessToken`, `refreshToken` y user summary.
+- Login no expone `passwordHash`.
+- `GET /api/users/me` sin token devuelve `401 Unauthorized`.
+- `GET /api/organizations/current` sin token devuelve `401 Unauthorized`.
+- `GET /api/users/me` con token válido devuelve `200 OK`.
+- `GET /api/organizations/current` con token válido devuelve `200 OK`.
+- `POST /api/auth/refresh` con refresh token válido devuelve nuevo par de tokens.
+- Reutilizar refresh token viejo devuelve `401 Unauthorized`.
+- `POST /api/auth/logout` revoca el refresh token y devuelve `Logged out successfully`.
+- Usar refresh token revocado devuelve `401 Unauthorized`.
+
+Resultado:
+
+- Fase 3 Backend Base completada.
+- API base lista para iniciar Fase 4 con módulos comerciales multi-tenant.
 
 ## 20. Cosas que NO se deben hacer todavía
 
