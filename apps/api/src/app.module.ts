@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { CompaniesModule } from './companies/companies.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
     AuthModule,
     UsersModule,
     OrganizationsModule,
+    CompaniesModule,
   ],
   controllers: [],
   providers: [],
