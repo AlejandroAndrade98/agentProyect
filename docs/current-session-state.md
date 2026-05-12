@@ -137,6 +137,59 @@ Próximo paso seguro:
 - Luego planear **Bloque 3.6: Validaciones finales de Backend Base**.
 - No avanzar a Fase 4 todavía.
 
+## Fase 4.1: Companies API
+
+Estado: completado, validado, commiteado y pusheado.
+
+Objetivo:
+- Implementar el primer módulo comercial real del CRM.
+- Crear CRUD base para empresas.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+
+Archivos creados:
+- `apps/api/src/companies/companies.module.ts`
+- `apps/api/src/companies/companies.controller.ts`
+- `apps/api/src/companies/companies.service.ts`
+- `apps/api/src/companies/dto/create-company.dto.ts`
+- `apps/api/src/companies/dto/update-company.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+
+Endpoints implementados:
+- `GET /api/companies`
+- `GET /api/companies/:id`
+- `POST /api/companies`
+- `PATCH /api/companies/:id`
+- `DELETE /api/companies/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se devuelven relaciones todavía.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/companies` sin token devuelve `401`.
+- `POST /api/companies` crea una empresa correctamente.
+- `GET /api/companies` lista empresas del tenant autenticado.
+- `GET /api/companies/:id` consulta una empresa por ID.
+- `PATCH /api/companies/:id` actualiza una empresa.
+- `DELETE /api/companies/:id` aplica soft delete.
+- Luego del soft delete, `GET /api/companies/:id` devuelve `404`.
+
+Resultado:
+- Companies API queda lista como primer módulo comercial base del CRM.
+- Próximo paso seguro: planear Fase 4.2 Contacts API.
+
 ## 8. Archivos Importantes Creados
 
 Archivos base del monorepo:
