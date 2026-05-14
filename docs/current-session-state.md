@@ -435,6 +435,81 @@ Resultado:
 - Tasks API queda lista como quinto módulo comercial base del CRM.
 - Próximo paso seguro: planear Fase 4.6 Notes API.
 
+## Fase 4.6: Notes API
+
+Estado: completado, validado en build y validado en runtime.
+
+Objetivo:
+- Implementar el sexto módulo comercial real del CRM.
+- Crear CRUD base para notas.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+- Validar relaciones opcionales con `Company`, `Contact` y `Lead`.
+- Garantizar que `createdByUserId` salga del usuario autenticado y no del body.
+
+Archivos creados:
+- `apps/api/src/notes/notes.module.ts`
+- `apps/api/src/notes/notes.controller.ts`
+- `apps/api/src/notes/notes.service.ts`
+- `apps/api/src/notes/dto/create-note.dto.ts`
+- `apps/api/src/notes/dto/update-note.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+- `docs/current-session-state.md`
+
+Endpoints implementados:
+- `GET /api/notes`
+- `GET /api/notes/:id`
+- `POST /api/notes`
+- `PATCH /api/notes/:id`
+- `DELETE /api/notes/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- `organizationId` se toma desde `currentUser.organizationId`.
+- Nunca se recibe `createdByUserId` desde body.
+- `createdByUserId` se toma desde `currentUser.id`.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se devuelven relaciones todavía.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Reglas especiales de relaciones:
+- `companyId` es opcional.
+- Si se envía `companyId`, se valida que la empresa exista dentro del mismo `organizationId` y no esté eliminada.
+- `contactId` es opcional.
+- Si se envía `contactId`, se valida que el contacto exista dentro del mismo `organizationId` y no esté eliminado.
+- `leadId` es opcional.
+- Si se envía `leadId`, se valida que el lead exista dentro del mismo `organizationId` y no esté eliminado.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/notes` sin token devuelve `401`.
+- `POST /api/notes` crea una nota correctamente.
+- `POST /api/notes` con `companyId`, `contactId` y `leadId` válidos crea una nota relacionada con entidades del mismo tenant.
+- La nota creada usa `organizationId` desde el token.
+- La nota creada usa `createdByUserId` desde el usuario autenticado.
+- `GET /api/notes` lista notas del tenant autenticado.
+- `GET /api/notes/:id` consulta una nota por ID.
+- `PATCH /api/notes/:id` actualiza una nota.
+- `POST /api/notes` con `companyId` inexistente devuelve `404`.
+- `POST /api/notes` con `contactId` inexistente devuelve `404`.
+- `POST /api/notes` con `leadId` inexistente devuelve `404`.
+- `POST /api/notes` con `organizationId` en body devuelve `400`.
+- `POST /api/notes` con `createdByUserId` en body devuelve `400`.
+- `DELETE /api/notes/:id` aplica soft delete y devuelve `deletedAt`.
+- Luego del soft delete, `GET /api/notes/:id` devuelve `404`.
+
+Resultado:
+- Notes API queda lista como sexto módulo comercial base del CRM.
+- Próximo paso seguro: ejecutar validaciones finales de Fase 4.
+
 ## 8. Archivos Importantes Creados
 
 Archivos base del monorepo:
