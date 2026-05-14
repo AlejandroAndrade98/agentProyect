@@ -4,21 +4,80 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 
+import { Prisma } from '@prisma/client';
+
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryNotesDto } from './dto/query-notes.dto';
+
 @Injectable()
 export class NotesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.note.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+async findAll(currentUser: CurrentUser, query: QueryNotesDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.NoteWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.importanceLevel && {
+      importanceLevel: query.importanceLevel,
+    }),
+    ...(query.source && {
+      source: query.source,
+    }),
+    ...(query.companyId && {
+      companyId: query.companyId,
+    }),
+    ...(query.contactId && {
+      contactId: query.contactId,
+    }),
+    ...(query.leadId && {
+      leadId: query.leadId,
+    }),
+    ...(search && {
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          content: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.NoteOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.note.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.note.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const note = await this.prisma.note.findFirst({

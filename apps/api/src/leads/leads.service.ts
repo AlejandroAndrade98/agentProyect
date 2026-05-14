@@ -4,21 +4,92 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 
+import { Prisma } from '@prisma/client';
+
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryLeadsDto } from './dto/query-leads.dto';
+
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.lead.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+async findAll(currentUser: CurrentUser, query: QueryLeadsDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.LeadWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.status && {
+      status: query.status,
+    }),
+    ...(query.priority && {
+      priority: query.priority,
+    }),
+    ...(query.importanceLevel && {
+      importanceLevel: query.importanceLevel,
+    }),
+    ...(query.source && {
+      source: query.source,
+    }),
+    ...(query.companyId && {
+      companyId: query.companyId,
+    }),
+    ...(query.contactId && {
+      contactId: query.contactId,
+    }),
+    ...(query.assignedToUserId && {
+      assignedToUserId: query.assignedToUserId,
+    }),
+    ...(search && {
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          nextStep: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.LeadOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.lead.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.lead.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const lead = await this.prisma.lead.findFirst({

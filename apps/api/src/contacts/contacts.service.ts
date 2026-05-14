@@ -4,21 +4,134 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
+import { Prisma } from '@prisma/client';
+
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryContactsDto } from './dto/query-contacts.dto';
+
 @Injectable()
 export class ContactsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.contact.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
+async findAll(currentUser: CurrentUser, query: QueryContactsDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.ContactWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.companyId && {
+      companyId: query.companyId,
+    }),
+    ...(query.importanceLevel && {
+      importanceLevel: query.importanceLevel,
+    }),
+    ...(query.source && {
+      source: query.source,
+    }),
+    ...(query.city && {
+      city: {
+        contains: query.city.trim(),
+        mode: 'insensitive',
       },
-      orderBy: {
-        createdAt: 'desc',
+    }),
+    ...(query.country && {
+      country: {
+        contains: query.country.trim(),
+        mode: 'insensitive',
       },
-    });
-  }
+    }),
+    ...(search && {
+      OR: [
+        {
+          firstName: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          lastName: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          phone: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          jobTitle: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          linkedinUrl: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          city: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          country: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          notes: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          expertise: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.ContactOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.contact.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.contact.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const contact = await this.prisma.contact.findFirst({

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +15,7 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { QueryTasksDto } from './dto/query-tasks.dto';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
@@ -21,8 +23,11 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.tasksService.findAll(currentUser);
+  findAll(
+    @CurrentUserDecorator() currentUser: CurrentUser,
+    @Query() query: QueryTasksDto,
+  ) {
+    return this.tasksService.findAll(currentUser, query);
   }
 
   @Get(':id')

@@ -6,13 +6,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 import { CurrentUser as CurrentUserDecorator } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
@@ -21,8 +24,11 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.productsService.findAll(currentUser);
+  findAll(
+    @CurrentUserDecorator() currentUser: CurrentUser,
+    @Query() query: QueryProductsDto,
+  ) {
+    return this.productsService.findAll(currentUser, query);
   }
 
   @Get(':id')

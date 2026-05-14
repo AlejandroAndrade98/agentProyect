@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,16 +15,20 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
+import { QueryLeadsDto } from './dto/query-leads.dto';
 
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
 export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
-
-  @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.leadsService.findAll(currentUser);
-  }
+  
+@Get()
+findAll(
+  @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: QueryLeadsDto,
+) {
+  return this.leadsService.findAll(currentUser, query);
+}
 
   @Get(':id')
   findOne(

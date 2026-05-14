@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,16 +15,20 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
+import { QueryNotesDto } from './dto/query-notes.dto';
 
 @Controller('notes')
 @UseGuards(JwtAuthGuard)
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
-  @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.notesService.findAll(currentUser);
-  }
+@Get()
+findAll(
+  @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: QueryNotesDto,
+) {
+  return this.notesService.findAll(currentUser, query);
+}
 
   @Get(':id')
   findOne(

@@ -1,3 +1,12 @@
+import { Prisma } from '@prisma/client';
+
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryProductsDto } from './dto/query-products.dto';
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
@@ -8,17 +17,67 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.product.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
+async findAll(currentUser: CurrentUser, query: QueryProductsDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.ProductWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.category && {
+      category: {
+        contains: query.category.trim(),
+        mode: 'insensitive',
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+    }),
+    ...(query.isActive !== undefined && {
+      isActive: query.isActive,
+    }),
+    ...(search && {
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          category: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.ProductOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.product.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.product.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const product = await this.prisma.product.findFirst({

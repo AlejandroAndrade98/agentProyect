@@ -6,13 +6,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 import { CurrentUser as CurrentUserDecorator } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { QueryContactsDto } from './dto/query-contacts.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
 @Controller('contacts')
@@ -21,8 +24,11 @@ export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
 
   @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.contactsService.findAll(currentUser);
+  findAll(
+    @CurrentUserDecorator() currentUser: CurrentUser,
+    @Query() query: QueryContactsDto,
+  ) {
+    return this.contactsService.findAll(currentUser, query);
   }
 
   @Get(':id')

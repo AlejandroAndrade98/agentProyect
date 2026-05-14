@@ -4,21 +4,83 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
+import { Prisma } from '@prisma/client';
+
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryTasksDto } from './dto/query-tasks.dto';
+
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.task.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+async findAll(currentUser: CurrentUser, query: QueryTasksDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.TaskWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.status && {
+      status: query.status,
+    }),
+    ...(query.priority && {
+      priority: query.priority,
+    }),
+    ...(query.importanceLevel && {
+      importanceLevel: query.importanceLevel,
+    }),
+    ...(query.leadId && {
+      leadId: query.leadId,
+    }),
+    ...(query.contactId && {
+      contactId: query.contactId,
+    }),
+    ...(query.assignedToUserId && {
+      assignedToUserId: query.assignedToUserId,
+    }),
+    ...(search && {
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.TaskOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.task.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.task.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const task = await this.prisma.task.findFirst({
