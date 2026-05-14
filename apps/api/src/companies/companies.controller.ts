@@ -6,13 +6,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser as CurrentUserDecorator } from '../auth/decorators/current-user.decorator';
-import { CurrentUser } from '../auth/interfaces/current-user.interface';
+import { CurrentUser as CurrentUserPayload } from '../auth/interfaces/current-user.interface';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
+import { QueryCompaniesDto } from './dto/query-companies.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 @Controller('companies')
@@ -21,22 +24,17 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Get()
-  findAll(@CurrentUserDecorator() currentUser: CurrentUser) {
-    return this.companiesService.findAll(currentUser);
-  }
-
-  @Get(':id')
-  findOne(
-    @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
+  findAll(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Query() query: QueryCompaniesDto,
   ) {
-    return this.companiesService.findOne(id, currentUser);
+    return this.companiesService.findAll(currentUser, query);
   }
 
   @Post()
   create(
     @Body() dto: CreateCompanyDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ) {
     return this.companiesService.create(dto, currentUser);
   }
@@ -45,7 +43,7 @@ export class CompaniesController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateCompanyDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ) {
     return this.companiesService.update(id, dto, currentUser);
   }
@@ -53,7 +51,7 @@ export class CompaniesController {
   @Delete(':id')
   remove(
     @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ) {
     return this.companiesService.remove(id, currentUser);
   }

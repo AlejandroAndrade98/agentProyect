@@ -3,22 +3,112 @@ import { PrismaService } from '../database/prisma.service';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { Prisma } from '@prisma/client';
+import {
+  buildPaginatedResult,
+  getPaginationParams,
+  normalizeSearch,
+} from '../common/utils/pagination.util';
+import { QueryCompaniesDto } from './dto/query-companies.dto';
 
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(currentUser: CurrentUser) {
-    return this.prisma.company.findMany({
-      where: {
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
+async findAll(currentUser: CurrentUser, query: QueryCompaniesDto) {
+  const { page, pageSize, skip, take } = getPaginationParams(query);
+  const search = normalizeSearch(query.search);
+
+  const where: Prisma.CompanyWhereInput = {
+    organizationId: currentUser.organizationId,
+    deletedAt: null,
+    ...(query.importanceLevel && {
+      importanceLevel: query.importanceLevel,
+    }),
+    ...(query.source && {
+      source: query.source,
+    }),
+    ...(query.city && {
+      city: {
+        contains: query.city.trim(),
+        mode: 'insensitive',
       },
-      orderBy: {
-        createdAt: 'desc',
+    }),
+    ...(query.country && {
+      country: {
+        contains: query.country.trim(),
+        mode: 'insensitive',
       },
-    });
-  }
+    }),
+    ...(query.industry && {
+      industry: {
+        contains: query.industry.trim(),
+        mode: 'insensitive',
+      },
+    }),
+    ...(search && {
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          website: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          industry: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          city: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          country: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          notes: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    }),
+  };
+
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const orderBy: Prisma.CompanyOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.company.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+    }),
+    this.prisma.company.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResult(data, total, page, pageSize);
+}
 
   async findOne(id: string, currentUser: CurrentUser) {
     const company = await this.prisma.company.findFirst({
