@@ -129,13 +129,6 @@ Estado actual exacto:
 - `pnpm build` pasó después de implementar 3.4A.
 - Commit realizado: `5450742 feat(api): add auth guards and user context`.
 
-Próximo paso seguro:
-
-- Ejecutar `pnpm build`.
-- Revisar `git status`.
-- Hacer commit del Bloque 3.5.
-- Luego planear **Bloque 3.6: Validaciones finales de Backend Base**.
-- No avanzar a Fase 4 todavía.
 
 ## Fase 4.1: Companies API
 
@@ -189,6 +182,68 @@ Validaciones realizadas:
 Resultado:
 - Companies API queda lista como primer módulo comercial base del CRM.
 - Próximo paso seguro: planear Fase 4.2 Contacts API.
+
+## Fase 4.2: Contacts API
+
+Estado: completado, validado en build y validado en runtime.
+
+Objetivo:
+- Implementar el segundo módulo comercial real del CRM.
+- Crear CRUD base para contactos.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+- Validar relación opcional con `Company` usando `companyId`.
+
+Archivos creados:
+- `apps/api/src/contacts/contacts.module.ts`
+- `apps/api/src/contacts/contacts.controller.ts`
+- `apps/api/src/contacts/contacts.service.ts`
+- `apps/api/src/contacts/dto/create-contact.dto.ts`
+- `apps/api/src/contacts/dto/update-contact.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+- `docs/current-session-state.md`
+
+Endpoints implementados:
+- `GET /api/contacts`
+- `GET /api/contacts/:id`
+- `POST /api/contacts`
+- `PATCH /api/contacts/:id`
+- `DELETE /api/contacts/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se devuelven relaciones todavía.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Regla especial de `companyId`:
+- `companyId` es opcional.
+- Si el cliente envía `companyId`, el backend valida que la empresa exista dentro del mismo `organizationId`.
+- Si la empresa no existe, está eliminada o pertenece a otro tenant, se devuelve `404 Company not found`.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/contacts` sin token devuelve `401`.
+- `POST /api/contacts` crea un contacto correctamente.
+- `POST /api/contacts` con `companyId` válido crea un contacto relacionado con una empresa del mismo tenant.
+- `GET /api/contacts` lista contactos del tenant autenticado.
+- `GET /api/contacts/:id` consulta un contacto por ID.
+- `PATCH /api/contacts/:id` actualiza un contacto.
+- `POST /api/contacts` con `companyId` inexistente devuelve `404`.
+- `DELETE /api/contacts/:id` aplica soft delete y devuelve `deletedAt`.
+- Luego del soft delete, `GET /api/contacts/:id` devuelve `404`.
+
+Resultado:
+- Contacts API queda lista como segundo módulo comercial base del CRM.
+- Próximo paso seguro: planear Fase 4.3 Products API.
 
 ## 8. Archivos Importantes Creados
 
