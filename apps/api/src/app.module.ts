@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { CompaniesModule } from './companies/companies.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ContactsModule } from './contacts/contacts.module';
     OrganizationsModule,
     CompaniesModule,
     ContactsModule,
+    ProductsModule,
   ],
   controllers: [],
   providers: [],

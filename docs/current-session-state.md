@@ -245,6 +245,60 @@ Resultado:
 - Contacts API queda lista como segundo módulo comercial base del CRM.
 - Próximo paso seguro: planear Fase 4.3 Products API.
 
+## Fase 4.3: Products API
+
+Estado: completado, validado en build y validado en runtime.
+
+Objetivo:
+- Implementar el tercer módulo comercial real del CRM.
+- Crear CRUD base para productos.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+
+Archivos creados:
+- `apps/api/src/products/products.module.ts`
+- `apps/api/src/products/products.controller.ts`
+- `apps/api/src/products/products.service.ts`
+- `apps/api/src/products/dto/create-product.dto.ts`
+- `apps/api/src/products/dto/update-product.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+- `docs/current-session-state.md`
+
+Endpoints implementados:
+- `GET /api/products`
+- `GET /api/products/:id`
+- `POST /api/products`
+- `PATCH /api/products/:id`
+- `DELETE /api/products/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/products` sin token devuelve `401`.
+- `POST /api/products` crea un producto correctamente.
+- `GET /api/products` lista productos del tenant autenticado.
+- `GET /api/products/:id` consulta un producto por ID.
+- `PATCH /api/products/:id` actualiza un producto.
+- `POST /api/products` con `organizationId` en body devuelve `400`.
+- `DELETE /api/products/:id` aplica soft delete y devuelve `deletedAt`.
+- Luego del soft delete, `GET /api/products/:id` devuelve `404`.
+
+Resultado:
+- Products API queda lista como tercer módulo comercial base del CRM.
+- Próximo paso seguro: planear Fase 4.4 Leads API.
+
 ## 8. Archivos Importantes Creados
 
 Archivos base del monorepo:
