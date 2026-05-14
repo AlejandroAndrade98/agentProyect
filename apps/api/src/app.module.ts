@@ -9,6 +9,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { CompaniesModule } from './companies/companies.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { ProductsModule } from './products/products.module';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ProductsModule } from './products/products.module';
     CompaniesModule,
     ContactsModule,
     ProductsModule,
+    LeadsModule,
   ],
   controllers: [],
   providers: [],

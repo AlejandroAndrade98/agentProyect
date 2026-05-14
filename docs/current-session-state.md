@@ -299,6 +299,74 @@ Resultado:
 - Products API queda lista como tercer módulo comercial base del CRM.
 - Próximo paso seguro: planear Fase 4.4 Leads API.
 
+## Fase 4.4: Leads API
+
+Estado: completado, validado en build y validado en runtime.
+
+Objetivo:
+- Implementar el cuarto módulo comercial real del CRM.
+- Crear CRUD base para leads.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+- Validar relaciones opcionales con `Company`, `Contact` y `User`.
+
+Archivos creados:
+- `apps/api/src/leads/leads.module.ts`
+- `apps/api/src/leads/leads.controller.ts`
+- `apps/api/src/leads/leads.service.ts`
+- `apps/api/src/leads/dto/create-lead.dto.ts`
+- `apps/api/src/leads/dto/update-lead.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+- `docs/current-session-state.md`
+
+Endpoints implementados:
+- `GET /api/leads`
+- `GET /api/leads/:id`
+- `POST /api/leads`
+- `PATCH /api/leads/:id`
+- `DELETE /api/leads/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se devuelven relaciones todavía.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Reglas especiales de relaciones:
+- `companyId` es opcional.
+- Si se envía `companyId`, se valida que la empresa exista dentro del mismo `organizationId` y no esté eliminada.
+- `contactId` es opcional.
+- Si se envía `contactId`, se valida que el contacto exista dentro del mismo `organizationId` y no esté eliminado.
+- `assignedToUserId` es opcional.
+- Si se envía `assignedToUserId`, se valida que el usuario exista dentro del mismo `organizationId`, esté activo y no esté eliminado.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/leads` sin token devuelve `401`.
+- `POST /api/leads` crea un lead correctamente.
+- `POST /api/leads` con `companyId`, `contactId` y `assignedToUserId` válidos crea un lead relacionado con entidades del mismo tenant.
+- `GET /api/leads` lista leads del tenant autenticado.
+- `GET /api/leads/:id` consulta un lead por ID.
+- `PATCH /api/leads/:id` actualiza un lead.
+- `POST /api/leads` con `companyId` inexistente devuelve `404`.
+- `POST /api/leads` con `contactId` inexistente devuelve `404`.
+- `POST /api/leads` con `assignedToUserId` inexistente devuelve `404`.
+- `POST /api/leads` con `organizationId` en body devuelve `400`.
+- `DELETE /api/leads/:id` aplica soft delete y devuelve `deletedAt`.
+- Luego del soft delete, `GET /api/leads/:id` devuelve `404`.
+
+Resultado:
+- Leads API queda lista como cuarto módulo comercial base del CRM.
+- Próximo paso seguro: planear Fase 4.5 Tasks API.
+
 ## 8. Archivos Importantes Creados
 
 Archivos base del monorepo:
