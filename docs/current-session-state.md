@@ -88,7 +88,7 @@ Niveles de importancia:
 - [x] **Fase 3, Backend Base, Bloque 3.4A:** Infraestructura de guards, decorators y contexto de usuario autenticado implementada, compilada y commiteada.
 - [x] **Fase 3, Backend Base, Bloque 3.5:** Endpoints privados `users/me` y `organizations/current` implementados y validados en runtime.
 - [x] **Fase 3, Backend Base, Bloque 3.6:** Validaciones finales completadas. Backend base cerrado.
-
+- [x] **Fase 4, CRM comercial base:** Companies, Contacts, Products, Leads, Tasks, Notes y validaciones finales completadas.
 
 ## 7. Estado Actual
 
@@ -509,6 +509,48 @@ Validaciones realizadas:
 Resultado:
 - Notes API queda lista como sexto módulo comercial base del CRM.
 - Próximo paso seguro: ejecutar validaciones finales de Fase 4.
+
+## Fase 4.7: Validaciones finales de Fase 4
+
+Estado: completado y validado.
+
+Objetivo:
+- Confirmar que todos los módulos comerciales base de Fase 4 funcionan integrados.
+- Validar build completo del monorepo.
+- Validar protección JWT general en endpoints comerciales.
+- Confirmar que los endpoints comerciales responden correctamente con token válido.
+
+Módulos validados:
+- Companies API
+- Contacts API
+- Products API
+- Leads API
+- Tasks API
+- Notes API
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- Login con usuario demo funciona.
+- `GET /api/users/me` funciona con token válido.
+- `GET /api/organizations/current` funciona con token válido.
+- `GET /api/health` funciona.
+- `GET /api/companies` sin token devuelve `401`.
+- `GET /api/companies` con token devuelve `OK`.
+- `GET /api/contacts` sin token devuelve `401`.
+- `GET /api/contacts` con token devuelve `OK`.
+- `GET /api/products` sin token devuelve `401`.
+- `GET /api/products` con token devuelve `OK`.
+- `GET /api/leads` sin token devuelve `401`.
+- `GET /api/leads` con token devuelve `OK`.
+- `GET /api/tasks` sin token devuelve `401`.
+- `GET /api/tasks` con token devuelve `OK`.
+- `GET /api/notes` sin token devuelve `401`.
+- `GET /api/notes` con token devuelve `OK`.
+
+Resultado:
+- Fase 4 CRM comercial base queda completada.
+- La API ya cuenta con CRUD base tenant-aware para Companies, Contacts, Products, Leads, Tasks y Notes.
+- Próximo paso seguro: planear Fase 5 antes de implementar cualquier cambio nuevo.
 
 ## 8. Archivos Importantes Creados
 
