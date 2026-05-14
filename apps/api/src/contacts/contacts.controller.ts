@@ -18,49 +18,62 @@ import { CreateContactDto } from './dto/create-contact.dto';
 import { QueryContactsDto } from './dto/query-contacts.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
+import {
+  CRM_DELETE_ROLES,
+  CRM_READ_ROLES,
+  CRM_WRITE_ROLES,
+} from '../auth/constants/role-groups';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+
 @Controller('contacts')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
 
-  @Get()
-  findAll(
-    @CurrentUserDecorator() currentUser: CurrentUser,
-    @Query() query: QueryContactsDto,
-  ) {
-    return this.contactsService.findAll(currentUser, query);
-  }
+ @Get()
+@Roles(...CRM_READ_ROLES)
+findAll(
+  @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: QueryContactsDto,
+) {
+  return this.contactsService.findAll(currentUser, query);
+}
 
-  @Get(':id')
-  findOne(
-    @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.contactsService.findOne(id, currentUser);
-  }
+@Get(':id')
+@Roles(...CRM_READ_ROLES)
+findOne(
+  @Param('id') id: string,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.contactsService.findOne(id, currentUser);
+}
 
-  @Post()
-  create(
-    @Body() dto: CreateContactDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.contactsService.create(dto, currentUser);
-  }
+@Post()
+@Roles(...CRM_WRITE_ROLES)
+create(
+  @Body() dto: CreateContactDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.contactsService.create(dto, currentUser);
+}
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateContactDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.contactsService.update(id, dto, currentUser);
-  }
+@Patch(':id')
+@Roles(...CRM_WRITE_ROLES)
+update(
+  @Param('id') id: string,
+  @Body() dto: UpdateContactDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.contactsService.update(id, dto, currentUser);
+}
 
-  @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.contactsService.remove(id, currentUser);
-  }
+@Delete(':id')
+@Roles(...CRM_DELETE_ROLES)
+remove(
+  @Param('id') id: string,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.contactsService.remove(id, currentUser);
+}
 }

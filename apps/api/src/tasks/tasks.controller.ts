@@ -17,49 +17,62 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 
+import {
+  CRM_DELETE_ROLES,
+  CRM_READ_ROLES,
+  CRM_WRITE_ROLES,
+} from '../auth/constants/role-groups';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+
 @Controller('tasks')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  findAll(
-    @CurrentUserDecorator() currentUser: CurrentUser,
-    @Query() query: QueryTasksDto,
-  ) {
-    return this.tasksService.findAll(currentUser, query);
-  }
+@Roles(...CRM_READ_ROLES)
+findAll(
+  @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: QueryTasksDto,
+) {
+  return this.tasksService.findAll(currentUser, query);
+}
 
-  @Get(':id')
-  findOne(
-    @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.tasksService.findOne(id, currentUser);
-  }
+@Get(':id')
+@Roles(...CRM_READ_ROLES)
+findOne(
+  @Param('id') id: string,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.tasksService.findOne(id, currentUser);
+}
 
-  @Post()
-  create(
-    @Body() dto: CreateTaskDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.tasksService.create(dto, currentUser);
-  }
+@Post()
+@Roles(...CRM_WRITE_ROLES)
+create(
+  @Body() dto: CreateTaskDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.tasksService.create(dto, currentUser);
+}
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateTaskDto,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.tasksService.update(id, dto, currentUser);
-  }
+@Patch(':id')
+@Roles(...CRM_WRITE_ROLES)
+update(
+  @Param('id') id: string,
+  @Body() dto: UpdateTaskDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.tasksService.update(id, dto, currentUser);
+}
 
-  @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @CurrentUserDecorator() currentUser: CurrentUser,
-  ) {
-    return this.tasksService.remove(id, currentUser);
-  }
+@Delete(':id')
+@Roles(...CRM_DELETE_ROLES)
+remove(
+  @Param('id') id: string,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.tasksService.remove(id, currentUser);
+}
 }

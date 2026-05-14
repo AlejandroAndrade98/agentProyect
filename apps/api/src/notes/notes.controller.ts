@@ -17,12 +17,21 @@ import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { QueryNotesDto } from './dto/query-notes.dto';
 
+import {
+  CRM_DELETE_ROLES,
+  CRM_READ_ROLES,
+  CRM_WRITE_ROLES,
+} from '../auth/constants/role-groups';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+
 @Controller('notes')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
 @Get()
+@Roles(...CRM_READ_ROLES)
 findAll(
   @CurrentUserDecorator() currentUser: CurrentUser,
   @Query() query: QueryNotesDto,
@@ -31,6 +40,7 @@ findAll(
 }
 
   @Get(':id')
+  @Roles(...CRM_READ_ROLES)
   findOne(
     @Param('id') id: string,
     @CurrentUserDecorator() currentUser: CurrentUser,
@@ -39,6 +49,7 @@ findAll(
   }
 
   @Post()
+  @Roles(...CRM_WRITE_ROLES)
   create(
     @Body() dto: CreateNoteDto,
     @CurrentUserDecorator() currentUser: CurrentUser,
@@ -47,6 +58,7 @@ findAll(
   }
 
   @Patch(':id')
+  @Roles(...CRM_WRITE_ROLES)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateNoteDto,
@@ -56,6 +68,7 @@ findAll(
   }
 
   @Delete(':id')
+  @Roles(...CRM_DELETE_ROLES)
   remove(
     @Param('id') id: string,
     @CurrentUserDecorator() currentUser: CurrentUser,
