@@ -10,6 +10,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { ProductsModule } from './products/products.module';
 import { LeadsModule } from './leads/leads.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { LeadsModule } from './leads/leads.module';
     ContactsModule,
     ProductsModule,
     LeadsModule,
+    TasksModule,
   ],
   controllers: [],
   providers: [],

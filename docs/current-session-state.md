@@ -367,6 +367,74 @@ Resultado:
 - Leads API queda lista como cuarto módulo comercial base del CRM.
 - Próximo paso seguro: planear Fase 4.5 Tasks API.
 
+## Fase 4.5: Tasks API
+
+Estado: completado, validado en build y validado en runtime.
+
+Objetivo:
+- Implementar el quinto módulo comercial real del CRM.
+- Crear CRUD base para tareas.
+- Validar protección con JWT.
+- Aplicar filtrado multi-tenant usando `currentUser.organizationId`.
+- Validar relaciones opcionales con `Lead`, `Contact` y `User`.
+
+Archivos creados:
+- `apps/api/src/tasks/tasks.module.ts`
+- `apps/api/src/tasks/tasks.controller.ts`
+- `apps/api/src/tasks/tasks.service.ts`
+- `apps/api/src/tasks/dto/create-task.dto.ts`
+- `apps/api/src/tasks/dto/update-task.dto.ts`
+
+Archivos modificados:
+- `apps/api/src/app.module.ts`
+- `docs/current-session-state.md`
+
+Endpoints implementados:
+- `GET /api/tasks`
+- `GET /api/tasks/:id`
+- `POST /api/tasks`
+- `PATCH /api/tasks/:id`
+- `DELETE /api/tasks/:id`
+
+Reglas aplicadas:
+- Todos los endpoints protegidos con `JwtAuthGuard`.
+- Uso de `@CurrentUser()`.
+- Nunca se recibe `organizationId` desde body, params o query.
+- Las consultas usan `currentUser.organizationId`.
+- Las lecturas filtran por `deletedAt: null`.
+- `DELETE` usa soft delete con `deletedAt: new Date()`.
+- No se devuelven relaciones todavía.
+- No se implementó archive/restore.
+- No se implementó IA.
+- No se modificó `schema.prisma`.
+
+Reglas especiales de relaciones:
+- `leadId` es opcional.
+- Si se envía `leadId`, se valida que el lead exista dentro del mismo `organizationId` y no esté eliminado.
+- `contactId` es opcional.
+- Si se envía `contactId`, se valida que el contacto exista dentro del mismo `organizationId` y no esté eliminado.
+- `assignedToUserId` es opcional.
+- Si se envía `assignedToUserId`, se valida que el usuario exista dentro del mismo `organizationId`, esté activo y no esté eliminado.
+
+Validaciones realizadas:
+- `pnpm build` exitoso.
+- `GET /api/tasks` sin token devuelve `401`.
+- `POST /api/tasks` crea una tarea correctamente.
+- `POST /api/tasks` con `leadId`, `contactId` y `assignedToUserId` válidos crea una tarea relacionada con entidades del mismo tenant.
+- `GET /api/tasks` lista tareas del tenant autenticado.
+- `GET /api/tasks/:id` consulta una tarea por ID.
+- `PATCH /api/tasks/:id` actualiza una tarea.
+- `POST /api/tasks` con `leadId` inexistente devuelve `404`.
+- `POST /api/tasks` con `contactId` inexistente devuelve `404`.
+- `POST /api/tasks` con `assignedToUserId` inexistente devuelve `404`.
+- `POST /api/tasks` con `organizationId` en body devuelve `400`.
+- `DELETE /api/tasks/:id` aplica soft delete y devuelve `deletedAt`.
+- Luego del soft delete, `GET /api/tasks/:id` devuelve `404`.
+
+Resultado:
+- Tasks API queda lista como quinto módulo comercial base del CRM.
+- Próximo paso seguro: planear Fase 4.6 Notes API.
+
 ## 8. Archivos Importantes Creados
 
 Archivos base del monorepo:
