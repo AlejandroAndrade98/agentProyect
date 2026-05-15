@@ -25,6 +25,8 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
+import { NoteIncludeQueryDto } from './dto/note-include-query.dto';
+
 @Controller('notes')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotesController {
@@ -44,8 +46,9 @@ findAll(
   findOne(
     @Param('id') id: string,
     @CurrentUserDecorator() currentUser: CurrentUser,
+    @Query() query: NoteIncludeQueryDto,
   ) {
-    return this.notesService.findOne(id, currentUser);
+    return this.notesService.findOne(id, currentUser, query);
   }
 
   @Post()

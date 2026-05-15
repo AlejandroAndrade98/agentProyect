@@ -25,6 +25,8 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
+import { TaskIncludeQueryDto } from './dto/task-include-query.dto';
+
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
@@ -44,8 +46,9 @@ findAll(
 findOne(
   @Param('id') id: string,
   @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: TaskIncludeQueryDto,
 ) {
-  return this.tasksService.findOne(id, currentUser);
+  return this.tasksService.findOne(id, currentUser, query);
 }
 
 @Post()

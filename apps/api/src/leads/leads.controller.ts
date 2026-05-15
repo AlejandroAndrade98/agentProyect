@@ -17,6 +17,8 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { QueryLeadsDto } from './dto/query-leads.dto';
 
+import { LeadIncludeQueryDto } from './dto/lead-include-query.dto';
+
 import {
   CRM_DELETE_ROLES,
   CRM_READ_ROLES,
@@ -44,8 +46,9 @@ findAll(
 findOne(
   @Param('id') id: string,
   @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: LeadIncludeQueryDto,
 ) {
-  return this.leadsService.findOne(id, currentUser);
+  return this.leadsService.findOne(id, currentUser, query);
 }
 
 @Post()

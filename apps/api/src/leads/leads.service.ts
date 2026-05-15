@@ -13,6 +13,9 @@ import {
 } from '../common/utils/pagination.util';
 import { QueryLeadsDto } from './dto/query-leads.dto';
 
+import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
+import { LeadIncludeQueryDto } from './dto/lead-include-query.dto';
+
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -91,21 +94,73 @@ async findAll(currentUser: CurrentUser, query: QueryLeadsDto) {
   return buildPaginatedResult(data, total, page, pageSize);
 }
 
-  async findOne(id: string, currentUser: CurrentUser) {
-    const lead = await this.prisma.lead.findFirst({
-      where: {
-        id,
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-    });
+async findOne(
+  id: string,
+  currentUser: CurrentUser,
+  query?: LeadIncludeQueryDto,
+) {
+  const includes = parseIncludeParam(query?.include, [
+    'company',
+    'contact',
+    'assignedUser',
+    'tasks',
+    'notes',
+  ] as const);
 
-    if (!lead) {
-      throw new NotFoundException('Lead not found');
-    }
+  const lead = await this.prisma.lead.findFirst({
+    where: {
+      id,
+      organizationId: currentUser.organizationId,
+      deletedAt: null,
+    },
+    include: {
+      company: hasInclude(includes, 'company'),
+      contact: hasInclude(includes, 'contact'),
+      user: hasInclude(includes, 'assignedUser')
+        ? {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              organizationId: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }
+        : false,
+      tasks: hasInclude(includes, 'tasks')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+      linkedNotes: hasInclude(includes, 'notes')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+    },
+  });
 
-    return lead;
+  if (!lead) {
+    throw new NotFoundException('Lead not found');
   }
+
+  return lead;
+}
 
   async create(dto: CreateLeadDto, currentUser: CurrentUser) {
     await this.validateRelations(dto, currentUser.organizationId);

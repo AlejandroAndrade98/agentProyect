@@ -13,6 +13,9 @@ import {
 } from '../common/utils/pagination.util';
 import { QueryContactsDto } from './dto/query-contacts.dto';
 
+import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
+import { ContactIncludeQueryDto } from './dto/contact-include-query.dto';
+
 @Injectable()
 export class ContactsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -133,21 +136,68 @@ async findAll(currentUser: CurrentUser, query: QueryContactsDto) {
   return buildPaginatedResult(data, total, page, pageSize);
 }
 
-  async findOne(id: string, currentUser: CurrentUser) {
-    const contact = await this.prisma.contact.findFirst({
-      where: {
-        id,
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-    });
+  async findOne(
+  id: string,
+  currentUser: CurrentUser,
+  query?: ContactIncludeQueryDto,
+) {
+  const includes = parseIncludeParam(query?.include, [
+    'company',
+    'leads',
+    'tasks',
+    'notes',
+  ] as const);
 
-    if (!contact) {
-      throw new NotFoundException('Contact not found');
-    }
+  const contact = await this.prisma.contact.findFirst({
+    where: {
+      id,
+      organizationId: currentUser.organizationId,
+      deletedAt: null,
+    },
+    include: {
+      company: hasInclude(includes, 'company'),
+      leads: hasInclude(includes, 'leads')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+      tasks: hasInclude(includes, 'tasks')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+      linkedNotes: hasInclude(includes, 'notes')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+    },
+  });
 
-    return contact;
+  if (!contact) {
+    throw new NotFoundException('Contact not found');
   }
+
+  return contact;
+}
 
   async create(dto: CreateContactDto, currentUser: CurrentUser) {
     if (dto.companyId) {

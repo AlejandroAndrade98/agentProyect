@@ -13,6 +13,9 @@ import {
 } from '../common/utils/pagination.util';
 import { QueryNotesDto } from './dto/query-notes.dto';
 
+import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
+import { NoteIncludeQueryDto } from './dto/note-include-query.dto';
+
 @Injectable()
 export class NotesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -79,12 +82,42 @@ async findAll(currentUser: CurrentUser, query: QueryNotesDto) {
   return buildPaginatedResult(data, total, page, pageSize);
 }
 
-  async findOne(id: string, currentUser: CurrentUser) {
+  async findOne(
+    id: string,
+    currentUser: CurrentUser,
+    query?: NoteIncludeQueryDto,
+  ) {
+    const includes = parseIncludeParam(query?.include, [
+      'company',
+      'contact',
+      'lead',
+      'createdBy',
+    ] as const);
+
     const note = await this.prisma.note.findFirst({
       where: {
         id,
         organizationId: currentUser.organizationId,
         deletedAt: null,
+      },
+      include: {
+        company: hasInclude(includes, 'company'),
+        contact: hasInclude(includes, 'contact'),
+        lead: hasInclude(includes, 'lead'),
+        createdBy: hasInclude(includes, 'createdBy')
+          ? {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                organizationId: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            }
+          : false,
       },
     });
 

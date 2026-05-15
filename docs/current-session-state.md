@@ -262,3 +262,91 @@ Smoke test final:
 
 Resultado:
 - Fase 6 Roles & Permissions queda cerrada.
+
+## Fase 7, Response Shaping & Relations
+
+Estado: completada, validada en build y validada en runtime.
+
+Objetivo:
+- Permitir que endpoints detail devuelvan relaciones controladas mediante query param `include`.
+- Evitar respuestas pesadas por defecto.
+- Mantener respuesta plana cuando no se pide `include`.
+- Ignorar includes no permitidos sin fallar.
+- Mantener protección multi-tenant.
+- Mantener `JwtAuthGuard`, `RolesGuard` y `@Roles()`.
+- No modificar schema Prisma.
+- No instalar dependencias nuevas.
+- No tocar frontend todavía.
+
+Base común creada:
+- `apps/api/src/common/utils/include.util.ts`
+
+Funciones creadas:
+- `parseIncludeParam`
+- `hasInclude`
+
+Módulos actualizados:
+- Companies.
+- Contacts.
+- Leads.
+- Tasks.
+- Notes.
+
+DTOs creados:
+- `apps/api/src/companies/dto/company-include-query.dto.ts`
+- `apps/api/src/contacts/dto/contact-include-query.dto.ts`
+- `apps/api/src/leads/dto/lead-include-query.dto.ts`
+- `apps/api/src/tasks/dto/task-include-query.dto.ts`
+- `apps/api/src/notes/dto/note-include-query.dto.ts`
+
+Includes implementados:
+
+Companies:
+- `contacts`
+- `leads`
+- `notes`, devuelto como `linkedNotes`
+
+Contacts:
+- `company`
+- `leads`
+- `tasks`
+- `notes`, devuelto como `linkedNotes`
+
+Leads:
+- `company`
+- `contact`
+- `assignedUser`, devuelto como `user`
+- `tasks`
+- `notes`, devuelto como `linkedNotes`
+
+Tasks:
+- `lead`
+- `contact`
+- `assignedUser`, devuelto como `user`
+
+Notes:
+- `company`
+- `contact`
+- `lead`
+- `createdBy`
+
+Reglas de seguridad:
+- Usuarios relacionados se devuelven con `select` seguro.
+- `passwordHash` no aparece en respuestas.
+- Includes inválidos se ignoran.
+- Relaciones de listas usan `take: 20`.
+- Relaciones de listas filtran `deletedAt: null`.
+- Endpoints detail siguen filtrando por `organizationId` y `deletedAt: null`.
+
+Validación final:
+- `pnpm build` exitoso.
+- Companies include -> OK.
+- Contacts include -> OK.
+- Leads include -> OK.
+- Tasks include -> OK.
+- Notes include -> OK.
+- Invalid include ignored -> OK.
+- Cleanup temporary task/note -> OK.
+
+Resultado:
+- Fase 7 Response Shaping & Relations queda cerrada.

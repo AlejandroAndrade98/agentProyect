@@ -26,6 +26,8 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
+import { ContactIncludeQueryDto } from './dto/contact-include-query.dto';
+
 @Controller('contacts')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ContactsController {
@@ -45,8 +47,9 @@ findAll(
 findOne(
   @Param('id') id: string,
   @CurrentUserDecorator() currentUser: CurrentUser,
+  @Query() query: ContactIncludeQueryDto,
 ) {
-  return this.contactsService.findOne(id, currentUser);
+  return this.contactsService.findOne(id, currentUser, query);
 }
 
 @Post()

@@ -25,6 +25,8 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { QueryCompaniesDto } from './dto/query-companies.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
+import { CompanyIncludeQueryDto } from './dto/company-include-query.dto';
+
 @Controller('companies')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CompaniesController {
@@ -39,14 +41,15 @@ export class CompaniesController {
     return this.companiesService.findAll(currentUser, query);
   }
 
-  @Get(':id')
-  @Roles(...CRM_READ_ROLES)
-  findOne(
-    @Param('id') id: string,
-    @CurrentUser() currentUser: CurrentUserPayload,
-  ) {
-    return this.companiesService.findOne(id, currentUser);
-  }
+@Get(':id')
+@Roles(...CRM_READ_ROLES)
+findOne(
+  @Param('id') id: string,
+  @CurrentUser() currentUser: CurrentUserPayload,
+  @Query() query: CompanyIncludeQueryDto,
+) {
+  return this.companiesService.findOne(id, currentUser, query);
+}
 
   @Post()
   @Roles(...CRM_WRITE_ROLES)

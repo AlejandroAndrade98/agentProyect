@@ -11,6 +11,9 @@ import {
 } from '../common/utils/pagination.util';
 import { QueryCompaniesDto } from './dto/query-companies.dto';
 
+import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
+import { CompanyIncludeQueryDto } from './dto/company-include-query.dto';
+
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -110,21 +113,66 @@ async findAll(currentUser: CurrentUser, query: QueryCompaniesDto) {
   return buildPaginatedResult(data, total, page, pageSize);
 }
 
-  async findOne(id: string, currentUser: CurrentUser) {
-    const company = await this.prisma.company.findFirst({
-      where: {
-        id,
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-    });
+async findOne(
+  id: string,
+  currentUser: CurrentUser,
+  query?: CompanyIncludeQueryDto,
+) {
+  const includes = parseIncludeParam(query?.include, [
+    'contacts',
+    'leads',
+    'notes',
+  ] as const);
 
-    if (!company) {
-      throw new NotFoundException('Company not found');
-    }
+  const company = await this.prisma.company.findFirst({
+    where: {
+      id,
+      organizationId: currentUser.organizationId,
+      deletedAt: null,
+    },
+    include: {
+      contacts: hasInclude(includes, 'contacts')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+      leads: hasInclude(includes, 'leads')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+      linkedNotes: hasInclude(includes, 'notes')
+        ? {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 20,
+          }
+        : false,
+    },
+  });
 
-    return company;
+  if (!company) {
+    throw new NotFoundException('Company not found');
   }
+
+  return company;
+}
 
   async create(dto: CreateCompanyDto, currentUser: CurrentUser) {
     return this.prisma.company.create({

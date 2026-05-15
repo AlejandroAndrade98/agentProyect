@@ -13,6 +13,9 @@ import {
 } from '../common/utils/pagination.util';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 
+import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
+import { TaskIncludeQueryDto } from './dto/task-include-query.dto';
+
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
@@ -82,21 +85,49 @@ async findAll(currentUser: CurrentUser, query: QueryTasksDto) {
   return buildPaginatedResult(data, total, page, pageSize);
 }
 
-  async findOne(id: string, currentUser: CurrentUser) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id,
-        organizationId: currentUser.organizationId,
-        deletedAt: null,
-      },
-    });
+async findOne(
+  id: string,
+  currentUser: CurrentUser,
+  query?: TaskIncludeQueryDto,
+) {
+  const includes = parseIncludeParam(query?.include, [
+    'lead',
+    'contact',
+    'assignedUser',
+  ] as const);
 
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
+  const task = await this.prisma.task.findFirst({
+    where: {
+      id,
+      organizationId: currentUser.organizationId,
+      deletedAt: null,
+    },
+    include: {
+      lead: hasInclude(includes, 'lead'),
+      contact: hasInclude(includes, 'contact'),
+      user: hasInclude(includes, 'assignedUser')
+        ? {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              organizationId: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }
+        : false,
+    },
+  });
 
-    return task;
+  if (!task) {
+    throw new NotFoundException('Task not found');
   }
+
+  return task;
+}
 
   async create(dto: CreateTaskDto, currentUser: CurrentUser) {
     await this.validateRelations(dto, currentUser.organizationId);
