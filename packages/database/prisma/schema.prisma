@@ -89,6 +89,15 @@ enum EntityType {
   NOTE
 }
 
+enum ActivityEventType {
+  COMPANY_CREATED
+  CONTACT_CREATED
+  LEAD_CREATED
+  TASK_CREATED
+  TASK_COMPLETED
+  NOTE_CREATED
+}
+
 enum InsightType {
   EXPERTISE
   PREFERENCE
@@ -153,6 +162,7 @@ model Organization {
   exportJobs         ExportJob[]
   usageRecords       UsageRecord[]
   auditLogs          AuditLog[]
+  activityEvents     ActivityEvent[]
 }
 
 model User {
@@ -179,6 +189,7 @@ model User {
   reviewedExtractions AiExtraction[]      @relation("AiExtractionReviewedBy")
   approvedInsights    AcceptedAiInsight[] @relation("AcceptedInsightApprovedBy")
   createdNotes        Note[]              @relation("NoteCreatedBy")
+  activityEvents      ActivityEvent[]     @relation("ActivityEventActor")
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -468,6 +479,47 @@ model AuditLog {
   @@index([organizationId])
   @@index([actorUserId])
   @@index([createdAt])
+}
+
+model ActivityEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  type       ActivityEventType
+  entityType EntityType
+  entityId   String
+
+  title       String
+  description String?
+
+  source Source @default(MANUAL)
+
+  actorUserId String?
+  actor       User?   @relation("ActivityEventActor", fields: [actorUserId], references: [id])
+
+  companyId String?
+  contactId String?
+  leadId    String?
+  taskId    String?
+  noteId    String?
+
+  metadataJson Json?
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, type])
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, companyId])
+  @@index([organizationId, contactId])
+  @@index([organizationId, leadId])
+  @@index([organizationId, taskId])
+  @@index([organizationId, noteId])
+  @@index([actorUserId])
 }
 
 model RefreshToken {
