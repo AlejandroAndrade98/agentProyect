@@ -649,3 +649,20 @@ Validación:
 - `type=LEAD_CREATED` -> OK.
 - `passwordHash` oculto -> OK.
 - `pnpm build` -> OK.
+
+## Fase 11.1, Tailwind/env setup
+
+Estado: validada con build.
+
+Cambios:
+- Se instaló Tailwind CSS v3 en `@sales-ai/web`.
+- Se agregaron `postcss` y `autoprefixer`.
+- Se creó `apps/web/tailwind.config.ts`.
+- Se creó `apps/web/postcss.config.js`.
+- Se creó `apps/web/src/app/globals.css`.
+- Se importó `globals.css` en `apps/web/src/app/layout.tsx`.
+- Se agregó `NEXT_PUBLIC_API_URL=http://localhost:4000/api` a `.env.example`.
+- Se creó `apps/web/.env.local` localmente, sin commitearlo.
+
+Validación:
+- `pnpm build` -> OK.

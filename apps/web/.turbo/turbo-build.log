@@ -3,8 +3,12 @@
 > next build
 
   ▲ Next.js 14.2.35
+  - Environments: .env.local
 
    Creating an optimized production build ...
+
+[1m[33mwarn[39m[22m - No utility classes were detected in your source files. If this is unexpected, double-check the `content` option in your Tailwind CSS configuration.
+[1m[33mwarn[39m[22m - https://tailwindcss.com/docs/content-configuration
  ✓ Compiled successfully
    Linting and checking validity of types ...
    Collecting page data ...
@@ -17,12 +21,12 @@
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-┌ ○ /                                    142 B          87.3 kB
+┌ ○ /                                    138 B          87.4 kB
 └ ○ /_not-found                          872 B          88.1 kB
 + First Load JS shared by all            87.2 kB
   ├ chunks/5b8f0dd8-0b7e1dd47e2a464c.js  53.6 kB
   ├ chunks/749-39e755d29f953c93.js       31.7 kB
-  └ other shared chunks (total)          1.84 kB
+  └ other shared chunks (total)          1.86 kB
 
 
 ○  (Static)  prerendered as static content
