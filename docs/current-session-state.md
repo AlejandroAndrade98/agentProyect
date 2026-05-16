@@ -350,3 +350,72 @@ Validación final:
 
 Resultado:
 - Fase 7 Response Shaping & Relations queda cerrada.
+
+## Fase 8.2, ActivityEventsModule + endpoint read-only
+
+Estado: completada y validada en runtime.
+
+Objetivo:
+- Crear endpoint read-only para consultar activity events.
+- No crear eventos todavía desde los CRUDs.
+- No frontend.
+- No IA.
+- No integraciones todavía.
+
+Archivos creados:
+- `apps/api/src/activity-events/activity-events.module.ts`
+- `apps/api/src/activity-events/activity-events.controller.ts`
+- `apps/api/src/activity-events/activity-events.service.ts`
+- `apps/api/src/activity-events/dto/query-activity-events.dto.ts`
+
+Archivo modificado:
+- `apps/api/src/app.module.ts`
+
+Endpoint creado:
+- `GET /api/activity-events`
+
+Seguridad:
+- Usa `JwtAuthGuard`.
+- Usa `RolesGuard`.
+- Usa `@Roles(...CRM_READ_ROLES)`.
+- Permite lectura a roles CRM read: SUPER_ADMIN, OWNER, ADMIN, SALES, VIEWER.
+- Filtra siempre por `organizationId` desde `currentUser`.
+
+Filtros soportados:
+- `type`
+- `entityType`
+- `entityId`
+- `source`
+- `companyId`
+- `contactId`
+- `leadId`
+- `taskId`
+- `noteId`
+- `actorUserId`
+- `from`
+- `to`
+- `search`
+- `page`
+- `pageSize`
+- `sortBy`
+- `sortOrder`
+
+Includes seguros:
+- Incluye `actor` con `select` seguro.
+- No expone `passwordHash`.
+
+Aprendizajes:
+- `ActivityEventsModule` debe importar `DatabaseModule` para resolver `PrismaService`.
+- `ActivityEventsModule` debe importar `AuthModule` para resolver `JwtService` usado por `JwtAuthGuard`.
+- TypeScript en VS Code puede quedar cacheado después de `prisma generate`; `TypeScript: Restart TS Server` corrige falsos errores.
+
+Validación runtime:
+- `GET /api/activity-events` sin token -> 401.
+- `GET /api/activity-events` con token -> OK.
+- `GET /api/activity-events?page=1&pageSize=10` -> OK.
+- `GET /api/activity-events?type=NOTE_CREATED` -> OK.
+- `GET /api/activity-events?type=INVALID` -> 400.
+- `GET /api/activity-events?page=0` -> 400.
+
+Resultado:
+- Fase 8.2 ActivityEventsModule + endpoint read-only queda cerrada.
