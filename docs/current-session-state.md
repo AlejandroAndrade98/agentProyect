@@ -688,3 +688,26 @@ Cambios:
 Validación:
 - `POST /api/auth/login` devuelve `accessToken`, `refreshToken` y `user`.
 - `pnpm build` -> OK.
+
+## Fase 11.3, AuthProvider/useAuth + login page
+
+Estado: validada en runtime.
+
+Cambios:
+- Se creó `AuthContext`.
+- Se creó hook `useAuth`.
+- Se creó `LoginForm`.
+- Se creó página `/login`.
+- Se actualizó `RootLayout` para envolver la app con `AuthProvider`.
+- Se actualizó `/` para redirigir a `/login`.
+- Se habilitó CORS en `apps/api/src/main.ts` usando `CORS_ORIGIN`.
+
+Validación:
+- `/login` carga correctamente.
+- Password incorrecto muestra error.
+- Password correcto ejecuta login y redirige a `/dashboard`.
+- CORS preflight responde `204` con `Access-Control-Allow-Origin: http://localhost:3000`.
+- `pnpm build` -> OK.
+
+Nota:
+- `/dashboard` puede responder 404 hasta implementar Fase 11.4.
