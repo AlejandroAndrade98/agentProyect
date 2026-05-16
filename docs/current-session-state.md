@@ -419,3 +419,38 @@ Validación runtime:
 
 Resultado:
 - Fase 8.2 ActivityEventsModule + endpoint read-only queda cerrada.
+
+## Fase 8.3, ActivityEvents helper + Companies
+
+Estado: validada en runtime.
+
+Cambios:
+- ActivityEventsService ahora tiene helper interno para construir y crear eventos.
+- CompaniesService crea evento `COMPANY_CREATED` al crear una company.
+- Company y ActivityEvent se crean en la misma transaction.
+- ActivityEventsModule ya se puede reutilizar desde módulos CRM.
+
+Validación:
+- Crear company temporal -> OK.
+- Se creó ActivityEvent `COMPANY_CREATED` -> OK.
+- Filtro por `companyId` -> OK.
+- Filtro por `type=COMPANY_CREATED` -> OK.
+- `actor` no expone `passwordHash` -> OK.
+- Cleanup de company temporal con soft delete -> OK.
+
+## Fase 8.4, Contacts activity events
+
+Estado: validada en runtime.
+
+Cambios:
+- ContactsService crea evento `CONTACT_CREATED` al crear un contact.
+- Contact y ActivityEvent se crean en la misma transaction.
+- Se conserva validación tenant-aware de `companyId`.
+
+Validación:
+- Crear contact temporal -> OK.
+- Se creó ActivityEvent `CONTACT_CREATED` -> OK.
+- Filtro por `contactId` -> OK.
+- Filtro por `type=CONTACT_CREATED` -> OK.
+- `actor` no expone `passwordHash` -> OK.
+- Cleanup de contact temporal con soft delete -> OK.

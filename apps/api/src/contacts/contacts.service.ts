@@ -4,7 +4,7 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
-import { Prisma } from '@prisma/client';
+import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
 
 import {
   buildPaginatedResult,
@@ -15,10 +15,14 @@ import { QueryContactsDto } from './dto/query-contacts.dto';
 
 import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { ContactIncludeQueryDto } from './dto/contact-include-query.dto';
+import { ActivityEventsService } from '../activity-events/activity-events.service';
 
 @Injectable()
 export class ContactsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityEventsService: ActivityEventsService,
+  ) {}
 
 async findAll(currentUser: CurrentUser, query: QueryContactsDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -199,21 +203,46 @@ async findAll(currentUser: CurrentUser, query: QueryContactsDto) {
   return contact;
 }
 
-  async create(dto: CreateContactDto, currentUser: CurrentUser) {
+async create(dto: CreateContactDto, currentUser: CurrentUser) {
+  return this.prisma.$transaction(async (tx) => {
     if (dto.companyId) {
-      await this.validateCompanyBelongsToOrganization(
-        dto.companyId,
-        currentUser.organizationId,
-      );
+      const company = await tx.company.findFirst({
+        where: {
+          id: dto.companyId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!company) {
+        throw new NotFoundException('Company not found');
+      }
     }
 
-    return this.prisma.contact.create({
+    const contact = await tx.contact.create({
       data: {
         ...dto,
         organizationId: currentUser.organizationId,
       },
     });
-  }
+
+    await tx.activityEvent.create({
+      data: this.activityEventsService.buildCreateData(currentUser, {
+        type: ActivityEventType.CONTACT_CREATED,
+        entityType: EntityType.CONTACT,
+        entityId: contact.id,
+        title: `Contact created: ${contact.firstName} ${contact.lastName}`,
+        description: contact.notes ?? undefined,
+        source: contact.source,
+        companyId: contact.companyId ?? undefined,
+        contactId: contact.id,
+        occurredAt: contact.createdAt,
+      }),
+    });
+
+    return contact;
+  });
+}
 
   async update(id: string, dto: UpdateContactDto, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);
