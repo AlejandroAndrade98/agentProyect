@@ -454,3 +454,20 @@ Validación:
 - Filtro por `type=CONTACT_CREATED` -> OK.
 - `actor` no expone `passwordHash` -> OK.
 - Cleanup de contact temporal con soft delete -> OK.
+
+## Fase 8.5, Leads activity events
+
+Estado: validada en runtime.
+
+Cambios:
+- LeadsService crea evento `LEAD_CREATED` al crear un lead.
+- Lead y ActivityEvent se crean en la misma transaction.
+- Se conservan validaciones tenant-aware de `companyId`, `contactId` y `assignedToUserId`.
+
+Validación:
+- Crear lead temporal -> OK.
+- Se creó ActivityEvent `LEAD_CREATED` -> OK.
+- Filtro por `leadId` -> OK.
+- Filtro por `type=LEAD_CREATED` -> OK.
+- `actor` no expone `passwordHash` -> OK.
+- Cleanup de lead temporal con soft delete -> OK.

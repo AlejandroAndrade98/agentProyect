@@ -4,7 +4,7 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 
-import { Prisma } from '@prisma/client';
+import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
 
 import {
   buildPaginatedResult,
@@ -15,10 +15,14 @@ import { QueryLeadsDto } from './dto/query-leads.dto';
 
 import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { LeadIncludeQueryDto } from './dto/lead-include-query.dto';
+import { ActivityEventsService } from '../activity-events/activity-events.service';
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityEventsService: ActivityEventsService,
+  ) {}
 
 async findAll(currentUser: CurrentUser, query: QueryLeadsDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -162,16 +166,76 @@ async findOne(
   return lead;
 }
 
-  async create(dto: CreateLeadDto, currentUser: CurrentUser) {
-    await this.validateRelations(dto, currentUser.organizationId);
+async create(dto: CreateLeadDto, currentUser: CurrentUser) {
+  return this.prisma.$transaction(async (tx) => {
+    if (dto.companyId) {
+      const company = await tx.company.findFirst({
+        where: {
+          id: dto.companyId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
 
-    return this.prisma.lead.create({
+      if (!company) {
+        throw new NotFoundException('Company not found');
+      }
+    }
+
+    if (dto.contactId) {
+      const contact = await tx.contact.findFirst({
+        where: {
+          id: dto.contactId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!contact) {
+        throw new NotFoundException('Contact not found');
+      }
+    }
+
+    if (dto.assignedToUserId) {
+      const assignedUser = await tx.user.findFirst({
+        where: {
+          id: dto.assignedToUserId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+          isActive: true,
+        },
+      });
+
+      if (!assignedUser) {
+        throw new NotFoundException('Assigned user not found');
+      }
+    }
+
+    const lead = await tx.lead.create({
       data: {
         ...dto,
         organizationId: currentUser.organizationId,
       },
     });
-  }
+
+    await tx.activityEvent.create({
+      data: this.activityEventsService.buildCreateData(currentUser, {
+        type: ActivityEventType.LEAD_CREATED,
+        entityType: EntityType.LEAD,
+        entityId: lead.id,
+        title: `Lead created: ${lead.title}`,
+        description: lead.description ?? undefined,
+        source: lead.source,
+        companyId: lead.companyId ?? undefined,
+        contactId: lead.contactId ?? undefined,
+        leadId: lead.id,
+        occurredAt: lead.createdAt,
+      }),
+    });
+
+    return lead;
+  });
+}
 
   async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);
