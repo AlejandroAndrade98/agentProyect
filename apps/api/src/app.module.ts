@@ -13,6 +13,7 @@ import { LeadsModule } from './leads/leads.module';
 import { TasksModule } from './tasks/tasks.module';
 import { NotesModule } from './notes/notes.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ActivityEventsModule } from './activity-events/activity-events.module';
     TasksModule,
     NotesModule,
     ActivityEventsModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [],
