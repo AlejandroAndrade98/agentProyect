@@ -534,3 +534,44 @@ Resultado:
   - Tasks crea `TASK_CREATED`.
   - Notes crea `NOTE_CREATED`.
 - `TASK_COMPLETED` queda pendiente para fase futura enfocada en cambios de estado/update.
+
+## Fase 9.1, TASK_COMPLETED activity event
+
+Estado: validada en runtime.
+
+Cambios:
+- TasksService crea evento `TASK_COMPLETED` cuando una task cambia a `COMPLETED`.
+- Si la task ya estaba `COMPLETED`, no duplica el evento.
+- Si una task pasa a `COMPLETED`, se setea `completedAt`.
+- Si una task sale de `COMPLETED`, se limpia `completedAt`.
+- Se conserva actor seguro sin `passwordHash`.
+
+Validación:
+- Crear task temporal -> OK.
+- PATCH status `COMPLETED` -> `completedAt` set OK.
+- ActivityEvent `TASK_COMPLETED` -> OK.
+- Repetir PATCH `COMPLETED` -> no duplica OK.
+- PATCH status `TODO` -> `completedAt` null OK.
+- Cleanup task temporal -> OK.
+
+## Fase 9.2, LEAD_STATUS_CHANGED activity event
+
+Estado: validada en runtime.
+
+Cambios:
+- Se agregó `LEAD_STATUS_CHANGED` al enum `ActivityEventType`.
+- Migration creada: `20260516185327_add_lead_status_changed_activity_event`.
+- LeadsService crea evento `LEAD_STATUS_CHANGED` cuando un lead cambia realmente de status.
+- No crea evento si el status enviado es igual al actual.
+- No crea evento si el PATCH no incluye `status`.
+- `metadataJson` guarda `previousStatus` y `newStatus`.
+- Se conserva actor seguro sin `passwordHash`.
+
+Validación:
+- Crear lead temporal -> OK.
+- PATCH `NEW` a `CONTACTED` -> OK.
+- ActivityEvent `LEAD_STATUS_CHANGED` -> OK.
+- Metadata `previousStatus/newStatus` -> OK.
+- Repetir mismo status -> no duplica OK.
+- PATCH sin status -> no crea evento OK.
+- Cleanup lead temporal -> OK.

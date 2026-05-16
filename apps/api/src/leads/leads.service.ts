@@ -237,17 +237,46 @@ async create(dto: CreateLeadDto, currentUser: CurrentUser) {
   });
 }
 
-  async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
-    await this.findOne(id, currentUser);
-    await this.validateRelations(dto, currentUser.organizationId);
+async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
+  const existingLead = await this.findOne(id, currentUser);
 
-    return this.prisma.lead.update({
+  await this.validateRelations(dto, currentUser.organizationId);
+
+  const statusChanged =
+    dto.status !== undefined && dto.status !== existingLead.status;
+
+  return this.prisma.$transaction(async (tx) => {
+    const lead = await tx.lead.update({
       where: {
         id,
       },
       data: dto,
     });
-  }
+
+    if (statusChanged) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.LEAD_STATUS_CHANGED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: `Lead status changed: ${lead.title}`,
+          description: `Status changed from ${existingLead.status} to ${lead.status}`,
+          source: lead.source,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: lead.updatedAt,
+          metadataJson: {
+            previousStatus: existingLead.status,
+            newStatus: lead.status,
+          },
+        }),
+      });
+    }
+
+    return lead;
+  });
+}
 
   async remove(id: string, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);

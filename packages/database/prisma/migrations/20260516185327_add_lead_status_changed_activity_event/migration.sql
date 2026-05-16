@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ActivityEventType" ADD VALUE 'LEAD_STATUS_CHANGED';
