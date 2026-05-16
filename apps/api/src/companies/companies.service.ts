@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
-import { Prisma } from '@prisma/client';
+import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
 import {
   buildPaginatedResult,
   getPaginationParams,
@@ -14,9 +14,14 @@ import { QueryCompaniesDto } from './dto/query-companies.dto';
 import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { CompanyIncludeQueryDto } from './dto/company-include-query.dto';
 
+import { ActivityEventsService } from '../activity-events/activity-events.service';
+
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityEventsService: ActivityEventsService,
+  ) {}
 
 async findAll(currentUser: CurrentUser, query: QueryCompaniesDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -174,14 +179,31 @@ async findOne(
   return company;
 }
 
-  async create(dto: CreateCompanyDto, currentUser: CurrentUser) {
-    return this.prisma.company.create({
+async create(createCompanyDto: CreateCompanyDto, currentUser: CurrentUser) {
+  return this.prisma.$transaction(async (tx) => {
+    const company = await tx.company.create({
       data: {
-        ...dto,
+        ...createCompanyDto,
         organizationId: currentUser.organizationId,
       },
     });
-  }
+
+    await tx.activityEvent.create({
+      data: this.activityEventsService.buildCreateData(currentUser, {
+        type: ActivityEventType.COMPANY_CREATED,
+        entityType: EntityType.COMPANY,
+        entityId: company.id,
+        title: `Company created: ${company.name}`,
+        description: company.notes ?? undefined,
+        source: company.source,
+        companyId: company.id,
+        occurredAt: company.createdAt,
+      }),
+    });
+
+    return company;
+  });
+}
 
   async update(id: string, dto: UpdateCompanyDto, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);

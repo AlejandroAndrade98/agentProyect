@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  ActivityEventType,
+  EntityType,
+  Prisma,
+  Source,
+} from '@prisma/client';
 
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import {
@@ -10,9 +15,60 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { QueryActivityEventsDto } from './dto/query-activity-events.dto';
 
+
+export type CreateActivityEventInput = {
+  type: ActivityEventType;
+  entityType: EntityType;
+  entityId: string;
+  title: string;
+  description?: string;
+  source?: Source;
+  actorUserId?: string | null;
+  companyId?: string;
+  contactId?: string;
+  leadId?: string;
+  taskId?: string;
+  noteId?: string;
+  metadataJson?: Prisma.InputJsonValue;
+  occurredAt?: Date;
+};
+
 @Injectable()
 export class ActivityEventsService {
   constructor(private readonly prisma: PrismaService) {}
+
+    buildCreateData(
+    currentUser: CurrentUser,
+    input: CreateActivityEventInput,
+  ): Prisma.ActivityEventUncheckedCreateInput {
+    return {
+      organizationId: currentUser.organizationId,
+      type: input.type,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      title: input.title,
+      description: input.description,
+      source: input.source ?? Source.MANUAL,
+      actorUserId:
+        input.actorUserId === undefined ? currentUser.id : input.actorUserId,
+      companyId: input.companyId,
+      contactId: input.contactId,
+      leadId: input.leadId,
+      taskId: input.taskId,
+      noteId: input.noteId,
+      metadataJson: input.metadataJson,
+      occurredAt: input.occurredAt ?? new Date(),
+    };
+  }
+
+  async createEvent(
+    currentUser: CurrentUser,
+    input: CreateActivityEventInput,
+  ) {
+    return this.prisma.activityEvent.create({
+      data: this.buildCreateData(currentUser, input),
+    });
+  }
 
   async findAll(currentUser: CurrentUser, query: QueryActivityEventsDto) {
     const { skip, take, page, pageSize } = getPaginationParams(query);
