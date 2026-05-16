@@ -489,3 +489,20 @@ Validación:
 - Filtro por `type=TASK_CREATED` -> OK.
 - `actor` no expone `passwordHash` -> OK.
 - Cleanup de task temporal con soft delete -> OK.
+
+## Fase 8.7, Notes activity events
+
+Estado: validada en runtime.
+
+Cambios:
+- NotesService crea evento `NOTE_CREATED` al crear una note.
+- Note y ActivityEvent se crean en la misma transaction.
+- Se conservan validaciones tenant-aware de `companyId`, `contactId` y `leadId`.
+
+Validación:
+- Crear note temporal -> OK.
+- Se creó ActivityEvent `NOTE_CREATED` -> OK.
+- Filtro por `noteId` -> OK.
+- Filtro por `type=NOTE_CREATED` -> OK.
+- `actor` no expone `passwordHash` -> OK.
+- Cleanup de note temporal con soft delete -> OK.
