@@ -222,6 +222,16 @@ async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
   const leftCompleted =
     wasCompleted && statusIsChanging && dto.status !== TaskStatus.COMPLETED;
 
+  const statusChanged =
+  dto.status !== undefined && dto.status !== existingTask.status;
+
+  const shouldCreateTaskStatusChanged =
+    statusChanged && !becameCompleted;
+
+  const assignedUserChanged =
+    dto.assignedToUserId !== undefined &&
+    dto.assignedToUserId !== existingTask.assignedToUserId;  
+
   const updateData: Prisma.TaskUpdateInput = {
     ...dto,
   };
@@ -242,30 +252,75 @@ async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
       data: updateData,
     });
 
-    if (becameCompleted) {
-      await tx.activityEvent.create({
-        data: this.activityEventsService.buildCreateData(currentUser, {
-          type: ActivityEventType.TASK_COMPLETED,
-          entityType: EntityType.TASK,
-          entityId: task.id,
-          title: `Task completed: ${task.title}`,
-          description: task.description ?? undefined,
-          source: undefined,
-          contactId: task.contactId ?? undefined,
-          leadId: task.leadId ?? undefined,
-          taskId: task.id,
-          occurredAt: task.completedAt ?? new Date(),
-          metadataJson: {
-            previousStatus: existingTask.status,
-            newStatus: task.status,
-            completedAt: task.completedAt,
-            priority: task.priority,
-          },
-        }),
-      });
-    }
+if (becameCompleted) {
+  await tx.activityEvent.create({
+    data: this.activityEventsService.buildCreateData(currentUser, {
+      type: ActivityEventType.TASK_COMPLETED,
+      entityType: EntityType.TASK,
+      entityId: task.id,
+      title: `Task completed: ${task.title}`,
+      description: task.description ?? undefined,
+      source: undefined,
+      contactId: task.contactId ?? undefined,
+      leadId: task.leadId ?? undefined,
+      taskId: task.id,
+      occurredAt: task.completedAt ?? new Date(),
+      metadataJson: {
+        previousStatus: existingTask.status,
+        newStatus: task.status,
+        completedAt: task.completedAt,
+        priority: task.priority,
+      },
+    }),
+  });
+}
 
-    return task;
+if (shouldCreateTaskStatusChanged) {
+  await tx.activityEvent.create({
+    data: this.activityEventsService.buildCreateData(currentUser, {
+      type: ActivityEventType.TASK_STATUS_CHANGED,
+      entityType: EntityType.TASK,
+      entityId: task.id,
+      title: `Task status changed: ${task.title}`,
+      description: `Status changed from ${existingTask.status} to ${task.status}`,
+      source: undefined,
+      contactId: task.contactId ?? undefined,
+      leadId: task.leadId ?? undefined,
+      taskId: task.id,
+      occurredAt: task.updatedAt,
+      metadataJson: {
+        previousStatus: existingTask.status,
+        newStatus: task.status,
+        completedAt: task.completedAt,
+        priority: task.priority,
+      },
+    }),
+  });
+}
+
+if (assignedUserChanged) {
+  await tx.activityEvent.create({
+    data: this.activityEventsService.buildCreateData(currentUser, {
+      type: ActivityEventType.TASK_ASSIGNED,
+      entityType: EntityType.TASK,
+      entityId: task.id,
+      title: `Task assigned: ${task.title}`,
+      description: 'Task assignment changed',
+      source: undefined,
+      contactId: task.contactId ?? undefined,
+      leadId: task.leadId ?? undefined,
+      taskId: task.id,
+      occurredAt: task.updatedAt,
+      metadataJson: {
+        previousAssignedToUserId: existingTask.assignedToUserId,
+        newAssignedToUserId: task.assignedToUserId,
+      },
+    }),
+  });
+}
+
+return task;
+
   });
 }
 

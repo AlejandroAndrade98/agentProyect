@@ -245,6 +245,9 @@ async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
   const statusChanged =
     dto.status !== undefined && dto.status !== existingLead.status;
 
+  const priorityChanged =
+  dto.priority !== undefined && dto.priority !== existingLead.priority;
+
   return this.prisma.$transaction(async (tx) => {
     const lead = await tx.lead.update({
       where: {
@@ -253,26 +256,49 @@ async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
       data: dto,
     });
 
-    if (statusChanged) {
-      await tx.activityEvent.create({
-        data: this.activityEventsService.buildCreateData(currentUser, {
-          type: ActivityEventType.LEAD_STATUS_CHANGED,
-          entityType: EntityType.LEAD,
-          entityId: lead.id,
-          title: `Lead status changed: ${lead.title}`,
-          description: `Status changed from ${existingLead.status} to ${lead.status}`,
-          source: lead.source,
-          companyId: lead.companyId ?? undefined,
-          contactId: lead.contactId ?? undefined,
-          leadId: lead.id,
-          occurredAt: lead.updatedAt,
-          metadataJson: {
-            previousStatus: existingLead.status,
-            newStatus: lead.status,
-          },
-        }),
-      });
-    }
+if (statusChanged) {
+  await tx.activityEvent.create({
+    data: this.activityEventsService.buildCreateData(currentUser, {
+      type: ActivityEventType.LEAD_STATUS_CHANGED,
+      entityType: EntityType.LEAD,
+      entityId: lead.id,
+      title: `Lead status changed: ${lead.title}`,
+      description: `Status changed from ${existingLead.status} to ${lead.status}`,
+      source: lead.source,
+      companyId: lead.companyId ?? undefined,
+      contactId: lead.contactId ?? undefined,
+      leadId: lead.id,
+      occurredAt: lead.updatedAt,
+      metadataJson: {
+        previousStatus: existingLead.status,
+        newStatus: lead.status,
+      },
+    }),
+  });
+}
+
+if (priorityChanged) {
+  await tx.activityEvent.create({
+    data: this.activityEventsService.buildCreateData(currentUser, {
+      type: ActivityEventType.LEAD_PRIORITY_CHANGED,
+      entityType: EntityType.LEAD,
+      entityId: lead.id,
+      title: `Lead priority changed: ${lead.title}`,
+      description: `Priority changed from ${existingLead.priority} to ${lead.priority}`,
+      source: lead.source,
+      companyId: lead.companyId ?? undefined,
+      contactId: lead.contactId ?? undefined,
+      leadId: lead.id,
+      occurredAt: lead.updatedAt,
+      metadataJson: {
+        previousPriority: existingLead.priority,
+        newPriority: lead.priority,
+      },
+    }),
+  });
+}
+
+return lead;
 
     return lead;
   });

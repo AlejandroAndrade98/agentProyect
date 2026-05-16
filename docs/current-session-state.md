@@ -575,3 +575,22 @@ Validación:
 - Repetir mismo status -> no duplica OK.
 - PATCH sin status -> no crea evento OK.
 - Cleanup lead temporal -> OK.
+
+## Fase 9.3, Activity Events for priority/status/assignment changes
+
+Estado: validada en runtime.
+
+Cambios:
+- Se agregaron eventos `LEAD_PRIORITY_CHANGED`, `TASK_STATUS_CHANGED` y `TASK_ASSIGNED`.
+- LeadsService crea `LEAD_PRIORITY_CHANGED` cuando cambia realmente la prioridad del lead.
+- TasksService crea `TASK_STATUS_CHANGED` cuando cambia el status de una task, excepto cuando entra a `COMPLETED`.
+- TasksService crea `TASK_ASSIGNED` cuando cambia `assignedToUserId`.
+- `TASK_COMPLETED` se mantiene como evento especial para entrada a `COMPLETED`.
+
+Validación:
+- `LEAD_PRIORITY_CHANGED` -> OK.
+- `TASK_STATUS_CHANGED` -> OK.
+- `TASK_ASSIGNED` -> OK.
+- `TASK_COMPLETED` no duplicó `TASK_STATUS_CHANGED` -> OK.
+- Actores sin `passwordHash` -> OK.
+- Cleanup temporal lead/task -> OK.
