@@ -471,3 +471,21 @@ Validación:
 - Filtro por `type=LEAD_CREATED` -> OK.
 - `actor` no expone `passwordHash` -> OK.
 - Cleanup de lead temporal con soft delete -> OK.
+
+## Fase 8.6, Tasks activity events
+
+Estado: validada en runtime.
+
+Cambios:
+- TasksService crea evento `TASK_CREATED` al crear una task.
+- Task y ActivityEvent se crean en la misma transaction.
+- Se conservan validaciones tenant-aware de `leadId`, `contactId` y `assignedToUserId`.
+- `TASK_COMPLETED` queda pendiente para una fase posterior.
+
+Validación:
+- Crear task temporal -> OK.
+- Se creó ActivityEvent `TASK_CREATED` -> OK.
+- Filtro por `taskId` -> OK.
+- Filtro por `type=TASK_CREATED` -> OK.
+- `actor` no expone `passwordHash` -> OK.
+- Cleanup de task temporal con soft delete -> OK.

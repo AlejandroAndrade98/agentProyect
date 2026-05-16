@@ -4,7 +4,7 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
-import { Prisma } from '@prisma/client';
+import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
 
 import {
   buildPaginatedResult,
@@ -15,10 +15,14 @@ import { QueryTasksDto } from './dto/query-tasks.dto';
 
 import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { TaskIncludeQueryDto } from './dto/task-include-query.dto';
+import { ActivityEventsService } from '../activity-events/activity-events.service';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityEventsService: ActivityEventsService,
+  ) {}
 
 async findAll(currentUser: CurrentUser, query: QueryTasksDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -129,16 +133,81 @@ async findOne(
   return task;
 }
 
-  async create(dto: CreateTaskDto, currentUser: CurrentUser) {
-    await this.validateRelations(dto, currentUser.organizationId);
+async create(dto: CreateTaskDto, currentUser: CurrentUser) {
+  return this.prisma.$transaction(async (tx) => {
+    if (dto.leadId) {
+      const lead = await tx.lead.findFirst({
+        where: {
+          id: dto.leadId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
 
-    return this.prisma.task.create({
+      if (!lead) {
+        throw new NotFoundException('Lead not found');
+      }
+    }
+
+    if (dto.contactId) {
+      const contact = await tx.contact.findFirst({
+        where: {
+          id: dto.contactId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!contact) {
+        throw new NotFoundException('Contact not found');
+      }
+    }
+
+    if (dto.assignedToUserId) {
+      const assignedUser = await tx.user.findFirst({
+        where: {
+          id: dto.assignedToUserId,
+          organizationId: currentUser.organizationId,
+          deletedAt: null,
+          isActive: true,
+        },
+      });
+
+      if (!assignedUser) {
+        throw new NotFoundException('Assigned user not found');
+      }
+    }
+
+    const task = await tx.task.create({
       data: {
         ...dto,
         organizationId: currentUser.organizationId,
       },
     });
-  }
+
+    await tx.activityEvent.create({
+      data: this.activityEventsService.buildCreateData(currentUser, {
+        type: ActivityEventType.TASK_CREATED,
+        entityType: EntityType.TASK,
+        entityId: task.id,
+        title: `Task created: ${task.title}`,
+        description: task.description ?? undefined,
+        source: undefined,
+        contactId: task.contactId ?? undefined,
+        leadId: task.leadId ?? undefined,
+        taskId: task.id,
+        occurredAt: task.createdAt,
+        metadataJson: {
+          status: task.status,
+          priority: task.priority,
+          dueDate: task.dueDate,
+        },
+      }),
+    });
+
+    return task;
+  });
+}
 
   async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);
