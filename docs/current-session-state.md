@@ -666,3 +666,25 @@ Cambios:
 
 Validación:
 - `pnpm build` -> OK.
+
+## Fase 11.2, API client + types
+
+Estado: validada con build.
+
+Cambios:
+- Se creó la capa de tipos frontend en `apps/web/src/types`.
+- Se creó el API client en `apps/web/src/lib/api-client.ts`.
+- Se agregaron tipos para auth, user y dashboard.
+- `LoginResponse` quedó tipado según la respuesta real de `POST /api/auth/login`.
+- El API client usa `NEXT_PUBLIC_API_URL=http://localhost:4000/api`.
+- Se agregaron funciones para:
+  - `login`
+  - `getMe`
+  - `getDashboardSummary`
+  - `getDashboardLeads`
+  - `getDashboardTasks`
+  - `getDashboardRecentActivity`
+
+Validación:
+- `POST /api/auth/login` devuelve `accessToken`, `refreshToken` y `user`.
+- `pnpm build` -> OK.
