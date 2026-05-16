@@ -594,3 +594,58 @@ Validación:
 - `TASK_COMPLETED` no duplicó `TASK_STATUS_CHANGED` -> OK.
 - Actores sin `passwordHash` -> OK.
 - Cleanup temporal lead/task -> OK.
+
+## Fase 10.1 + 10.2, Dashboard summary
+
+Estado: validada en runtime.
+
+Cambios:
+- Se creó `DashboardModule`.
+- Se agregó endpoint `GET /api/dashboard/summary`.
+- Endpoint protegido con `JwtAuthGuard`, `RolesGuard` y `@Roles(...CRM_READ_ROLES)`.
+- Summary devuelve counts de companies, contacts, leads, tasks y activityEvents.
+- Todas las queries filtran por `organizationId` y `deletedAt: null` cuando aplica.
+
+Validación:
+- `GET /api/dashboard/summary` sin token -> 401.
+- `GET /api/dashboard/summary` con token -> OK.
+- Shape de respuesta -> OK.
+- `pnpm build` -> OK.
+
+## Fase 10.4, Dashboard tasks overview
+
+Estado: validada en runtime.
+
+Cambios:
+- Se agregó endpoint `GET /api/dashboard/tasks`.
+- El endpoint devuelve `tasksByStatus`, `tasksByPriority`, `pendingTasks`, `overdueTasks`, `dueSoonTasks` y `recentlyCompletedTasks`.
+- Todas las queries filtran por `organizationId` y `deletedAt: null`.
+- Las relaciones de usuario usan select seguro sin `passwordHash`.
+
+Validación:
+- `GET /api/dashboard/tasks` sin token -> 401.
+- `GET /api/dashboard/tasks` con token -> OK.
+- Shape de respuesta -> OK.
+- `passwordHash` oculto -> OK.
+- `pnpm build` -> OK.
+
+## Fase 10.5, Dashboard recent activity
+
+Estado: validada en runtime.
+
+Cambios:
+- Se agregó endpoint `GET /api/dashboard/recent-activity`.
+- Se agregó DTO `QueryDashboardRecentActivityDto`.
+- El endpoint devuelve los eventos recientes desde `ActivityEvent`.
+- Soporta `limit` entre 1 y 20.
+- Soporta filtro por `type`.
+- Actor se devuelve con select seguro sin `passwordHash`.
+
+Validación:
+- `GET /api/dashboard/recent-activity` sin token -> 401.
+- `GET /api/dashboard/recent-activity` con token -> OK.
+- Shape de respuesta -> OK.
+- `limit=5` -> OK.
+- `type=LEAD_CREATED` -> OK.
+- `passwordHash` oculto -> OK.
+- `pnpm build` -> OK.

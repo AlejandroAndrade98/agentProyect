@@ -300,7 +300,6 @@ if (priorityChanged) {
 
 return lead;
 
-    return lead;
   });
 }
 
