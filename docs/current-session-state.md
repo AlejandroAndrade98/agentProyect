@@ -506,3 +506,31 @@ Validación:
 - Filtro por `type=NOTE_CREATED` -> OK.
 - `actor` no expone `passwordHash` -> OK.
 - Cleanup de note temporal con soft delete -> OK.
+
+## Fase 8.8, Validación final Activity Events
+
+Estado: completada y validada en runtime.
+
+Validación final:
+- `pnpm build` -> OK.
+- `GET /api/activity-events` sin token -> 401 OK.
+- `COMPANY_CREATED` -> OK.
+- `CONTACT_CREATED` -> OK.
+- `LEAD_CREATED` -> OK.
+- `TASK_CREATED` -> OK.
+- `NOTE_CREATED` -> OK.
+- Actors no exponen `passwordHash` -> OK.
+- `type=INVALID` -> 400 OK.
+- `page=0` -> 400 OK.
+- Cleanup de entidades temporales CRM -> OK.
+
+Resultado:
+- Fase 8 Activity Events Foundation queda cerrada.
+- ActivityEvent ya sirve como timeline comercial centralizada.
+- CRUDs conectados:
+  - Companies crea `COMPANY_CREATED`.
+  - Contacts crea `CONTACT_CREATED`.
+  - Leads crea `LEAD_CREATED`.
+  - Tasks crea `TASK_CREATED`.
+  - Notes crea `NOTE_CREATED`.
+- `TASK_COMPLETED` queda pendiente para fase futura enfocada en cambios de estado/update.
