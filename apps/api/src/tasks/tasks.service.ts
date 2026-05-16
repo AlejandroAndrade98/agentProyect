@@ -4,7 +4,7 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
-import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
+import { ActivityEventType, EntityType, Prisma, TaskStatus} from '@prisma/client';
 
 import {
   buildPaginatedResult,
@@ -209,17 +209,65 @@ async create(dto: CreateTaskDto, currentUser: CurrentUser) {
   });
 }
 
-  async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
-    await this.findOne(id, currentUser);
-    await this.validateRelations(dto, currentUser.organizationId);
+async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
+  const existingTask = await this.findOne(id, currentUser);
 
-    return this.prisma.task.update({
+  await this.validateRelations(dto, currentUser.organizationId);
+
+  const wasCompleted = existingTask.status === TaskStatus.COMPLETED;
+  const willBeCompleted = dto.status === TaskStatus.COMPLETED;
+  const statusIsChanging = dto.status !== undefined;
+
+  const becameCompleted = !wasCompleted && willBeCompleted;
+  const leftCompleted =
+    wasCompleted && statusIsChanging && dto.status !== TaskStatus.COMPLETED;
+
+  const updateData: Prisma.TaskUpdateInput = {
+    ...dto,
+  };
+
+  if (becameCompleted) {
+    updateData.completedAt = dto.completedAt ?? new Date();
+  }
+
+  if (leftCompleted) {
+    updateData.completedAt = null;
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    const task = await tx.task.update({
       where: {
         id,
       },
-      data: dto,
+      data: updateData,
     });
-  }
+
+    if (becameCompleted) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.TASK_COMPLETED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: `Task completed: ${task.title}`,
+          description: task.description ?? undefined,
+          source: undefined,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: task.completedAt ?? new Date(),
+          metadataJson: {
+            previousStatus: existingTask.status,
+            newStatus: task.status,
+            completedAt: task.completedAt,
+            priority: task.priority,
+          },
+        }),
+      });
+    }
+
+    return task;
+  });
+}
 
   async remove(id: string, currentUser: CurrentUser) {
     await this.findOne(id, currentUser);
