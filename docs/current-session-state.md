@@ -711,3 +711,23 @@ Validación:
 
 Nota:
 - `/dashboard` puede responder 404 hasta implementar Fase 11.4.
+
+## Fase 11.4, Protected dashboard layout
+
+Estado: validada en runtime.
+
+Cambios:
+- Se creó `/dashboard`.
+- Se creó `AuthGuard` client-side.
+- Se creó `DashboardLayout` con sidebar, header, usuario actual y logout.
+- `/dashboard` queda protegido con sesión validada desde `AuthProvider`.
+- Logout limpia tokens y redirige a `/login`.
+- Se habilitó CORS en `apps/api/src/main.ts` usando `CORS_ORIGIN`.
+- Se confirmó que para correr API desde Windows debe usarse `DATABASE_URL` apuntando a `localhost:15432`.
+
+Validación:
+- `/dashboard` sin token -> redirige a `/login`.
+- Login correcto -> redirige a `/dashboard`.
+- `/dashboard` muestra sidebar/header/layout.
+- Logout -> vuelve a `/login`.
+- Refresh en `/dashboard` con token guardado -> mantiene sesión.
