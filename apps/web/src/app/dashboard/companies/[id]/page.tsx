@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { ApiClientError, getCompanyById } from '@/lib/api-client';
+import {
+  ApiClientError,
+  deleteCompany,
+  getCompanyById,
+} from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import type { CompanyDetail } from '@/types/crm';
 
@@ -61,7 +65,8 @@ function EmptyRelatedState({ label }: { label: string }) {
 
 export default function CompanyDetailPage() {
   const params = useParams();
-  const { token } = useAuth();
+  const router = useRouter();
+  const { token, user } = useAuth();
 
   const companyId =
     typeof params.id === 'string'
@@ -73,6 +78,7 @@ export default function CompanyDetailPage() {
   const [company, setCompany] = useState<CompanyDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -121,6 +127,42 @@ export default function CompanyDetailPage() {
       isMounted = false;
     };
   }, [token, companyId]);
+
+  const canDeleteCompany =
+  user?.role === 'SUPER_ADMIN' || user?.role === 'OWNER' || user?.role === 'ADMIN';
+
+async function handleDeleteCompany() {
+  if (!token || !companyId || !company) {
+    setErrorMessage('Your session is not ready. Please try again.');
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Are you sure you want to delete "${company.name}"? This action will remove it from active CRM views.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  setIsDeleting(true);
+  setErrorMessage(null);
+
+  try {
+    await deleteCompany(token, companyId);
+    router.push('/dashboard/companies');
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not delete company.');
+    }
+  } finally {
+    setIsDeleting(false);
+  }
+}
 
   if (isLoading) {
     return (
@@ -203,20 +245,32 @@ export default function CompanyDetailPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/dashboard/companies/${company.id}/edit`}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Edit
+          </Link>
+
+          {canDeleteCompany ? (
             <button
               type="button"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              onClick={handleDeleteCompany}
+              disabled={isDeleting}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Edit
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
-            <button
-              type="button"
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-            >
-              New note
-            </button>
-          </div>
+          ) : null}
+
+          <button
+            type="button"
+            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+          >
+            New note
+          </button>
+        </div>
         </div>
       </section>
 

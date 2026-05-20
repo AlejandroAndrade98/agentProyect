@@ -144,12 +144,12 @@ export default function CompaniesPage() {
           </p>
         </div>
 
-        <button
-          type="button"
+        <Link
+          href="/dashboard/companies/new"
           className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
         >
           New company
-        </button>
+        </Link>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
