@@ -771,3 +771,32 @@ Validación:
 - `/dashboard` carga correctamente.
 - Datos reales siguen cargando desde summary, leads, tasks y recent activity.
 - UI se ve más profesional y consistente con la paleta slate/navy/blue.
+
+## Fase 11, Frontend Foundation
+
+Estado: completada, validada en runtime y lista para push.
+
+Incluye:
+- Tailwind/env setup.
+- API client + tipos frontend.
+- AuthProvider/useAuth.
+- Página `/login`.
+- CORS habilitado en API usando `CORS_ORIGIN`.
+- `/dashboard` protegido con `AuthGuard`.
+- Dashboard layout con sidebar/header/user/logout.
+- Dashboard read-only consumiendo endpoints reales:
+  - `GET /dashboard/summary`
+  - `GET /dashboard/leads`
+  - `GET /dashboard/tasks`
+  - `GET /dashboard/recent-activity?limit=8`
+- UI read-only pulida con paleta slate/navy/blue.
+
+Validación final:
+- `pnpm build` -> OK.
+- `/login` carga correctamente.
+- Password incorrecto muestra `Invalid credentials`.
+- Password correcto redirige a `/dashboard`.
+- `/dashboard` sin token redirige a `/login`.
+- `/dashboard` muestra datos reales.
+- Logout funciona.
+- Refresh en `/dashboard` mantiene sesión.
