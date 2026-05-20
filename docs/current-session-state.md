@@ -731,3 +731,25 @@ Validación:
 - `/dashboard` muestra sidebar/header/layout.
 - Logout -> vuelve a `/login`.
 - Refresh en `/dashboard` con token guardado -> mantiene sesión.
+
+## Fase 11.5, Dashboard data fetching
+
+Estado: validada en runtime.
+
+Cambios:
+- Se creó `DashboardOverview`.
+- `/dashboard` consume datos reales usando el API client.
+- Se conectaron endpoints:
+  - `GET /dashboard/summary`
+  - `GET /dashboard/leads`
+  - `GET /dashboard/tasks`
+  - `GET /dashboard/recent-activity?limit=8`
+- Se agregaron estados básicos de loading, error y data.
+- Se muestran cards reales y listas básicas.
+
+Validación:
+- Login correcto -> `/dashboard`.
+- `/dashboard` carga sin error.
+- Network muestra requests exitosos a endpoints de dashboard.
+- UI muestra datos reales de summary, leads, tasks y recent activity.
+- Refresh mantiene sesión y vuelve a cargar datos.
