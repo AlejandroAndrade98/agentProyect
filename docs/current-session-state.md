@@ -753,3 +753,21 @@ Validación:
 - Network muestra requests exitosos a endpoints de dashboard.
 - UI muestra datos reales de summary, leads, tasks y recent activity.
 - Refresh mantiene sesión y vuelve a cargar datos.
+
+## Fase 11.6, Dashboard UI read-only polish
+
+Estado: validada visualmente.
+
+Cambios:
+- Se mejoró visualmente `DashboardOverview`.
+- Se agregaron cards más pulidas para métricas principales.
+- Se agregaron badges y labels legibles para status, priority y activity events.
+- Se agregó sección de recent leads.
+- Se mejoró la presentación de recent activity.
+- Se mantuvo consumo de datos reales desde la API.
+- No se agregó CRUD ni nuevas dependencias.
+
+Validación:
+- `/dashboard` carga correctamente.
+- Datos reales siguen cargando desde summary, leads, tasks y recent activity.
+- UI se ve más profesional y consistente con la paleta slate/navy/blue.
