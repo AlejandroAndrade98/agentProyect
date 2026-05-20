@@ -1,12 +1,52 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/hooks/useAuth';
+
+const navItems = [
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    enabled: true,
+  },
+  {
+    label: 'Companies',
+    href: '/dashboard/companies',
+    enabled: true,
+  },
+  {
+    label: 'Contacts',
+    href: '/dashboard/contacts',
+    enabled: false,
+  },
+  {
+    label: 'Leads',
+    href: '/dashboard/leads',
+    enabled: false,
+  },
+  {
+    label: 'Tasks',
+    href: '/dashboard/tasks',
+    enabled: false,
+  },
+  {
+    label: 'Products',
+    href: '/dashboard/products',
+    enabled: false,
+  },
+  {
+    label: 'Notes',
+    href: '/dashboard/notes',
+    enabled: false,
+  },
+] as const;
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const pathname = usePathname();
 
   function handleLogout() {
     logout();
@@ -25,26 +65,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </h1>
         </div>
 
-        <nav className="mt-10 space-y-2">
-          <a
-            href="/dashboard"
-            className="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-white"
-          >
-            Dashboard
-          </a>
-          <span className="block rounded-xl px-4 py-3 text-sm text-slate-400">
-            Companies
-          </span>
-          <span className="block rounded-xl px-4 py-3 text-sm text-slate-400">
-            Contacts
-          </span>
-          <span className="block rounded-xl px-4 py-3 text-sm text-slate-400">
-            Leads
-          </span>
-          <span className="block rounded-xl px-4 py-3 text-sm text-slate-400">
-            Tasks
-          </span>
-        </nav>
+<nav className="mt-10 space-y-2">
+  {navItems.map((item) => {
+    const isActive = pathname === item.href;
+
+    if (!item.enabled) {
+      return (
+        <span
+          key={item.href}
+          className="block rounded-xl px-4 py-3 text-sm text-slate-500"
+        >
+          {item.label}
+        </span>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
+          isActive
+            ? 'bg-white/10 text-white'
+            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+        }`}
+      >
+        {item.label}
+      </Link>
+    );
+  })}
+</nav>
 
         <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-sm font-medium text-white">{user?.name}</p>

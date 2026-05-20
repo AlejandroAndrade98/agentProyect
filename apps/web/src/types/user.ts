@@ -1,4 +1,9 @@
-export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'SALES_REP' | 'VIEWER';
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'OWNER'
+  | 'ADMIN'
+  | 'SALES'
+  | 'VIEWER';
 
 export type CurrentUser = {
   id: string;
