@@ -41,6 +41,11 @@ const navItems = [
     href: '/dashboard/notes',
     enabled: true,
   },
+  {
+  label: 'Activity',
+  href: '/dashboard/activity',
+  enabled: true,
+  },
 ] as const;
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {

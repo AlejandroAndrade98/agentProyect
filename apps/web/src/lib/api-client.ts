@@ -43,6 +43,8 @@ import type {
   DashboardSummary,
   DashboardTasksOverview,
 } from '@/types/dashboard';
+
+import type { ActivityEvent, ActivityEventsQuery } from '@/types/activity';
 import type { CurrentUser } from '@/types/user';
 
 const API_BASE_URL =
@@ -418,6 +420,17 @@ export function deleteNote(token: string, id: string) {
   return apiRequest<Note>(`/notes/${id}`, {
     method: 'DELETE',
     token,
+  });
+}
+
+export async function getActivityEvents(
+  token: string,
+  query: ActivityEventsQuery = {},
+) {
+  return apiRequest<PaginatedResponse<ActivityEvent>>('/activity-events', {
+    method: 'GET',
+    token,
+    query,
   });
 }
 
