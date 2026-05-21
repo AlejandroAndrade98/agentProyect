@@ -26,7 +26,14 @@ const importanceOptions: ImportanceLevel[] = [
   'CRITICAL',
 ];
 
-const sourceOptions: Source[] = ['MANUAL', 'IMPORT', 'AI', 'INTEGRATION'];
+const sourceOptions: Source[] = [
+  'MANUAL',
+  'AI_SUGGESTION',
+  'IMPORT',
+  'EMAIL',
+  'MEETING',
+  'OTHER',
+];
 
 function cleanOptionalValue(value: string) {
   const trimmedValue = value.trim();

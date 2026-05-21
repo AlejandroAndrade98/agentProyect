@@ -19,12 +19,12 @@ const navItems = [
   {
     label: 'Contacts',
     href: '/dashboard/contacts',
-    enabled: false,
+    enabled: true,
   },
   {
     label: 'Leads',
     href: '/dashboard/leads',
-    enabled: false,
+    enabled: true,
   },
   {
     label: 'Tasks',

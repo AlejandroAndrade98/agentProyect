@@ -19,7 +19,13 @@ export type TaskStatus =
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type Source = 'MANUAL' | 'IMPORT' | 'AI' | 'INTEGRATION';
+export type Source =
+  | 'MANUAL'
+  | 'AI_SUGGESTION'
+  | 'IMPORT'
+  | 'EMAIL'
+  | 'MEETING'
+  | 'OTHER';
 
 export type EntityType =
   | 'COMPANY'
