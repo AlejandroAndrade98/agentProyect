@@ -27,6 +27,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { TaskIncludeQueryDto } from './dto/task-include-query.dto';
 
+import { MoveTaskBoardDto } from './dto/move-task-board.dto';
+
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
@@ -77,5 +79,15 @@ remove(
   @CurrentUserDecorator() currentUser: CurrentUser,
 ) {
   return this.tasksService.remove(id, currentUser);
+}
+
+@Patch(':id/board')
+@Roles(...CRM_WRITE_ROLES)
+moveBoard(
+  @Param('id') id: string,
+  @Body() dto: MoveTaskBoardDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.tasksService.moveBoard(id, dto, currentUser);
 }
 }

@@ -292,6 +292,8 @@ model Lead {
   expectedCloseDate DateTime?
   nextStep          String?
   lastContactAt     DateTime?
+  pipelinePosition Int      @default(0)
+  statusChangedAt  DateTime @default(now())
   archivedAt        DateTime?
   deletedAt         DateTime?
   createdAt         DateTime        @default(now())
@@ -303,6 +305,8 @@ model Lead {
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([organizationId, importanceLevel])
+  @@index([organizationId, status, pipelinePosition])
+  @@index([organizationId, statusChangedAt])
 }
 
 model Task {
@@ -322,6 +326,8 @@ model Task {
   importanceLevel  ImportanceLevel @default(MEDIUM)
   dueDate          DateTime?
   completedAt      DateTime?
+  boardPosition  Int      @default(0)
+  statusChangedAt DateTime @default(now())
   archivedAt       DateTime?
   deletedAt        DateTime?
   createdAt        DateTime        @default(now())
@@ -329,6 +335,8 @@ model Task {
 
   @@index([organizationId])
   @@index([organizationId, importanceLevel])
+  @@index([organizationId, status, boardPosition])
+  @@index([organizationId, statusChangedAt])
 }
 
 model Note {

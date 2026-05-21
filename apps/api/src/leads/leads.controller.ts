@@ -27,6 +27,8 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
+import { MoveLeadPipelineDto } from './dto/move-lead-pipeline.dto';
+
 @Controller('leads')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class LeadsController {
@@ -68,6 +70,16 @@ update(
   @CurrentUserDecorator() currentUser: CurrentUser,
 ) {
   return this.leadsService.update(id, dto, currentUser);
+}
+
+@Patch(':id/pipeline')
+@Roles(...CRM_WRITE_ROLES)
+movePipeline(
+  @Param('id') id: string,
+  @Body() dto: MoveLeadPipelineDto,
+  @CurrentUserDecorator() currentUser: CurrentUser,
+) {
+  return this.leadsService.movePipeline(id, dto, currentUser);
 }
 
 @Delete(':id')

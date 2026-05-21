@@ -11,7 +11,11 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "db:migrate": "node scripts/prisma-host.mjs migrate dev",
+    "db:generate": "node scripts/prisma-host.mjs generate",
+    "db:studio": "node scripts/prisma-host.mjs studio",
+    "db:deploy": "node scripts/prisma-host.mjs migrate deploy"
   },
   "devDependencies": {
     "turbo": "^1.13.0",

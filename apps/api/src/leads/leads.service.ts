@@ -4,7 +4,12 @@ import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 
-import { ActivityEventType, EntityType, Prisma } from '@prisma/client';
+import {
+  ActivityEventType,
+  EntityType,
+  LeadStatus,
+  Prisma,
+} from '@prisma/client';
 
 import {
   buildPaginatedResult,
@@ -17,12 +22,33 @@ import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { LeadIncludeQueryDto } from './dto/lead-include-query.dto';
 import { ActivityEventsService } from '../activity-events/activity-events.service';
 
+import { MoveLeadPipelineDto } from './dto/move-lead-pipeline.dto';
+
 @Injectable()
 export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activityEventsService: ActivityEventsService,
   ) {}
+
+  private async getNextPipelinePosition(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  status: LeadStatus,
+  ) {
+    const result = await tx.lead.aggregate({
+      where: {
+        organizationId,
+        deletedAt: null,
+        status,
+      },
+      _max: {
+        pipelinePosition: true,
+      },
+    });
+
+    return (result._max.pipelinePosition ?? 0) + 1000;
+  }
 
 async findAll(currentUser: CurrentUser, query: QueryLeadsDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -211,9 +237,19 @@ async create(dto: CreateLeadDto, currentUser: CurrentUser) {
       }
     }
 
+    const leadStatus = dto.status ?? LeadStatus.NEW;
+    const pipelinePosition = await this.getNextPipelinePosition(
+      tx,
+      currentUser.organizationId,
+      leadStatus,
+    );
+
     const lead = await tx.lead.create({
-      data: {
+        data: {
         ...dto,
+        status: leadStatus,
+        pipelinePosition,
+        statusChangedAt: new Date(),
         organizationId: currentUser.organizationId,
       },
     });
@@ -246,60 +282,132 @@ async update(id: string, dto: UpdateLeadDto, currentUser: CurrentUser) {
     dto.status !== undefined && dto.status !== existingLead.status;
 
   const priorityChanged =
-  dto.priority !== undefined && dto.priority !== existingLead.priority;
+    dto.priority !== undefined && dto.priority !== existingLead.priority;
 
   return this.prisma.$transaction(async (tx) => {
+    const updateData: Prisma.LeadUncheckedUpdateInput = {
+      ...dto,
+    };
+
+    if (statusChanged && dto.status) {
+      updateData.statusChangedAt = new Date();
+      updateData.pipelinePosition = await this.getNextPipelinePosition(
+        tx,
+        currentUser.organizationId,
+        dto.status,
+      );
+    }
+
     const lead = await tx.lead.update({
       where: {
         id,
       },
-      data: dto,
+      data: updateData,
     });
 
-if (statusChanged) {
-  await tx.activityEvent.create({
-    data: this.activityEventsService.buildCreateData(currentUser, {
-      type: ActivityEventType.LEAD_STATUS_CHANGED,
-      entityType: EntityType.LEAD,
-      entityId: lead.id,
-      title: `Lead status changed: ${lead.title}`,
-      description: `Status changed from ${existingLead.status} to ${lead.status}`,
-      source: lead.source,
-      companyId: lead.companyId ?? undefined,
-      contactId: lead.contactId ?? undefined,
-      leadId: lead.id,
-      occurredAt: lead.updatedAt,
-      metadataJson: {
-        previousStatus: existingLead.status,
-        newStatus: lead.status,
-      },
-    }),
+    if (statusChanged) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.LEAD_STATUS_CHANGED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: `Lead status changed: ${lead.title}`,
+          description: `Status changed from ${existingLead.status} to ${lead.status}`,
+          source: lead.source,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: lead.statusChangedAt,
+          metadataJson: {
+            previousStatus: existingLead.status,
+            newStatus: lead.status,
+            previousPipelinePosition: existingLead.pipelinePosition,
+            newPipelinePosition: lead.pipelinePosition,
+          },
+        }),
+      });
+    }
+
+    if (priorityChanged) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.LEAD_PRIORITY_CHANGED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: `Lead priority changed: ${lead.title}`,
+          description: `Priority changed from ${existingLead.priority} to ${lead.priority}`,
+          source: lead.source,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: lead.updatedAt,
+          metadataJson: {
+            previousPriority: existingLead.priority,
+            newPriority: lead.priority,
+          },
+        }),
+      });
+    }
+
+    return lead;
   });
 }
 
-if (priorityChanged) {
-  await tx.activityEvent.create({
-    data: this.activityEventsService.buildCreateData(currentUser, {
-      type: ActivityEventType.LEAD_PRIORITY_CHANGED,
-      entityType: EntityType.LEAD,
-      entityId: lead.id,
-      title: `Lead priority changed: ${lead.title}`,
-      description: `Priority changed from ${existingLead.priority} to ${lead.priority}`,
-      source: lead.source,
-      companyId: lead.companyId ?? undefined,
-      contactId: lead.contactId ?? undefined,
-      leadId: lead.id,
-      occurredAt: lead.updatedAt,
-      metadataJson: {
-        previousPriority: existingLead.priority,
-        newPriority: lead.priority,
+  async movePipeline(
+  id: string,
+  dto: MoveLeadPipelineDto,
+  currentUser: CurrentUser,
+) {
+  const existingLead = await this.findOne(id, currentUser);
+
+  const statusChanged = dto.status !== existingLead.status;
+
+  return this.prisma.$transaction(async (tx) => {
+    const pipelinePosition =
+      dto.pipelinePosition ??
+      (statusChanged
+        ? await this.getNextPipelinePosition(
+            tx,
+            currentUser.organizationId,
+            dto.status,
+          )
+        : existingLead.pipelinePosition);
+
+    const lead = await tx.lead.update({
+      where: {
+        id,
       },
-    }),
-  });
-}
+      data: {
+        status: dto.status,
+        pipelinePosition,
+        ...(statusChanged ? { statusChangedAt: new Date() } : {}),
+      },
+    });
 
-return lead;
+    if (statusChanged) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.LEAD_STATUS_CHANGED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: `Lead status changed: ${lead.title}`,
+          description: `Status changed from ${existingLead.status} to ${lead.status}`,
+          source: lead.source,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: lead.statusChangedAt,
+          metadataJson: {
+            previousStatus: existingLead.status,
+            newStatus: lead.status,
+            previousPipelinePosition: existingLead.pipelinePosition,
+            newPipelinePosition: lead.pipelinePosition,
+          },
+        }),
+      });
+    }
 
+    return lead;
   });
 }
 

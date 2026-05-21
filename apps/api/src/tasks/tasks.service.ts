@@ -17,12 +17,33 @@ import { hasInclude, parseIncludeParam } from '../common/utils/include.util';
 import { TaskIncludeQueryDto } from './dto/task-include-query.dto';
 import { ActivityEventsService } from '../activity-events/activity-events.service';
 
+import { MoveTaskBoardDto } from './dto/move-task-board.dto';
+
 @Injectable()
 export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activityEventsService: ActivityEventsService,
   ) {}
+
+  private async getNextBoardPosition(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  status: TaskStatus,
+  ) {
+    const result = await tx.task.aggregate({
+      where: {
+        organizationId,
+        deletedAt: null,
+        status,
+      },
+      _max: {
+        boardPosition: true,
+      },
+    });
+
+    return (result._max.boardPosition ?? 0) + 1000;
+  }
 
 async findAll(currentUser: CurrentUser, query: QueryTasksDto) {
   const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -177,10 +198,20 @@ async create(dto: CreateTaskDto, currentUser: CurrentUser) {
         throw new NotFoundException('Assigned user not found');
       }
     }
+    
+    const taskStatus = dto.status ?? TaskStatus.TODO;
+    const boardPosition = await this.getNextBoardPosition(
+      tx,
+      currentUser.organizationId,
+      taskStatus,
+    );
 
     const task = await tx.task.create({
       data: {
         ...dto,
+        status: taskStatus,
+        boardPosition,
+        statusChangedAt: new Date(),
         organizationId: currentUser.organizationId,
       },
     });
@@ -235,6 +266,17 @@ async update(id: string, dto: UpdateTaskDto, currentUser: CurrentUser) {
   const updateData: Prisma.TaskUpdateInput = {
     ...dto,
   };
+
+    if (statusChanged && dto.status) {
+    updateData.statusChangedAt = new Date();
+    updateData.boardPosition = await this.prisma.$transaction((tx) =>
+      this.getNextBoardPosition(
+        tx,
+        currentUser.organizationId,
+        dto.status!,
+      ),
+    );
+  }
 
   if (becameCompleted) {
     updateData.completedAt = dto.completedAt ?? new Date();
@@ -321,6 +363,98 @@ if (assignedUserChanged) {
 
 return task;
 
+  });
+}
+
+  async moveBoard(
+  id: string,
+  dto: MoveTaskBoardDto,
+  currentUser: CurrentUser,
+) {
+  const existingTask = await this.findOne(id, currentUser);
+
+  const wasCompleted = existingTask.status === TaskStatus.COMPLETED;
+  const willBeCompleted = dto.status === TaskStatus.COMPLETED;
+  const statusChanged = dto.status !== existingTask.status;
+
+  const becameCompleted = !wasCompleted && willBeCompleted;
+  const leftCompleted = wasCompleted && statusChanged && !willBeCompleted;
+
+  return this.prisma.$transaction(async (tx) => {
+    const boardPosition =
+      dto.boardPosition ??
+      (statusChanged
+        ? await this.getNextBoardPosition(
+            tx,
+            currentUser.organizationId,
+            dto.status,
+          )
+        : existingTask.boardPosition);
+
+    const task = await tx.task.update({
+      where: {
+        id,
+      },
+      data: {
+        status: dto.status,
+        boardPosition,
+        ...(statusChanged ? { statusChangedAt: new Date() } : {}),
+        ...(becameCompleted ? { completedAt: new Date() } : {}),
+        ...(leftCompleted ? { completedAt: null } : {}),
+      },
+    });
+
+    if (becameCompleted) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.TASK_COMPLETED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: `Task completed: ${task.title}`,
+          description: task.description ?? undefined,
+          source: undefined,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: task.completedAt ?? new Date(),
+          metadataJson: {
+            previousStatus: existingTask.status,
+            newStatus: task.status,
+            previousBoardPosition: existingTask.boardPosition,
+            newBoardPosition: task.boardPosition,
+            completedAt: task.completedAt,
+            priority: task.priority,
+          },
+        }),
+      });
+    }
+
+    if (statusChanged && !becameCompleted) {
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.TASK_STATUS_CHANGED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: `Task status changed: ${task.title}`,
+          description: `Status changed from ${existingTask.status} to ${task.status}`,
+          source: undefined,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: task.statusChangedAt,
+          metadataJson: {
+            previousStatus: existingTask.status,
+            newStatus: task.status,
+            previousBoardPosition: existingTask.boardPosition,
+            newBoardPosition: task.boardPosition,
+            completedAt: task.completedAt,
+            priority: task.priority,
+          },
+        }),
+      });
+    }
+
+    return task;
   });
 }
 
