@@ -2,6 +2,12 @@
 
 import { FormEvent, useState } from 'react';
 
+import {
+  importanceOptions,
+  priorityOptions,
+  taskStatusOptions,
+} from '@/lib/crm-options';
+import { formatEnumLabel } from '@/lib/formatters';
 import type {
   Contact,
   CreateTaskInput,
@@ -22,23 +28,6 @@ type TaskFormProps = {
   onSubmit: (values: CreateTaskInput) => Promise<void>;
 };
 
-const statusOptions: TaskStatus[] = [
-  'TODO',
-  'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
-  'ARCHIVED',
-];
-
-const priorityOptions: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
-const importanceOptions: ImportanceLevel[] = [
-  'LOW',
-  'MEDIUM',
-  'HIGH',
-  'CRITICAL',
-];
-
 function cleanOptionalValue(value: string) {
   const trimmedValue = value.trim();
 
@@ -53,14 +42,6 @@ function cleanOptionalDate(value: string) {
   }
 
   return new Date(`${trimmedValue}T00:00:00.000Z`).toISOString();
-}
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 export function TaskForm({
@@ -191,7 +172,7 @@ export function TaskForm({
             onChange={(event) => setStatus(event.target.value as TaskStatus)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            {statusOptions.map((option) => (
+            {taskStatusOptions.map((option) => (
               <option key={option} value={option}>
                 {formatEnumLabel(option)}
               </option>
