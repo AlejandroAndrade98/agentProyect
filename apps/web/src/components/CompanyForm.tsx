@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from 'react';
 
+import { importanceOptions, sourceOptions } from '@/lib/crm-options';
+import { formatEnumLabel } from '@/lib/formatters';
 import type { CreateCompanyInput, ImportanceLevel, Source } from '@/types/crm';
 
 type CompanyFormValues = {
@@ -22,34 +24,10 @@ type CompanyFormProps = {
   onSubmit: (values: CompanyFormValues) => Promise<void>;
 };
 
-const importanceOptions: ImportanceLevel[] = [
-  'LOW',
-  'MEDIUM',
-  'HIGH',
-  'CRITICAL',
-];
-
-const sourceOptions: Source[] = [
-  'MANUAL',
-  'AI_SUGGESTION',
-  'IMPORT',
-  'EMAIL',
-  'MEETING',
-  'OTHER',
-];
-
 function cleanOptionalValue(value: string) {
   const trimmedValue = value.trim();
 
   return trimmedValue.length > 0 ? trimmedValue : undefined;
-}
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 export function CompanyForm({

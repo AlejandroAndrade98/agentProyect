@@ -3,55 +3,20 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 
-import { ApiClientError, getCompanies } from '@/lib/api-client';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { ApiClientError, getCompanies } from '@/lib/api-client';
+import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { canCreateCrm } from '@/lib/permissions';
+import { getImportanceClasses } from '@/lib/crm-styles';
 import type { Company, PaginatedResponse } from '@/types/crm';
 
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function getImportanceClasses(value: Company['importanceLevel']) {
-  const classes: Record<Company['importanceLevel'], string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 export default function CompaniesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [companiesResponse, setCompaniesResponse] =
     useState<PaginatedResponse<Company> | null>(null);
@@ -130,27 +95,20 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Companies
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Manage company accounts, review business details, and open each
-            record to see related CRM activity.
-          </p>
-        </div>
-
-        <Link
-          href="/dashboard/companies/new"
-          className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-        >
-          New company
-        </Link>
-      </section>
+      <PageHeader
+        title="Companies"
+        description="Manage company accounts, review business details, and open each record to see related CRM activity."
+        actions={
+          canCreateCrm(user) ? (
+            <Link
+              href="/dashboard/companies/new"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+            >
+              New company
+            </Link>
+          ) : null
+        }
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form
@@ -186,36 +144,21 @@ export default function CompaniesPage() {
         </form>
       </section>
 
-      {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-14 animate-pulse rounded-xl bg-slate-100"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {isLoading ? <LoadingSkeleton rows={6} /> : null}
 
       {!isLoading && errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       ) : null}
 
       {!isLoading && !errorMessage && companies.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">
-            No companies found
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {submittedSearch
+        <EmptyState
+          title="No companies found"
+          description={
+            submittedSearch
               ? 'Try changing your search terms.'
-              : 'Create your first company to start building your CRM.'}
-          </p>
-        </div>
+              : 'Create your first company to start building your CRM.'
+          }
+        />
       ) : null}
 
       {!isLoading && !errorMessage && companies.length > 0 ? (

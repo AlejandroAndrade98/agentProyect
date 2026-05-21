@@ -4,56 +4,19 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   ApiClientError,
   deleteCompany,
   getCompanyById,
 } from '@/lib/api-client';
+import { getImportanceClasses } from '@/lib/crm-styles';
+import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { canDeleteCrm } from '@/lib/permissions';
 import { useAuth } from '@/hooks/useAuth';
 import type { CompanyDetail } from '@/types/crm';
 
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function getImportanceClasses(value: CompanyDetail['importanceLevel']) {
-  const classes: Record<CompanyDetail['importanceLevel'], string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 function EmptyRelatedState({ label }: { label: string }) {
   return (
@@ -128,8 +91,7 @@ export default function CompanyDetailPage() {
     };
   }, [token, companyId]);
 
-  const canDeleteCompany =
-  user?.role === 'SUPER_ADMIN' || user?.role === 'OWNER' || user?.role === 'ADMIN';
+  const canDeleteCompany = canDeleteCrm(user);
 
 async function handleDeleteCompany() {
   if (!token || !companyId || !company) {
@@ -188,9 +150,7 @@ async function handleDeleteCompany() {
           ← Back to companies
         </Link>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+    <ErrorState message={errorMessage} />
       </div>
     );
   }
