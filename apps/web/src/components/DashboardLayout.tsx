@@ -29,7 +29,7 @@ const navItems = [
   {
     label: 'Tasks',
     href: '/dashboard/tasks',
-    enabled: false,
+    enabled: true,
   },
   {
     label: 'Products',
