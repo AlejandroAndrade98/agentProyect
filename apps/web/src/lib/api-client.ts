@@ -25,6 +25,10 @@ import type {
   TaskDetail,
   TaskIncludeQuery,
   UpdateTaskInput,
+  CreateProductInput,
+  Product,
+  QueryProductsParams,
+  UpdateProductInput,
 } from '@/types/crm';
 import type {
   DashboardLeadsOverview,
@@ -325,6 +329,46 @@ export function updateTask(token: string, id: string, input: UpdateTaskInput) {
 
 export function deleteTask(token: string, id: string) {
   return apiRequest<Task>(`/tasks/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export function getProducts(token: string, query?: QueryProductsParams) {
+  return apiRequest<PaginatedResponse<Product>>('/products', {
+    token,
+    query,
+  });
+}
+
+export function getProductById(token: string, id: string) {
+  return apiRequest<Product>(`/products/${id}`, {
+    token,
+  });
+}
+
+export function createProduct(token: string, input: CreateProductInput) {
+  return apiRequest<Product>('/products', {
+    method: 'POST',
+    token,
+    body: input,
+  });
+}
+
+export function updateProduct(
+  token: string,
+  id: string,
+  input: UpdateProductInput,
+) {
+  return apiRequest<Product>(`/products/${id}`, {
+    method: 'PATCH',
+    token,
+    body: input,
+  });
+}
+
+export function deleteProduct(token: string, id: string) {
+  return apiRequest<Product>(`/products/${id}`, {
     method: 'DELETE',
     token,
   });

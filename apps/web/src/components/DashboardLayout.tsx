@@ -34,7 +34,7 @@ const navItems = [
   {
     label: 'Products',
     href: '/dashboard/products',
-    enabled: false,
+    enabled: true,
   },
   {
     label: 'Notes',
