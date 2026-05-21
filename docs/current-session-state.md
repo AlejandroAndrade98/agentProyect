@@ -800,3 +800,217 @@ Validación final:
 - `/dashboard` muestra datos reales.
 - Logout funciona.
 - Refresh en `/dashboard` mantiene sesión.
+
+## Fase 12, Frontend CRM Management UI
+
+Estado: completada, validada en runtime, documentada localmente y lista para push.
+
+Objetivo:
+- Construir la interfaz frontend de gestión CRM sobre los CRUDs existentes del backend.
+- Mantener la arquitectura actual sin tocar backend salvo necesidades claras.
+- No implementar IA todavía.
+- Mantener IA human-in-the-loop para fases futuras.
+- Reutilizar la estructura de DashboardLayout, AuthGuard, useAuth y API client creados en Fase 11.
+
+Cambios principales:
+- Se corrigió `UserRole` en frontend para alinearlo con backend:
+  - `SUPER_ADMIN`
+  - `OWNER`
+  - `ADMIN`
+  - `SALES`
+  - `VIEWER`
+- Se creó `apps/web/src/types/crm.ts` con tipos frontend para:
+  - Companies
+  - Contacts
+  - Leads
+  - Tasks
+  - Products
+  - Notes
+  - Pagination
+  - Query params
+  - Inputs de create/update
+- Se extendió `apps/web/src/lib/api-client.ts` con funciones CRUD para:
+  - Companies
+  - Contacts
+  - Leads
+  - Tasks
+  - Products
+  - Notes
+- Se actualizó `DashboardLayout` para activar navegación real hacia:
+  - Dashboard
+  - Companies
+  - Contacts
+  - Leads
+  - Tasks
+  - Products
+  - Notes
+
+Módulos frontend implementados:
+
+### Companies UI
+- `GET /companies`
+- `GET /companies/:id`
+- `POST /companies`
+- `PATCH /companies/:id`
+- `DELETE /companies/:id`
+- Páginas:
+  - `/dashboard/companies`
+  - `/dashboard/companies/new`
+  - `/dashboard/companies/[id]`
+  - `/dashboard/companies/[id]/edit`
+- Componente:
+  - `CompanyForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Relaciones en detail con contacts, leads y notes
+
+### Contacts UI
+- `GET /contacts`
+- `GET /contacts/:id`
+- `POST /contacts`
+- `PATCH /contacts/:id`
+- `DELETE /contacts/:id`
+- Páginas:
+  - `/dashboard/contacts`
+  - `/dashboard/contacts/new`
+  - `/dashboard/contacts/[id]`
+  - `/dashboard/contacts/[id]/edit`
+- Componente:
+  - `ContactForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Relación opcional con company
+  - LinkedIn opcional funcionando correctamente
+
+### Leads UI
+- `GET /leads`
+- `GET /leads/:id`
+- `POST /leads`
+- `PATCH /leads/:id`
+- `DELETE /leads/:id`
+- Páginas:
+  - `/dashboard/leads`
+  - `/dashboard/leads/new`
+  - `/dashboard/leads/[id]`
+  - `/dashboard/leads/[id]/edit`
+- Componente:
+  - `LeadForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Filtros por status y priority
+  - Relaciones con company/contact/assigned user/tasks/notes
+  - `Source` corregido para usar enum real del backend:
+    - `MANUAL`
+    - `AI_SUGGESTION`
+    - `IMPORT`
+    - `EMAIL`
+    - `MEETING`
+    - `OTHER`
+  - Fechas `expectedCloseDate` y `lastContactAt` convertidas a ISO DateTime antes de enviarse al backend
+
+### Tasks UI
+- `GET /tasks`
+- `GET /tasks/:id`
+- `POST /tasks`
+- `PATCH /tasks/:id`
+- `DELETE /tasks/:id`
+- Páginas:
+  - `/dashboard/tasks`
+  - `/dashboard/tasks/new`
+  - `/dashboard/tasks/[id]`
+  - `/dashboard/tasks/[id]/edit`
+- Componente:
+  - `TaskForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Filtros por status y priority
+  - `dueDate` convertido a ISO DateTime antes de enviarse al backend
+  - `completedAt` manejado por backend al cambiar status a `COMPLETED`
+  - Al salir de `COMPLETED`, backend limpia `completedAt`
+
+### Products UI
+- `GET /products`
+- `GET /products/:id`
+- `POST /products`
+- `PATCH /products/:id`
+- `DELETE /products/:id`
+- Páginas:
+  - `/dashboard/products`
+  - `/dashboard/products/new`
+  - `/dashboard/products/[id]`
+  - `/dashboard/products/[id]/edit`
+- Componente:
+  - `ProductForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Filtro por `isActive`
+
+### Notes UI
+- `GET /notes`
+- `GET /notes/:id`
+- `POST /notes`
+- `PATCH /notes/:id`
+- `DELETE /notes/:id`
+- Páginas:
+  - `/dashboard/notes`
+  - `/dashboard/notes/new`
+  - `/dashboard/notes/[id]`
+  - `/dashboard/notes/[id]/edit`
+- Componente:
+  - `NoteForm`
+- Validado:
+  - Listar
+  - Crear
+  - Ver detalle
+  - Editar
+  - Eliminar
+  - Relaciones opcionales con company/contact/lead
+  - `createdByUserId` no se envía desde frontend, lo maneja backend desde el usuario autenticado
+  - Compatible con flujo futuro de IA human-in-the-loop
+
+Validación final:
+- `pnpm build` final pasó:
+  - 3 successful
+  - 3 total
+- Smoke manual final de navegación pasó:
+  - `/dashboard`
+  - `/dashboard/companies`
+  - `/dashboard/contacts`
+  - `/dashboard/leads`
+  - `/dashboard/tasks`
+  - `/dashboard/products`
+  - `/dashboard/notes`
+- Smoke manual final de relaciones cruzadas pasó.
+- CRUD completo validado en runtime para:
+  - Companies
+  - Contacts
+  - Leads
+  - Tasks
+  - Products
+  - Notes
+
+Resultado:
+- Fase 12 Frontend CRM Management UI queda completada.
+- El frontend ya permite gestionar manualmente el CRM comercial base.
+- No se implementó IA todavía.
+- La UI queda lista para futuras fases de IA human-in-the-loop, donde la IA sugerirá datos y el usuario decidirá si acepta, edita o rechaza.
