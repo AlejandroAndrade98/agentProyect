@@ -4,35 +4,14 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteProduct, getProductById } from '@/lib/api-client';
+import { getBooleanStatusClasses } from '@/lib/crm-styles';
+import { formatDate } from '@/lib/formatters';
+import { canManageProducts } from '@/lib/permissions';
 import type { Product } from '@/types/crm';
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-        isActive
-          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-          : 'bg-slate-100 text-slate-600 ring-slate-200'
-      }`}
-    >
-      {isActive ? 'Active' : 'Inactive'}
-    </span>
-  );
-}
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -97,10 +76,7 @@ export default function ProductDetailPage() {
     };
   }, [token, productId]);
 
-  const canManageProducts =
-    user?.role === 'SUPER_ADMIN' ||
-    user?.role === 'OWNER' ||
-    user?.role === 'ADMIN';
+  const canManageProduct = canManageProducts(user);
 
   async function handleDeleteProduct() {
     if (!token || !productId || !product) {
@@ -154,9 +130,7 @@ export default function ProductDetailPage() {
           ← Back to products
         </Link>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       </div>
     );
   }
@@ -206,7 +180,7 @@ export default function ProductDetailPage() {
             </p>
           </div>
 
-          {canManageProducts ? (
+          {canManageProduct ? (
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/dashboard/products/${product.id}/edit`}
@@ -244,7 +218,9 @@ export default function ProductDetailPage() {
               Status
             </p>
             <div className="mt-2">
-              <StatusBadge isActive={product.isActive} />
+              <Badge className={getBooleanStatusClasses(product.isActive)}>
+                {product.isActive ? 'Active' : 'Inactive'}
+              </Badge>
             </div>
           </div>
 
