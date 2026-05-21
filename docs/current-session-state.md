@@ -1073,3 +1073,69 @@ Important note:
 
 - This phase intentionally did not introduce backend changes.
 - Contextual create flows and Activity Timeline UI are left for the next frontend workflow block.
+
+## Phase 13B, CRM Workflow UX
+
+Status: completed, validated in runtime, committed locally.
+
+This phase focused on improving CRM workflow navigation and contextual creation flows without introducing backend changes.
+
+Implemented contextual CRM create flows:
+
+- Company detail:
+  - `New note` opens `/dashboard/notes/new?companyId=...`
+  - `New lead` opens `/dashboard/leads/new?companyId=...`
+
+- Contact detail:
+  - `New note` opens `/dashboard/notes/new?contactId=...`
+  - `New task` opens `/dashboard/tasks/new?contactId=...`
+  - `New lead` opens `/dashboard/leads/new?contactId=...&companyId=...` when company is available
+
+- Lead detail:
+  - `New note` opens `/dashboard/notes/new?leadId=...`
+  - `New task` opens `/dashboard/tasks/new?leadId=...&contactId=...` when contact is available
+
+Updated forms to support contextual query params:
+
+- `LeadForm`
+  - supports `companyId`
+  - supports `contactId`
+
+- `TaskForm`
+  - supports `leadId`
+  - supports `contactId`
+
+- `NoteForm`
+  - supports `companyId`
+  - supports `contactId`
+  - supports `leadId`
+
+Implemented Activity Timeline UI:
+
+- Added `apps/web/src/types/activity.ts`
+- Added `getActivityEvents` to the frontend API client
+- Added `/dashboard/activity`
+- Added Activity to the dashboard sidebar
+- Activity timeline supports:
+  - paginated activity events
+  - filter by activity type
+  - filter by entity type
+  - actor display
+  - source display
+  - View record navigation
+
+Validation completed:
+
+- Contextual create flows were validated from company, contact and lead detail pages.
+- Preselected relations worked correctly in LeadForm, TaskForm and NoteForm.
+- Creating contextual notes, leads and tasks worked correctly.
+- Activity page loaded successfully.
+- Activity filters worked correctly.
+- View record worked correctly for active records.
+- Activity events pointing to soft-deleted records can show not found in detail pages, which is expected because active CRM detail endpoints filter by `deletedAt: null`.
+- Build passed with 3 successful tasks.
+
+Important note:
+
+- This phase intentionally did not introduce backend changes.
+- ActivityEvent types were kept in a dedicated frontend type file instead of expanding `crm.ts`.
