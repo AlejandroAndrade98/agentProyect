@@ -1014,3 +1014,62 @@ Resultado:
 - El frontend ya permite gestionar manualmente el CRM comercial base.
 - No se implementó IA todavía.
 - La UI queda lista para futuras fases de IA human-in-the-loop, donde la IA sugerirá datos y el usuario decidirá si acepta, edita o rechaza.
+
+## Phase 13A, CRM Frontend Refactor
+
+Status: completed, validated in runtime, committed locally.
+
+This phase focused on reducing duplicated frontend CRM code and making the CRM UI easier to maintain before adding more workflow UX features.
+
+Implemented shared CRM frontend helpers:
+
+- `apps/web/src/lib/formatters.ts`
+  - `formatEnumLabel`
+  - `formatDate`
+  - `formatMoney`
+
+- `apps/web/src/lib/crm-options.ts`
+  - shared enum option arrays for importance, priority, source, lead status and task status
+
+- `apps/web/src/lib/crm-styles.ts`
+  - shared badge class helpers for importance, priority, lead status, task status and boolean active/inactive states
+
+- `apps/web/src/lib/permissions.ts`
+  - shared role-based frontend helpers:
+    - `canReadCrm`
+    - `canCreateCrm`
+    - `canUpdateCrm`
+    - `canDeleteCrm`
+    - `canManageProducts`
+
+Implemented reusable UI primitives:
+
+- `Badge`
+- `EmptyState`
+- `ErrorState`
+- `LoadingSkeleton`
+- `PageHeader`
+
+Refactored CRM frontend resources to use shared helpers and UI primitives:
+
+- Companies
+- Contacts
+- Leads
+- Tasks
+- Products
+- Notes
+
+Validated behavior:
+
+- CRM list pages still load correctly.
+- Search and filters work across refactored resources.
+- Detail pages still load correctly.
+- Create/edit/delete flows were validated in runtime.
+- OWNER permissions still show create/delete/manage actions correctly.
+- Shared enum labels and badge styles render correctly.
+- Build passed with 3 successful tasks.
+
+Important note:
+
+- This phase intentionally did not introduce backend changes.
+- Contextual create flows and Activity Timeline UI are left for the next frontend workflow block.
