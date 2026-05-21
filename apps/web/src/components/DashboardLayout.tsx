@@ -39,7 +39,7 @@ const navItems = [
   {
     label: 'Notes',
     href: '/dashboard/notes',
-    enabled: false,
+    enabled: true,
   },
 ] as const;
 
