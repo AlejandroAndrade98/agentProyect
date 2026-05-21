@@ -2,6 +2,13 @@
 
 import { FormEvent, useState } from 'react';
 
+import {
+  importanceOptions,
+  leadStatusOptions,
+  priorityOptions,
+  sourceOptions,
+} from '@/lib/crm-options';
+import { formatEnumLabel } from '@/lib/formatters';
 import type {
   Company,
   Contact,
@@ -22,35 +29,6 @@ type LeadFormProps = {
   isSubmitting: boolean;
   onSubmit: (values: CreateLeadInput) => Promise<void>;
 };
-
-const statusOptions: LeadStatus[] = [
-  'NEW',
-  'CONTACTED',
-  'MEETING_SCHEDULED',
-  'PROPOSAL_SENT',
-  'NEGOTIATION',
-  'WON',
-  'LOST',
-  'ARCHIVED',
-];
-
-const priorityOptions: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
-const importanceOptions: ImportanceLevel[] = [
-  'LOW',
-  'MEDIUM',
-  'HIGH',
-  'CRITICAL',
-];
-
-const sourceOptions: Source[] = [
-  'MANUAL',
-  'AI_SUGGESTION',
-  'IMPORT',
-  'EMAIL',
-  'MEETING',
-  'OTHER',
-];
 
 function cleanOptionalValue(value: string) {
   const trimmedValue = value.trim();
@@ -78,14 +56,6 @@ function cleanOptionalDate(value: string) {
   }
 
   return new Date(`${trimmedValue}T00:00:00.000Z`).toISOString();
-}
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 export function LeadForm({
@@ -230,7 +200,7 @@ export function LeadForm({
             onChange={(event) => setStatus(event.target.value as LeadStatus)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            {statusOptions.map((option) => (
+            {leadStatusOptions.map((option) => (
               <option key={option} value={option}>
                 {formatEnumLabel(option)}
               </option>

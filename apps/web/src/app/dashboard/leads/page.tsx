@@ -3,8 +3,17 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getLeads } from '@/lib/api-client';
+import { leadStatusOptions, priorityOptions } from '@/lib/crm-options';
+import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
+import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
+import { canCreateCrm } from '@/lib/permissions';
 import type {
   Lead,
   LeadStatus,
@@ -12,82 +21,8 @@ import type {
   Priority,
 } from '@/types/crm';
 
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function formatMoney(value: number | null) {
-  if (value === null) {
-    return 'Not set';
-  }
-
-  return new Intl.NumberFormat('en', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function getPriorityClasses(value: Priority) {
-  const classes: Record<Priority, string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function getStatusClasses(value: LeadStatus) {
-  const classes: Record<LeadStatus, string> = {
-    NEW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    CONTACTED: 'bg-blue-50 text-blue-700 ring-blue-200',
-    MEETING_SCHEDULED: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-    PROPOSAL_SENT: 'bg-purple-50 text-purple-700 ring-purple-200',
-    NEGOTIATION: 'bg-amber-50 text-amber-700 ring-amber-200',
-    WON: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    LOST: 'bg-red-50 text-red-700 ring-red-200',
-    ARCHIVED: 'bg-slate-100 text-slate-500 ring-slate-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 export default function LeadsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [leadsResponse, setLeadsResponse] =
     useState<PaginatedResponse<Lead> | null>(null);
@@ -172,27 +107,20 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Leads
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Manage commercial opportunities, track pipeline status, and keep
-            next steps visible.
-          </p>
-        </div>
-
-        <Link
-          href="/dashboard/leads/new"
-          className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-        >
-          New lead
-        </Link>
-      </section>
+      <PageHeader
+        title="Leads"
+        description="Manage commercial opportunities, track pipeline status, and keep next steps visible."
+        actions={
+          canCreateCrm(user) ? (
+            <Link
+              href="/dashboard/leads/new"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+            >
+              New lead
+            </Link>
+          ) : null
+        }
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form
@@ -216,14 +144,11 @@ export default function LeadsPage() {
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
             <option value="">All statuses</option>
-            <option value="NEW">New</option>
-            <option value="CONTACTED">Contacted</option>
-            <option value="MEETING_SCHEDULED">Meeting Scheduled</option>
-            <option value="PROPOSAL_SENT">Proposal Sent</option>
-            <option value="NEGOTIATION">Negotiation</option>
-            <option value="WON">Won</option>
-            <option value="LOST">Lost</option>
-            <option value="ARCHIVED">Archived</option>
+            {leadStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {formatEnumLabel(status)}
+              </option>
+            ))}
           </select>
 
           <select
@@ -235,10 +160,11 @@ export default function LeadsPage() {
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
             <option value="">All priorities</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
+            {priorityOptions.map((priority) => (
+              <option key={priority} value={priority}>
+                {formatEnumLabel(priority)}
+              </option>
+            ))}
           </select>
 
           <div className="flex gap-2">
@@ -260,34 +186,17 @@ export default function LeadsPage() {
         </form>
       </section>
 
-      {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-14 animate-pulse rounded-xl bg-slate-100"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {isLoading ? <LoadingSkeleton rows={6} /> : null}
 
       {!isLoading && errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       ) : null}
 
       {!isLoading && !errorMessage && leads.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">
-            No leads found
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Create your first lead to start tracking an opportunity.
-          </p>
-        </div>
+        <EmptyState
+          title="No leads found"
+          description="Create your first lead to start tracking an opportunity."
+        />
       ) : null}
 
       {!isLoading && !errorMessage && leads.length > 0 ? (
@@ -330,7 +239,7 @@ export default function LeadsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <Badge className={getStatusClasses(lead.status)}>
+                      <Badge className={getLeadStatusClasses(lead.status)}>
                         {formatEnumLabel(lead.status)}
                       </Badge>
                     </td>

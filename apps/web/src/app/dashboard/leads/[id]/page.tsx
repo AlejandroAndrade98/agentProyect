@@ -4,83 +4,14 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteLead, getLeadById } from '@/lib/api-client';
-import type { LeadDetail, LeadStatus, Priority } from '@/types/crm';
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function formatMoney(value: number | null) {
-  if (value === null) {
-    return 'Not set';
-  }
-
-  return new Intl.NumberFormat('en', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function getPriorityClasses(value: Priority) {
-  const classes: Record<Priority, string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function getStatusClasses(value: LeadStatus) {
-  const classes: Record<LeadStatus, string> = {
-    NEW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    CONTACTED: 'bg-blue-50 text-blue-700 ring-blue-200',
-    MEETING_SCHEDULED: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-    PROPOSAL_SENT: 'bg-purple-50 text-purple-700 ring-purple-200',
-    NEGOTIATION: 'bg-amber-50 text-amber-700 ring-amber-200',
-    WON: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    LOST: 'bg-red-50 text-red-700 ring-red-200',
-    ARCHIVED: 'bg-slate-100 text-slate-500 ring-slate-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
+import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
+import { canDeleteCrm } from '@/lib/permissions';
+import type { LeadDetail } from '@/types/crm';
 
 function EmptyRelatedState({ label }: { label: string }) {
   return (
@@ -155,10 +86,7 @@ export default function LeadDetailPage() {
     };
   }, [token, leadId]);
 
-  const canDeleteLead =
-    user?.role === 'SUPER_ADMIN' ||
-    user?.role === 'OWNER' ||
-    user?.role === 'ADMIN';
+  const canDeleteLead = canDeleteCrm(user);
 
   async function handleDeleteLead() {
     if (!token || !leadId || !lead) {
@@ -216,9 +144,7 @@ export default function LeadDetailPage() {
           ← Back to leads
         </Link>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       </div>
     );
   }
@@ -301,7 +227,7 @@ export default function LeadDetailPage() {
               Status
             </p>
             <div className="mt-2">
-              <Badge className={getStatusClasses(lead.status)}>
+              <Badge className={getLeadStatusClasses(lead.status)}>
                 {formatEnumLabel(lead.status)}
               </Badge>
             </div>
