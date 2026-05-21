@@ -4,56 +4,14 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteNote, getNoteById } from '@/lib/api-client';
-import type { ImportanceLevel, NoteDetail } from '@/types/crm';
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function getImportanceClasses(value: ImportanceLevel) {
-  const classes: Record<ImportanceLevel, string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { getImportanceClasses } from '@/lib/crm-styles';
+import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { canDeleteCrm } from '@/lib/permissions';
+import type { NoteDetail } from '@/types/crm';
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -120,10 +78,7 @@ export default function NoteDetailPage() {
     };
   }, [token, noteId]);
 
-  const canDeleteNote =
-    user?.role === 'SUPER_ADMIN' ||
-    user?.role === 'OWNER' ||
-    user?.role === 'ADMIN';
+  const canDeleteNote = canDeleteCrm(user);
 
   async function handleDeleteNote() {
     if (!token || !noteId || !note) {
@@ -177,9 +132,7 @@ export default function NoteDetailPage() {
           ← Back to notes
         </Link>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       </div>
     );
   }
@@ -225,7 +178,8 @@ export default function NoteDetailPage() {
               {note.title ?? 'Untitled note'}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review commercial context linked to companies, contacts, or leads.
+              Review commercial context, linked records, source, importance, and
+              author details.
             </p>
           </div>
 
@@ -253,6 +207,35 @@ export default function NoteDetailPage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Importance
+            </p>
+            <div className="mt-2">
+              <Badge className={getImportanceClasses(note.importanceLevel)}>
+                {formatEnumLabel(note.importanceLevel)}
+              </Badge>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Source
+            </p>
+            <p className="mt-2 text-sm text-slate-950">
+              {formatEnumLabel(note.source)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Created by
+            </p>
+            <p className="mt-2 text-sm text-slate-950">
+              {note.createdBy?.name ?? note.createdBy?.email ?? 'Unknown'}
+            </p>
+          </div>
+
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Company
@@ -299,35 +282,6 @@ export default function NoteDetailPage() {
             ) : (
               <p className="mt-2 text-sm text-slate-600">Not linked</p>
             )}
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Importance
-            </p>
-            <div className="mt-2">
-              <Badge className={getImportanceClasses(note.importanceLevel)}>
-                {formatEnumLabel(note.importanceLevel)}
-              </Badge>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Source
-            </p>
-            <p className="mt-2 text-sm text-slate-950">
-              {formatEnumLabel(note.source)}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created by
-            </p>
-            <p className="mt-2 text-sm text-slate-950">
-              {note.createdBy?.name ?? note.createdBy?.email ?? 'Unknown'}
-            </p>
           </div>
 
           <div>

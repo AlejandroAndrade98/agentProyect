@@ -3,57 +3,23 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getNotes } from '@/lib/api-client';
+import { importanceOptions, sourceOptions } from '@/lib/crm-options';
+import { getImportanceClasses } from '@/lib/crm-styles';
+import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { canCreateCrm } from '@/lib/permissions';
 import type {
   ImportanceLevel,
   Note,
   PaginatedResponse,
   Source,
 } from '@/types/crm';
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function getImportanceClasses(value: ImportanceLevel) {
-  const classes: Record<ImportanceLevel, string> = {
-    LOW: 'bg-slate-100 text-slate-700 ring-slate-200',
-    MEDIUM: 'bg-blue-50 text-blue-700 ring-blue-200',
-    HIGH: 'bg-amber-50 text-amber-700 ring-amber-200',
-    CRITICAL: 'bg-red-50 text-red-700 ring-red-200',
-  };
-
-  return classes[value];
-}
-
-function Badge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 function getLinkedLabel(note: Note) {
   if (note.leadId) return 'Lead';
@@ -64,7 +30,7 @@ function getLinkedLabel(note: Note) {
 }
 
 export default function NotesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [notesResponse, setNotesResponse] =
     useState<PaginatedResponse<Note> | null>(null);
@@ -151,26 +117,20 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Notes
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Manage commercial notes linked to companies, contacts, and leads.
-          </p>
-        </div>
-
-        <Link
-          href="/dashboard/notes/new"
-          className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-        >
-          New note
-        </Link>
-      </section>
+      <PageHeader
+        title="Notes"
+        description="Manage commercial notes linked to companies, contacts, and leads."
+        actions={
+          canCreateCrm(user) ? (
+            <Link
+              href="/dashboard/notes/new"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+            >
+              New note
+            </Link>
+          ) : null
+        }
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form
@@ -194,10 +154,11 @@ export default function NotesPage() {
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
             <option value="">All importance</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
+            {importanceOptions.map((importance) => (
+              <option key={importance} value={importance}>
+                {formatEnumLabel(importance)}
+              </option>
+            ))}
           </select>
 
           <select
@@ -209,12 +170,11 @@ export default function NotesPage() {
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
             <option value="">All sources</option>
-            <option value="MANUAL">Manual</option>
-            <option value="AI_SUGGESTION">AI Suggestion</option>
-            <option value="IMPORT">Import</option>
-            <option value="EMAIL">Email</option>
-            <option value="MEETING">Meeting</option>
-            <option value="OTHER">Other</option>
+            {sourceOptions.map((source) => (
+              <option key={source} value={source}>
+                {formatEnumLabel(source)}
+              </option>
+            ))}
           </select>
 
           <div className="flex gap-2">
@@ -236,34 +196,17 @@ export default function NotesPage() {
         </form>
       </section>
 
-      {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-14 animate-pulse rounded-xl bg-slate-100"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {isLoading ? <LoadingSkeleton rows={6} /> : null}
 
       {!isLoading && errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {errorMessage}
-        </div>
+        <ErrorState message={errorMessage} />
       ) : null}
 
       {!isLoading && !errorMessage && notes.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">
-            No notes found
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Create your first note to start documenting commercial context.
-          </p>
-        </div>
+        <EmptyState
+          title="No notes found"
+          description="Create your first note to start documenting commercial context."
+        />
       ) : null}
 
       {!isLoading && !errorMessage && notes.length > 0 ? (
