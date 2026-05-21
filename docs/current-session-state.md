@@ -1139,3 +1139,58 @@ Important note:
 
 - This phase intentionally did not introduce backend changes.
 - ActivityEvent types were kept in a dedicated frontend type file instead of expanding `crm.ts`.
+
+## Phase 13C, Frontend API and Types Modularization
+
+Status: completed, validated in runtime, committed and pushed.
+
+This phase focused on improving frontend maintainability by splitting large API and CRM type files into smaller resource-based modules without changing runtime behavior.
+
+Implemented API client modularization:
+
+- Extracted API core to `apps/web/src/lib/api/core.ts`
+  - `API_BASE_URL`
+  - `ApiClientError`
+  - `apiRequest`
+  - request URL/query handling
+
+- Split API resource functions under `apps/web/src/lib/api/`
+  - `auth.ts`
+  - `dashboard.ts`
+  - `companies.ts`
+  - `contacts.ts`
+  - `leads.ts`
+  - `tasks.ts`
+  - `products.ts`
+  - `notes.ts`
+  - `activity-events.ts`
+
+- Kept `apps/web/src/lib/api-client.ts` as a barrel export so existing imports continue working.
+
+Implemented CRM types modularization:
+
+- Kept `apps/web/src/types/crm.ts` as a barrel export.
+- Moved CRM types into `apps/web/src/types/crm/`
+  - `common.ts`
+  - `companies.ts`
+  - `contacts.ts`
+  - `leads.ts`
+  - `tasks.ts`
+  - `products.ts`
+  - `notes.ts`
+  - `index.ts`
+
+- Kept Activity Timeline types in dedicated file:
+  - `apps/web/src/types/activity.ts`
+
+Validation completed:
+
+- Login worked correctly.
+- Dashboard routes loaded correctly.
+- Companies, Contacts, Leads, Tasks, Products, Notes and Activity pages loaded correctly.
+- Build passed with 3 successful tasks.
+
+Important note:
+
+- This phase did not introduce new product behavior.
+- Existing imports from `@/lib/api-client` and `@/types/crm` were preserved through barrel exports.
