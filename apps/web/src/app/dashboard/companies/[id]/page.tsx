@@ -206,31 +206,38 @@ async function handleDeleteCompany() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/dashboard/companies/${company.id}/edit`}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Edit
-          </Link>
+  <Link
+    href={`/dashboard/companies/${company.id}/edit`}
+    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+  >
+    Edit
+  </Link>
 
-          {canDeleteCompany ? (
-            <button
-              type="button"
-              onClick={handleDeleteCompany}
-              disabled={isDeleting}
-              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </button>
-          ) : null}
+  <Link
+    href={`/dashboard/notes/new?companyId=${company.id}`}
+    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+  >
+    New note
+  </Link>
 
-          <button
-            type="button"
-            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
-          >
-            New note
-          </button>
-        </div>
+  <Link
+    href={`/dashboard/leads/new?companyId=${company.id}`}
+    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+  >
+    New lead
+  </Link>
+
+  {canDeleteCompany ? (
+    <button
+      type="button"
+      onClick={handleDeleteCompany}
+      disabled={isDeleting}
+      className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {isDeleting ? 'Deleting...' : 'Delete'}
+    </button>
+  ) : null}
+</div>
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
 import { formatEnumLabel } from '@/lib/formatters';
@@ -49,6 +49,29 @@ export function NoteForm({
   const [source, setSource] = useState<Source>(
     initialValues?.source ?? 'MANUAL',
   );
+
+    useEffect(() => {
+    if (initialValues) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const companyIdParam = params.get('companyId');
+    const contactIdParam = params.get('contactId');
+    const leadIdParam = params.get('leadId');
+
+    if (companyIdParam) {
+      setCompanyId(companyIdParam);
+    }
+
+    if (contactIdParam) {
+      setContactId(contactIdParam);
+    }
+
+    if (leadIdParam) {
+      setLeadId(leadIdParam);
+    }
+  }, [initialValues]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

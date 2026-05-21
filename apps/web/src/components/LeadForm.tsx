@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import {
   importanceOptions,
@@ -99,6 +99,24 @@ export function LeadForm({
   );
   const [nextStep, setNextStep] = useState(initialValues?.nextStep ?? '');
 
+  useEffect(() => {
+    if (initialValues) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const companyIdParam = params.get('companyId');
+    const contactIdParam = params.get('contactId');
+
+    if (companyIdParam) {
+      setCompanyId(companyIdParam);
+    }
+
+    if (contactIdParam) {
+      setContactId(contactIdParam);
+    }
+  }, [initialValues]);
+  
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 

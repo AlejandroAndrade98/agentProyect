@@ -213,6 +213,31 @@ export default function ContactDetailPage() {
               Edit
             </Link>
 
+                        <Link
+              href={`/dashboard/notes/new?contactId=${contact.id}`}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              New note
+            </Link>
+
+            <Link
+              href={`/dashboard/tasks/new?contactId=${contact.id}`}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              New task
+            </Link>
+
+            <Link
+              href={
+                contact.companyId
+                  ? `/dashboard/leads/new?contactId=${contact.id}&companyId=${contact.companyId}`
+                  : `/dashboard/leads/new?contactId=${contact.id}`
+              }
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              New lead
+            </Link>
+
             {canDeleteContact ? (
               <button
                 type="button"
