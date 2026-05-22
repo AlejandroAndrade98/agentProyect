@@ -1194,3 +1194,106 @@ Important note:
 
 - This phase did not introduce new product behavior.
 - Existing imports from `@/lib/api-client` and `@/types/crm` were preserved through barrel exports.
+
+## Phase 13D, CRM Boards & Workflow Foundation
+
+Status: completed, validated in runtime, committed locally.
+
+This phase added a professional CRM board workflow foundation for leads and tasks, including backend board fields, workflow endpoints, frontend board views, quick status updates, and Activity Timeline integration.
+
+Backend and database foundation:
+
+- Added board workflow fields to Prisma:
+  - Lead `pipelinePosition`
+  - Lead `statusChangedAt`
+  - Task `boardPosition`
+  - Task `statusChangedAt`
+
+- Added Prisma migration:
+  - `20260521224249_add_crm_board_workflow_fields`
+
+- Added root database scripts:
+  - `db:migrate`
+  - `db:generate`
+  - `db:studio`
+  - `db:deploy`
+
+- Added `scripts/prisma-host.mjs` to run Prisma commands from Windows using `DATABASE_URL_HOST` as `DATABASE_URL`.
+
+Backend API additions:
+
+- Added `MoveLeadPipelineDto`
+- Added `MoveTaskBoardDto`
+
+- Added endpoint:
+  - `PATCH /api/leads/:id/pipeline`
+
+- Added endpoint:
+  - `PATCH /api/tasks/:id/board`
+
+Backend behavior:
+
+- Moving a lead updates:
+  - `status`
+  - `pipelinePosition`
+  - `statusChangedAt`
+
+- Moving a task updates:
+  - `status`
+  - `boardPosition`
+  - `statusChangedAt`
+
+- Moving a task to `COMPLETED` also sets:
+  - `completedAt`
+
+- Moving a task out of `COMPLETED` clears:
+  - `completedAt`
+
+Activity Events validation:
+
+- Lead board moves create `LEAD_STATUS_CHANGED` events when status changes.
+- Task board moves create `TASK_STATUS_CHANGED` events when status changes.
+- Task moves to `COMPLETED` create `TASK_COMPLETED` events.
+- Activity metadata includes previous and new status plus previous and new board/pipeline position.
+
+Frontend board experience:
+
+- Added Lead Pipeline view:
+  - `/dashboard/leads/pipeline`
+
+- Added Tasks Board view:
+  - `/dashboard/tasks/board`
+
+- Added quick status updates from cards.
+- Added board navigation buttons from:
+  - Leads list to Pipeline view
+  - Tasks list to Board view
+
+- Added frontend API client functions:
+  - `moveLeadPipeline`
+  - `moveTaskBoard`
+
+- Updated frontend CRM types:
+  - Lead `pipelinePosition`
+  - Lead `statusChangedAt`
+  - Task `boardPosition`
+  - Task `statusChangedAt`
+
+Activity Timeline polish:
+
+- Added `formatDateTime`
+- Activity Timeline now shows date and time for events.
+
+Validation completed:
+
+- Prisma migration applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+- `PATCH /api/leads/:id/pipeline` validated in runtime.
+- `PATCH /api/tasks/:id/board` validated in runtime.
+- Both endpoints return 401 without token.
+- Activity events were generated correctly for lead and task board moves.
+- Lead Pipeline UI validated from the frontend.
+- Tasks Board UI validated from the frontend.
+- Quick status updates worked from the frontend.
+- Activity Timeline reflected board changes correctly.
