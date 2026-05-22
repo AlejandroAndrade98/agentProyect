@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -19,6 +21,8 @@ import {
 
 import { AiSuggestionsService } from './ai-suggestions.service';
 import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
+
+import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
 
 @Controller('ai-suggestions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -53,5 +57,25 @@ export class AiSuggestionsController {
       leadId,
       currentUser,
     );
+  }
+
+  @Patch(':id/accept')
+  @Roles(...CRM_WRITE_ROLES)
+  accept(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ReviewAiSuggestionDto,
+  ) {
+    return this.aiSuggestionsService.accept(id, currentUser, dto);
+  }
+
+  @Patch(':id/reject')
+  @Roles(...CRM_WRITE_ROLES)
+  reject(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ReviewAiSuggestionDto,
+  ) {
+    return this.aiSuggestionsService.reject(id, currentUser, dto);
   }
 }

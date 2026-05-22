@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ActivityEventType,
   AiSuggestionStatus,
@@ -21,6 +21,17 @@ import { ActivityEventsService } from '../activity-events/activity-events.servic
 import { AiSuggestionProviderService } from './ai-suggestion-provider.service';
 import { LeadAiContextService } from './lead-ai-context.service';
 import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
+import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
+
+type AiSuggestionReviewStatus = Extract<
+  AiSuggestionStatus,
+  'ACCEPTED' | 'REJECTED'
+>;
+
+type AiSuggestionReviewActivityType = Extract<
+  ActivityEventType,
+  'AI_SUGGESTION_ACCEPTED' | 'AI_SUGGESTION_REJECTED'
+>;
 
 @Injectable()
 export class AiSuggestionsService {
@@ -255,6 +266,187 @@ export class AiSuggestionsService {
 
       return suggestion;
     });
+  }
+
+    async accept(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ReviewAiSuggestionDto,
+  ) {
+    return this.reviewSuggestion({
+      id,
+      currentUser,
+      reviewStatus: AiSuggestionStatus.ACCEPTED,
+      activityType: ActivityEventType.AI_SUGGESTION_ACCEPTED,
+      reviewNote: dto.reviewNote,
+    });
+  }
+
+  async reject(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ReviewAiSuggestionDto,
+  ) {
+    return this.reviewSuggestion({
+      id,
+      currentUser,
+      reviewStatus: AiSuggestionStatus.REJECTED,
+      activityType: ActivityEventType.AI_SUGGESTION_REJECTED,
+      reviewNote: dto.reviewNote,
+    });
+  }
+
+  private async reviewSuggestion({
+    id,
+    currentUser,
+    reviewStatus,
+    activityType,
+    reviewNote,
+  }: {
+    id: string;
+    currentUser: CurrentUser;
+    reviewStatus: AiSuggestionReviewStatus;
+    activityType: AiSuggestionReviewActivityType;
+    reviewNote?: string;
+  }) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (suggestion.status !== AiSuggestionStatus.PENDING_REVIEW) {
+      throw new ConflictException(
+        'Only pending AI suggestions can be reviewed',
+      );
+    }
+
+    const reviewedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          status: reviewStatus,
+          reviewedByUserId: currentUser.id,
+          reviewedAt,
+          metadataJson: this.buildReviewedMetadata({
+            metadataJson: suggestion.metadataJson,
+            reviewStatus,
+            reviewNote,
+            currentUser,
+            reviewedAt,
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: activityType,
+          entityType: suggestion.entityType ?? EntityType.LEAD,
+          entityId: suggestion.entityId ?? suggestion.leadId ?? suggestion.id,
+          title:
+            reviewStatus === AiSuggestionStatus.ACCEPTED
+              ? `AI suggestion accepted: ${suggestion.title ?? suggestion.id}`
+              : `AI suggestion rejected: ${suggestion.title ?? suggestion.id}`,
+          description:
+            reviewStatus === AiSuggestionStatus.ACCEPTED
+              ? 'A human accepted this AI suggestion for review. No CRM data was changed automatically.'
+              : 'A human rejected this AI suggestion. No CRM data was changed.',
+          source: Source.AI_SUGGESTION,
+          companyId: suggestion.companyId ?? undefined,
+          contactId: suggestion.contactId ?? undefined,
+          leadId: suggestion.leadId ?? undefined,
+          taskId: suggestion.taskId ?? undefined,
+          noteId: suggestion.noteId ?? undefined,
+          occurredAt: reviewedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            previousStatus: suggestion.status,
+            newStatus: reviewStatus,
+            reviewNote: reviewNote ?? null,
+            humanApprovalRequired: true,
+            appliedToCrm: false,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+          },
+        }),
+      });
+
+      return updatedSuggestion;
+    });
+  }
+
+  private getSuggestionInclude() {
+    return {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          organizationId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      reviewedBy: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          organizationId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+    };
+  }
+
+  private buildReviewedMetadata({
+    metadataJson,
+    reviewStatus,
+    reviewNote,
+    currentUser,
+    reviewedAt,
+  }: {
+    metadataJson: Prisma.JsonValue | null;
+    reviewStatus: AiSuggestionReviewStatus;
+    reviewNote?: string;
+    currentUser: CurrentUser;
+    reviewedAt: Date;
+  }): Prisma.InputJsonValue {
+    const currentMetadata =
+      metadataJson &&
+      typeof metadataJson === 'object' &&
+      !Array.isArray(metadataJson)
+        ? (metadataJson as Record<string, unknown>)
+        : {};
+
+    return {
+      ...currentMetadata,
+      review: {
+        status: reviewStatus,
+        note: reviewNote ?? null,
+        reviewedByUserId: currentUser.id,
+        reviewedAt: reviewedAt.toISOString(),
+        appliedToCrm: false,
+        canApplyAutomatically: false,
+        canSendEmailAutomatically: false,
+      },
+    };
   }
 
   private hashInput(inputText: string) {
