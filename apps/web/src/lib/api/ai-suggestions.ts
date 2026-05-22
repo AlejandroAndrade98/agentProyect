@@ -3,6 +3,12 @@ import type {
   PaginatedAiSuggestions,
   QueryAiSuggestionsParams,
   ReviewAiSuggestionInput,
+  ApplyLeadNextStepInput,
+  ApplyLeadNextStepResponse,
+  ApplySuggestedNoteInput,
+  ApplySuggestedNoteResponse,
+  ApplySuggestedTaskInput,
+  ApplySuggestedTaskResponse,
 } from '@/types/ai-suggestions';
 
 import { apiRequest } from './core';
@@ -52,4 +58,49 @@ export function rejectAiSuggestion(
     token,
     body: input,
   });
+}
+
+export function applyAiSuggestionLeadNextStep(
+  token: string,
+  id: string,
+  input: ApplyLeadNextStepInput = {},
+) {
+  return apiRequest<ApplyLeadNextStepResponse>(
+    `/ai-suggestions/${id}/apply/lead-next-step`,
+    {
+      method: 'PATCH',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function applyAiSuggestionTask(
+  token: string,
+  id: string,
+  input: ApplySuggestedTaskInput = {},
+) {
+  return apiRequest<ApplySuggestedTaskResponse>(
+    `/ai-suggestions/${id}/apply/task`,
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function applyAiSuggestionNote(
+  token: string,
+  id: string,
+  input: ApplySuggestedNoteInput = {},
+) {
+  return apiRequest<ApplySuggestedNoteResponse>(
+    `/ai-suggestions/${id}/apply/note`,
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
 }

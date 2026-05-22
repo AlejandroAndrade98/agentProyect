@@ -115,3 +115,51 @@ export type PaginatedAiSuggestions = PaginatedResponse<AiSuggestion>;
 export type ReviewAiSuggestionInput = {
   reviewNote?: string;
 };
+
+export type ApplyLeadNextStepInput = {
+  nextStep?: string;
+};
+
+export type ApplySuggestedTaskInput = {
+  taskIndex?: number;
+  title?: string;
+  description?: string;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  dueDate?: string;
+};
+
+export type ApplySuggestedNoteInput = {
+  title?: string;
+  content?: string;
+};
+
+export type ApplyLeadNextStepResponse = {
+  suggestion: AiSuggestion;
+  lead: {
+    id: string;
+    title: string;
+    nextStep: string | null;
+  };
+};
+
+export type ApplySuggestedTaskResponse = {
+  suggestion: AiSuggestion;
+  task: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    leadId: string | null;
+    dueDate: string | null;
+  };
+};
+
+export type ApplySuggestedNoteResponse = {
+  suggestion: AiSuggestion;
+  note: {
+    id: string;
+    title: string | null;
+    source: string;
+    leadId: string | null;
+  };
+};

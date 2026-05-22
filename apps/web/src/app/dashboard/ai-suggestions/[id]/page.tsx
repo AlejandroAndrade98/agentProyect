@@ -12,6 +12,9 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   acceptAiSuggestion,
   ApiClientError,
+  applyAiSuggestionLeadNextStep,
+  applyAiSuggestionNote,
+  applyAiSuggestionTask,
   getAiSuggestion,
   rejectAiSuggestion,
 } from '@/lib/api-client';
@@ -79,6 +82,27 @@ export default function AiSuggestionDetailPage() {
     loadSuggestion();
   }, [loadSuggestion]);
 
+  useEffect(() => {
+  if (!suggestion?.outputJson) {
+    return;
+  }
+
+  setNextStepDraft(suggestion.outputJson.recommendedNextStep ?? '');
+
+  const firstTask = suggestion.outputJson.suggestedTasks[0];
+
+  if (firstTask) {
+    setTaskTitleDraft(firstTask.title ?? '');
+    setTaskDescriptionDraft(firstTask.description ?? '');
+    setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
+  }
+
+  setNoteTitleDraft(
+    suggestion.leadId ? `AI suggested note` : 'AI suggested note',
+  );
+  setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
+}, [suggestion]);
+
     async function handleReview(action: 'accept' | 'reject') {
     if (!token || !suggestion || suggestion.status !== 'PENDING_REVIEW') {
       return;
@@ -118,8 +142,147 @@ export default function AiSuggestionDetailPage() {
     }
   }
 
+  async function handleApplyNextStep() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('lead-next-step');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionLeadNextStep(token, suggestion.id, {
+      nextStep: nextStepDraft.trim() || undefined,
+    });
+
+    setSuggestion(response.suggestion);
+    setApplyMessage('Next step applied to the lead.');
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not apply next step.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
+async function handleCreateTask() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('task');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionTask(token, suggestion.id, {
+      taskIndex: 0,
+      title: taskTitleDraft.trim() || undefined,
+      description: taskDescriptionDraft.trim() || undefined,
+      priority: taskPriorityDraft,
+      dueDate: taskDueDateDraft
+      ? new Date(taskDueDateDraft).toISOString()
+      : undefined,
+    });
+
+    setSuggestion(response.suggestion);
+    setApplyMessage('Task created from AI suggestion.');
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create task from suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
+async function handleCreateNote() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('note');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionNote(token, suggestion.id, {
+      title: noteTitleDraft.trim() || undefined,
+      content: noteContentDraft.trim() || undefined,
+    });
+
+    setSuggestion(response.suggestion);
+    setApplyMessage('Note created from AI suggestion.');
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create note from suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
+
+  const [nextStepDraft, setNextStepDraft] = useState('');
+  const [taskTitleDraft, setTaskTitleDraft] = useState('');
+  const [taskDescriptionDraft, setTaskDescriptionDraft] = useState('');
+  const [taskPriorityDraft, setTaskPriorityDraft] = useState<
+    'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  >('MEDIUM');
+  const [taskDueDateDraft, setTaskDueDateDraft] = useState('');
+  const [noteTitleDraft, setNoteTitleDraft] = useState('');
+  const [noteContentDraft, setNoteContentDraft] = useState('');
+  const [isApplying, setIsApplying] = useState<string | null>(null);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
+
+  function getAppliedActions(suggestion: AiSuggestion | null) {
+  const actions = suggestion?.metadataJson?.appliedActions;
+
+  return Array.isArray(actions) ? actions : [];
+}
+
+function hasAppliedAction(
+  suggestion: AiSuggestion | null,
+  action: 'UPDATE_LEAD_NEXT_STEP' | 'CREATE_TASK' | 'CREATE_NOTE',
+) {
+  return getAppliedActions(suggestion).some((appliedAction) => {
+    if (
+      !appliedAction ||
+      typeof appliedAction !== 'object' ||
+      Array.isArray(appliedAction)
+    ) {
+      return false;
+    }
+
+    return (appliedAction as Record<string, unknown>).action === action;
+  });
+}
+
+const canApplySuggestion =
+  suggestion &&
+  (suggestion.status === 'ACCEPTED' ||
+    suggestion.status === 'EDITED_AND_ACCEPTED') &&
+  canUpdateCrm(user);
+
+const nextStepApplied = hasAppliedAction(suggestion, 'UPDATE_LEAD_NEXT_STEP');
+const taskApplied = hasAppliedAction(suggestion, 'CREATE_TASK');
+const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
 
   return (
     <div className="space-y-8">
@@ -266,8 +429,239 @@ export default function AiSuggestionDetailPage() {
                 <p className="mt-3 text-sm leading-6 text-slate-700">
                   {String(suggestion.metadataJson.review.note ?? 'No note')}
                 </p>
-              </article>
-            ) : null}
+                    </article>
+                  ) : null}
+
+                  {applyMessage ? (
+        <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800">
+          {applyMessage}
+        </article>
+      ) : null}
+
+      {suggestion.status === 'ACCEPTED' ||
+      suggestion.status === 'EDITED_AND_ACCEPTED' ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-blue-700">Apply to CRM</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              Convert reviewed suggestion into official CRM data
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              These actions require an explicit human click. Nothing is applied
+              automatically, and no email is sent.
+            </p>
+          </div>
+
+          <div className="mt-6 space-y-6">
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                <div>
+                  <h3 className="font-semibold text-slate-950">
+                    Apply recommended next step
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Updates the official lead nextStep field.
+                  </p>
+                </div>
+
+                {nextStepApplied ? (
+                  <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    Applied
+                  </Badge>
+                ) : null}
+              </div>
+
+              <textarea
+                value={nextStepDraft}
+                onChange={(event) => setNextStepDraft(event.target.value)}
+                rows={4}
+                disabled={nextStepApplied || !canApplySuggestion}
+                className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+
+              <button
+                type="button"
+                onClick={handleApplyNextStep}
+                disabled={
+                  !canApplySuggestion ||
+                  nextStepApplied ||
+                  isApplying !== null ||
+                  !nextStepDraft.trim()
+                }
+                className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isApplying === 'lead-next-step'
+                  ? 'Applying...'
+                  : nextStepApplied
+                    ? 'Next step applied'
+                    : 'Apply next step'}
+              </button>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                <div>
+                  <h3 className="font-semibold text-slate-950">
+                    Create suggested task
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Creates an official task linked to this lead.
+                  </p>
+                </div>
+
+                {taskApplied ? (
+                  <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    Applied
+                  </Badge>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <label className="space-y-2 md:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">Title</span>
+                  <input
+                    value={taskTitleDraft}
+                    onChange={(event) => setTaskTitleDraft(event.target.value)}
+                    disabled={taskApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+
+                <label className="space-y-2 md:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Description
+                  </span>
+                  <textarea
+                    value={taskDescriptionDraft}
+                    onChange={(event) =>
+                      setTaskDescriptionDraft(event.target.value)
+                    }
+                    rows={3}
+                    disabled={taskApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Priority
+                  </span>
+                  <select
+                    value={taskPriorityDraft}
+                    onChange={(event) =>
+                      setTaskPriorityDraft(
+                        event.target.value as
+                          | 'LOW'
+                          | 'MEDIUM'
+                          | 'HIGH'
+                          | 'CRITICAL',
+                      )
+                    }
+                    disabled={taskApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="CRITICAL">Critical</option>
+                  </select>
+                </label>
+
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Due date optional
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={taskDueDateDraft}
+                    onChange={(event) => setTaskDueDateDraft(event.target.value)}
+                    disabled={taskApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateTask}
+                disabled={
+                  !canApplySuggestion ||
+                  taskApplied ||
+                  isApplying !== null ||
+                  !taskTitleDraft.trim()
+                }
+                className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isApplying === 'task'
+                  ? 'Creating...'
+                  : taskApplied
+                    ? 'Task created'
+                    : 'Create task'}
+              </button>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                <div>
+                  <h3 className="font-semibold text-slate-950">
+                    Create suggested note
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Creates an official note linked to this lead.
+                  </p>
+                </div>
+
+                {noteApplied ? (
+                  <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                    Applied
+                  </Badge>
+                ) : null}
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Title</span>
+                  <input
+                    value={noteTitleDraft}
+                    onChange={(event) => setNoteTitleDraft(event.target.value)}
+                    disabled={noteApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Content</span>
+                  <textarea
+                    value={noteContentDraft}
+                    onChange={(event) => setNoteContentDraft(event.target.value)}
+                    rows={4}
+                    disabled={noteApplied || !canApplySuggestion}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateNote}
+                disabled={
+                  !canApplySuggestion ||
+                  noteApplied ||
+                  isApplying !== null ||
+                  !noteContentDraft.trim()
+                }
+                className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isApplying === 'note'
+                  ? 'Creating...'
+                  : noteApplied
+                    ? 'Note created'
+                    : 'Create note'}
+              </button>
+            </section>
+          </div>
+        </article>
+      ) : null}
 
               {suggestion.status === 'PENDING_REVIEW' ? (
                 <div className="mt-4 space-y-4">
@@ -331,6 +725,8 @@ export default function AiSuggestionDetailPage() {
               )}
             </article>
           </section>
+
+
 
           <aside className="space-y-4">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

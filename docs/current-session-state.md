@@ -1572,3 +1572,109 @@ Important note:
 
 - This phase intentionally does not apply AI suggestions to CRM records.
 - Applying AI suggestions to Lead next step, Tasks, or Notes is reserved for a future phase.
+
+
+## Phase 14C, Apply AI Suggestions
+
+Status: completed, validated in runtime, committed locally.
+
+This phase added controlled application actions for accepted AI suggestions. The goal was to let a human explicitly convert reviewed AI recommendations into official CRM data while preserving the human-in-the-loop rule.
+
+Core rules preserved:
+
+- AI does not apply CRM changes automatically.
+- Accepting a suggestion does not apply CRM changes.
+- Applying a suggestion requires a separate explicit human action.
+- AI cannot send emails automatically.
+- Every applied action is recorded through ActivityEvents.
+- Rejected, expired or pending suggestions cannot be applied.
+
+Backend apply foundation:
+
+- Added ActivityEvent type:
+  - `AI_SUGGESTION_APPLIED`
+
+- Added Prisma migration:
+  - `add_ai_suggestion_applied_activity_event`
+
+- Added DTOs:
+  - `ApplyLeadNextStepDto`
+  - `ApplySuggestedTaskDto`
+  - `ApplySuggestedNoteDto`
+
+Backend endpoints added:
+
+- `PATCH /api/ai-suggestions/:id/apply/lead-next-step`
+- `POST /api/ai-suggestions/:id/apply/task`
+- `POST /api/ai-suggestions/:id/apply/note`
+
+Backend behavior:
+
+- Only `ACCEPTED` or `EDITED_AND_ACCEPTED` suggestions can be applied.
+- `PENDING_REVIEW`, `REJECTED` and `EXPIRED` suggestions cannot be applied.
+- Applying lead next step updates:
+  - `Lead.nextStep`
+
+- Creating a task from suggestion creates an official Task linked to the lead.
+- Creating a note from suggestion creates an official Note linked to the lead.
+- Suggested task and note values can be overridden by the human before applying.
+- Applied actions update `AiSuggestion.metadataJson.appliedActions`.
+- Already applied actions cannot be applied again.
+
+Activity Events integration:
+
+- Applying lead next step creates:
+  - `AI_SUGGESTION_APPLIED`
+
+- Creating a task from an AI suggestion creates:
+  - `TASK_CREATED`
+  - `AI_SUGGESTION_APPLIED`
+
+- Creating a note from an AI suggestion creates:
+  - `NOTE_CREATED`
+  - `AI_SUGGESTION_APPLIED`
+
+Activity metadata includes:
+
+- `aiSuggestionId`
+- `aiSuggestionType`
+- `appliedAction`
+- `appliedToCrm = true`
+- `canApplyAutomatically = false`
+- `canSendEmailAutomatically = false`
+
+Frontend apply actions:
+
+- Added frontend apply types:
+  - `ApplyLeadNextStepInput`
+  - `ApplySuggestedTaskInput`
+  - `ApplySuggestedNoteInput`
+
+- Added frontend API functions:
+  - `applyAiSuggestionLeadNextStep`
+  - `applyAiSuggestionTask`
+  - `applyAiSuggestionNote`
+
+- Updated AI Suggestion detail page:
+  - Apply recommended next step
+  - Create suggested task
+  - Create suggested note
+  - Editable values before applying
+  - Applied badges
+  - Disabled fields after applying
+  - Success messages after each action
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- Accepted suggestion allowed applying lead next step.
+- Lead `nextStep` updated correctly.
+- Accepted suggestion allowed creating a task.
+- Created task has status `TODO` and correct `leadId`.
+- Accepted suggestion allowed creating a note.
+- Created note has source `AI_SUGGESTION` and correct `leadId`.
+- `AI_SUGGESTION_APPLIED` ActivityEvents created for next step, task and note.
+- Rejected suggestion cannot be applied and returns `409`.
+- Frontend apply actions validated visually.
+- Applied actions show `Applied` status and cannot be repeated.
+- Safety rule preserved: no email is sent automatically.
