@@ -73,6 +73,24 @@ enum AiSuggestionStatus {
   EXPIRED
 }
 
+enum AiUsageFeature {
+  LEAD_NEXT_STEPS
+}
+
+enum AiUsageStatus {
+  SUCCESS
+  FAILED
+  BLOCKED
+}
+
+enum AiCreditTransactionType {
+  MANUAL_GRANT
+  MONTHLY_GRANT
+  USAGE_DEBIT
+  MANUAL_ADJUSTMENT
+  REFUND
+}
+
 enum AiExtractionStatus {
   PENDING_REVIEW
   ACCEPTED
@@ -143,34 +161,41 @@ enum ExportJobStatus {
 }
 
 model Organization {
-  id                    String    @id @default(cuid())
-  name                  String
-  slug                  String    @unique
-  industry              String?
-  plan                  String    @default("FREE")
-  maxUsers              Int       @default(1)
-  maxActiveLeads        Int       @default(100)
-  maxAiRequestsPerMonth Int       @default(50)
-  maxStorageMb          Int       @default(100)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  archivedAt            DateTime?
-  deletedAt             DateTime?
+  id                               String    @id @default(cuid())
+  name                             String
+  slug                             String    @unique
+  industry                         String?
+  plan                             String    @default("FREE")
+  maxUsers                         Int       @default(1)
+  maxActiveLeads                   Int       @default(100)
+  aiEnabled                        Boolean   @default(true)
+  aiMonthlyCreditsLimit            Int       @default(5000000)
+  aiDefaultUserMonthlyCreditsLimit Int       @default(1000000)
+  aiCreditsBalance                 Int       @default(5000000)
+  aiCreditsUpdatedAt               DateTime?
+  maxStorageMb                     Int       @default(100)
+  createdAt                        DateTime  @default(now())
+  updatedAt                        DateTime  @updatedAt
+  archivedAt                       DateTime?
+  deletedAt                        DateTime?
 
-  users              User[]
-  companies          Company[]
-  contacts           Contact[]
-  leads              Lead[]
-  tasks              Task[]
-  notes              Note[]
-  products           Product[]
-  aiSuggestions      AiSuggestion[]
-  aiExtractions      AiExtraction[]
-  acceptedAiInsights AcceptedAiInsight[]
-  exportJobs         ExportJob[]
-  usageRecords       UsageRecord[]
-  auditLogs          AuditLog[]
-  activityEvents     ActivityEvent[]
+  users                User[]
+  companies            Company[]
+  contacts             Contact[]
+  leads                Lead[]
+  tasks                Task[]
+  notes                Note[]
+  products             Product[]
+  aiSuggestions        AiSuggestion[]
+  aiExtractions        AiExtraction[]
+  acceptedAiInsights   AcceptedAiInsight[]
+  exportJobs           ExportJob[]
+  usageSummaries       OrganizationUsageSummary[]
+  aiUsageRecords       AiUsageRecord[]
+  aiCreditTransactions AiCreditTransaction[]
+  aiUserUsageLimits    AiUserUsageLimit[]
+  auditLogs            AuditLog[]
+  activityEvents       ActivityEvent[]
 }
 
 model User {
@@ -187,17 +212,20 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leads               Lead[]
-  tasks               Task[]
-  refreshTokens       RefreshToken[]
-  auditLogs           AuditLog[]          @relation("AuditLogActor")
-  aiSuggestions       AiSuggestion[]      @relation("AiSuggestionCreatedBy")
-  reviewedSuggestions AiSuggestion[]      @relation("AiSuggestionReviewedBy")
-  aiExtractions       AiExtraction[]      @relation("AiExtractionCreatedBy")
-  reviewedExtractions AiExtraction[]      @relation("AiExtractionReviewedBy")
-  approvedInsights    AcceptedAiInsight[] @relation("AcceptedInsightApprovedBy")
-  createdNotes        Note[]              @relation("NoteCreatedBy")
-  activityEvents      ActivityEvent[]     @relation("ActivityEventActor")
+  leads                       Lead[]
+  tasks                       Task[]
+  refreshTokens               RefreshToken[]
+  auditLogs                   AuditLog[]            @relation("AuditLogActor")
+  aiSuggestions               AiSuggestion[]        @relation("AiSuggestionCreatedBy")
+  reviewedSuggestions         AiSuggestion[]        @relation("AiSuggestionReviewedBy")
+  aiExtractions               AiExtraction[]        @relation("AiExtractionCreatedBy")
+  reviewedExtractions         AiExtraction[]        @relation("AiExtractionReviewedBy")
+  approvedInsights            AcceptedAiInsight[]   @relation("AcceptedInsightApprovedBy")
+  createdNotes                Note[]                @relation("NoteCreatedBy")
+  activityEvents              ActivityEvent[]       @relation("ActivityEventActor")
+  aiUsageRecords              AiUsageRecord[]       @relation("AiUsageRecordUser")
+  aiCreditTransactionsCreated AiCreditTransaction[] @relation("AiCreditTransactionActor")
+  aiUsageLimit                AiUserUsageLimit?
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -296,8 +324,8 @@ model Lead {
   expectedCloseDate DateTime?
   nextStep          String?
   lastContactAt     DateTime?
-  pipelinePosition Int      @default(0)
-  statusChangedAt  DateTime @default(now())
+  pipelinePosition  Int             @default(0)
+  statusChangedAt   DateTime        @default(now())
   archivedAt        DateTime?
   deletedAt         DateTime?
   createdAt         DateTime        @default(now())
@@ -330,8 +358,8 @@ model Task {
   importanceLevel  ImportanceLevel @default(MEDIUM)
   dueDate          DateTime?
   completedAt      DateTime?
-  boardPosition  Int      @default(0)
-  statusChangedAt DateTime @default(now())
+  boardPosition    Int             @default(0)
+  statusChangedAt  DateTime        @default(now())
   archivedAt       DateTime?
   deletedAt        DateTime?
   createdAt        DateTime        @default(now())
@@ -399,6 +427,9 @@ model AiSuggestion {
   expiresAt        DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+
+  aiUsageRecords       AiUsageRecord[]
+  aiCreditTransactions AiCreditTransaction[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -477,23 +508,121 @@ model ExportJob {
   @@index([expiresAt])
 }
 
-model UsageRecord {
-  id               String       @id @default(cuid())
-  organizationId   String
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  month            Int
-  year             Int
-  aiRequestsCount  Int          @default(0)
-  tokensInput      Int          @default(0)
-  tokensOutput     Int          @default(0)
-  estimatedCostUsd Float        @default(0)
-  activeUsersCount Int          @default(0)
-  activeLeadsCount Int          @default(0)
-  storageUsedMb    Int          @default(0)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+model OrganizationUsageSummary {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  month Int
+  year  Int
+
+  activeUsersCount Int @default(0)
+  activeLeadsCount Int @default(0)
+  storageUsedMb    Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([organizationId, month, year])
+  @@index([organizationId])
+  @@index([organizationId, year, month])
+}
+
+model AiUsageRecord {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String?
+  user   User?   @relation("AiUsageRecordUser", fields: [userId], references: [id])
+
+  aiSuggestionId String?
+  aiSuggestion   AiSuggestion? @relation(fields: [aiSuggestionId], references: [id])
+
+  feature AiUsageFeature
+  status  AiUsageStatus  @default(SUCCESS)
+
+  provider String?
+  model    String?
+
+  tokensInput  Int @default(0)
+  tokensOutput Int @default(0)
+  totalTokens  Int @default(0)
+
+  creditsUsed      Int   @default(0)
+  estimatedCostUsd Float @default(0)
+
+  errorCode    String?
+  errorMessage String?
+
+  metadataJson Json?
+
+  createdAt DateTime @default(now())
+
+  creditTransactions AiCreditTransaction[]
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, feature])
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+  @@index([organizationId, aiSuggestionId])
+  @@index([userId])
+  @@index([aiSuggestionId])
+}
+
+model AiCreditTransaction {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  actorUserId String?
+  actor       User?   @relation("AiCreditTransactionActor", fields: [actorUserId], references: [id])
+
+  usageRecordId String?
+  usageRecord   AiUsageRecord? @relation(fields: [usageRecordId], references: [id])
+
+  aiSuggestionId String?
+  aiSuggestion   AiSuggestion? @relation(fields: [aiSuggestionId], references: [id])
+
+  type AiCreditTransactionType
+
+  amount       Int
+  balanceAfter Int?
+
+  reason       String?
+  metadataJson Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, type])
+  @@index([organizationId, actorUserId])
+  @@index([organizationId, usageRecordId])
+  @@index([organizationId, aiSuggestionId])
+  @@index([actorUserId])
+  @@index([usageRecordId])
+  @@index([aiSuggestionId])
+}
+
+model AiUserUsageLimit {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  aiEnabled           Boolean @default(true)
+  monthlyCreditsLimit Int     @default(2000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, aiEnabled])
+  @@index([organizationId, userId])
 }
 
 model AuditLog {

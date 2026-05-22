@@ -3,6 +3,7 @@ import {
   ActivityEventType,
   AiSuggestionStatus,
   AiSuggestionType,
+  AiUsageFeature,
   EntityType,
   ImportanceLevel,
   Prisma,
@@ -29,6 +30,7 @@ import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
 import { ApplyLeadNextStepDto } from './dto/apply-lead-next-step.dto';
 import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
 import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
 
 type AiSuggestionReviewStatus = Extract<
   AiSuggestionStatus,
@@ -65,6 +67,7 @@ export class AiSuggestionsService {
     private readonly activityEventsService: ActivityEventsService,
     private readonly leadAiContextService: LeadAiContextService,
     private readonly aiSuggestionProviderService: AiSuggestionProviderService,
+    private readonly aiUsageService: AiUsageService,
   ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryAiSuggestionsDto) {
@@ -226,6 +229,19 @@ export class AiSuggestionsService {
     const inputText = this.leadAiContextService.buildInputText(context);
     const inputHash = this.hashInput(inputText);
 
+    const estimatedCreditsRequired =
+  this.aiUsageService.estimateCreditsFromText(inputText, 250);
+
+  await this.aiUsageService.assertCanUseAi(currentUser, {
+    feature: AiUsageFeature.LEAD_NEXT_STEPS,
+    estimatedCreditsRequired,
+    metadataJson: {
+      leadId: context.lead.id,
+      feature: AiUsageFeature.LEAD_NEXT_STEPS,
+      estimatedCreditsRequired,
+    },
+  });
+
     const generated =
       this.aiSuggestionProviderService.generateLeadNextSteps(
         context,
@@ -262,6 +278,22 @@ export class AiSuggestionsService {
           tokensOutput: generated.tokensOutput,
           estimatedCostUsd: generated.estimatedCostUsd,
           expiresAt: this.getDefaultExpirationDate(),
+        },
+      });
+
+      await this.aiUsageService.recordSuccessfulUsage(tx, currentUser, {
+        feature: AiUsageFeature.LEAD_NEXT_STEPS,
+        provider: generated.provider,
+        model: generated.model,
+        tokensInput: generated.tokensInput,
+        tokensOutput: generated.tokensOutput,
+        estimatedCostUsd: generated.estimatedCostUsd,
+        aiSuggestionId: suggestion.id,
+        metadataJson: {
+          leadId: context.lead.id,
+          aiSuggestionId: suggestion.id,
+          aiSuggestionType: suggestion.type,
+          estimatedCreditsRequired,
         },
       });
 

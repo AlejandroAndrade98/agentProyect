@@ -8,9 +8,10 @@ import { AiSuggestionProviderService } from './ai-suggestion-provider.service';
 import { AiSuggestionsController } from './ai-suggestions.controller';
 import { AiSuggestionsService } from './ai-suggestions.service';
 import { LeadAiContextService } from './lead-ai-context.service';
+import { AiUsageModule } from '../ai-usage/ai-usage.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, ActivityEventsModule],
+  imports: [DatabaseModule, AuthModule, ActivityEventsModule, AiUsageModule],
   controllers: [AiSuggestionsController],
   providers: [
     AiSuggestionsService,
