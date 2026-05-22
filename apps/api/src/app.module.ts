@@ -14,6 +14,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { NotesModule } from './notes/notes.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     NotesModule,
     ActivityEventsModule,
     DashboardModule,
+    AiSuggestionsModule,
   ],
   controllers: [],
   providers: [],

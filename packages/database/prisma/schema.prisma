@@ -100,6 +100,9 @@ enum ActivityEventType {
   TASK_ASSIGNED
   TASK_COMPLETED
   NOTE_CREATED
+  AI_SUGGESTION_CREATED
+  AI_SUGGESTION_ACCEPTED
+  AI_SUGGESTION_REJECTED
 }
 
 enum InsightType {
@@ -372,10 +375,20 @@ model AiSuggestion {
   provider         String
   type             AiSuggestionType
   status           AiSuggestionStatus @default(PENDING_REVIEW)
+  title            String?
+  entityType       EntityType?
+  entityId         String?
+  companyId        String?
+  contactId        String?
+  leadId           String?
+  taskId           String?
+  noteId           String?
   inputText        String
   inputHash        String
   outputJson       Json?
   outputText       String?
+  confidenceScore  Float?
+  metadataJson     Json?
   tokensInput      Int?
   tokensOutput     Int?
   estimatedCostUsd Float?
@@ -390,6 +403,12 @@ model AiSuggestion {
   @@index([organizationId, status])
   @@index([organizationId, type])
   @@index([expiresAt])
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, leadId])
+  @@index([organizationId, companyId])
+  @@index([organizationId, contactId])
+  @@index([organizationId, taskId])
+  @@index([organizationId, noteId])
 }
 
 model AiExtraction {
