@@ -1678,3 +1678,135 @@ Validation completed:
 - Frontend apply actions validated visually.
 - Applied actions show `Applied` status and cannot be repeated.
 - Safety rule preserved: no email is sent automatically.
+
+## Phase 14D, AI Usage Governance Foundation
+
+Status: completed, validated in runtime, committed and pushed.
+
+This phase added AI usage governance, credit tracking, user limits, organization limits, usage reporting endpoints, and a frontend AI Usage dashboard under Settings.
+
+Core business rules:
+
+- AI usage is controlled by organization-level credits.
+- Each organization has an AI credit balance.
+- Each organization has a monthly AI credit limit.
+- Each user has a personal monthly AI credit limit.
+- If a user has no custom limit, the organization default user limit is used.
+- One user cannot consume the entire organization pool without limits.
+- AI usage is blocked before generation when limits are exceeded.
+- Blocked attempts are recorded for audit.
+- AI usage does not send emails automatically.
+- AI suggestions remain human-in-the-loop.
+
+Database changes:
+
+- Replaced `UsageRecord` with `OrganizationUsageSummary`.
+- Added AI-specific usage models:
+  - `AiUsageRecord`
+  - `AiCreditTransaction`
+  - `AiUserUsageLimit`
+
+- Added AI governance fields to `Organization`:
+  - `aiEnabled`
+  - `aiMonthlyCreditsLimit`
+  - `aiDefaultUserMonthlyCreditsLimit`
+  - `aiCreditsBalance`
+  - `aiCreditsUpdatedAt`
+
+- Added enums:
+  - `AiUsageFeature`
+  - `AiUsageStatus`
+  - `AiCreditTransactionType`
+
+- Applied migrations:
+  - `add_ai_usage_governance`
+  - `adjust_ai_usage_default_credit_limits`
+
+AI credit defaults:
+
+- Organization monthly credits limit: `5,000,000`
+- Default user monthly credits limit: `1,000,000`
+- Organization starting credits balance: `5,000,000`
+
+Backend services:
+
+- Added `AiUsageModule`.
+- Added `AiUsageService`.
+- Integrated usage governance into `generateLeadNextSteps`.
+
+Backend behavior:
+
+- Before generating an AI suggestion:
+  - validates organization AI is enabled
+  - validates organization credit balance
+  - validates organization monthly limit
+  - validates user monthly limit
+
+- After successful AI usage:
+  - creates `AiUsageRecord`
+  - decrements `Organization.aiCreditsBalance`
+  - creates `AiCreditTransaction` with `USAGE_DEBIT`
+
+- Blocked usage creates `AiUsageRecord` with status `BLOCKED`.
+
+Backend endpoints:
+
+- `GET /api/ai-usage/me`
+- `GET /api/ai-usage/organization`
+- `GET /api/ai-usage/records`
+
+Authorization behavior:
+
+- All authenticated CRM users can view personal AI usage.
+- `OWNER`, `ADMIN`, and `SUPER_ADMIN` can view organization AI usage.
+- Usage records are tenant-aware.
+- Non-admin users only see their own usage records.
+
+Frontend:
+
+- Added AI usage types:
+  - `apps/web/src/types/ai-usage.ts`
+
+- Added API client functions:
+  - `getMyAiUsage`
+  - `getOrganizationAiUsage`
+  - `getAiUsageRecords`
+
+- Added Settings page:
+  - `/dashboard/settings`
+
+- Added AI Usage page:
+  - `/dashboard/settings/ai-usage`
+
+- Added Settings navigation to sidebar.
+
+AI Usage UI shows:
+
+- Personal monthly credits used.
+- Personal credits remaining.
+- Personal AI request count.
+- Organization credit balance.
+- Organization monthly usage.
+- Organization estimated provider cost.
+- Usage by feature.
+- Usage by user.
+- Usage history records.
+- `SUCCESS`, `FAILED`, and `BLOCKED` statuses.
+
+Validation completed:
+
+- Prisma format passed.
+- Prisma migrations applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+- AI suggestion generation creates `AiUsageRecord`.
+- AI suggestion generation creates `AiCreditTransaction`.
+- Organization credit balance decreases after successful usage.
+- Blocked AI attempts are recorded.
+- `GET /api/ai-usage/me` validated in runtime.
+- `GET /api/ai-usage/organization` validated in runtime.
+- `GET /api/ai-usage/records` validated in runtime.
+- Unauthorized request returns 401.
+- Settings UI validated.
+- AI Usage UI validated.
+- Usage records display `SUCCESS` and `BLOCKED`.

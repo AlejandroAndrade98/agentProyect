@@ -50,7 +50,13 @@ const navItems = [
   label: 'Ai Suggestions',
   href: '/dashboard/ai-suggestions',
   enabled: true,
+  },  
+  {
+  label: 'Settings',
+  href: '/dashboard/settings',
+  enabled: true,
   },
+  
 ] as const;
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
