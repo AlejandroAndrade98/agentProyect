@@ -1297,3 +1297,175 @@ Validation completed:
 - Tasks Board UI validated from the frontend.
 - Quick status updates worked from the frontend.
 - Activity Timeline reflected board changes correctly.
+
+## Phase 14A, AI Suggestion Foundation
+
+Status: completed, validated in runtime, committed locally.
+
+This phase introduced the first structured AI foundation for the Sales AI Platform. The goal was to add AI-generated CRM suggestions while preserving the project's human-in-the-loop rule: AI can suggest, but it cannot apply official CRM changes or send emails automatically.
+
+Core rules preserved:
+
+- AI suggestions are review-only by default.
+- AI cannot update CRM records automatically.
+- AI cannot create tasks, notes, contacts, leads, or companies automatically.
+- AI cannot send emails automatically.
+- A human must review and approve any future CRM action before it becomes official.
+
+Database foundation:
+
+- Extended `AiSuggestion` to support contextual CRM suggestions:
+  - `title`
+  - `entityType`
+  - `entityId`
+  - `companyId`
+  - `contactId`
+  - `leadId`
+  - `taskId`
+  - `noteId`
+  - `confidenceScore`
+  - `metadataJson`
+
+- Added contextual indexes for AI suggestions:
+  - `organizationId + entityType + entityId`
+  - `organizationId + leadId`
+  - `organizationId + companyId`
+  - `organizationId + contactId`
+  - `organizationId + taskId`
+  - `organizationId + noteId`
+
+- Added ActivityEvent types:
+  - `AI_SUGGESTION_CREATED`
+  - `AI_SUGGESTION_ACCEPTED`
+  - `AI_SUGGESTION_REJECTED`
+
+- Added Prisma migration:
+  - `add_ai_suggestion_context_fields`
+
+Backend AI Suggestion module:
+
+- Created `AiSuggestionsModule`.
+- Created `AiSuggestionsController`.
+- Created `AiSuggestionsService`.
+- Created `QueryAiSuggestionsDto`.
+- Created `LeadAiContextService`.
+- Created `AiSuggestionProviderService` using a mock provider.
+
+Backend endpoints added:
+
+- `POST /api/ai-suggestions/leads/:leadId/next-steps`
+- `GET /api/ai-suggestions`
+- `GET /api/ai-suggestions/:id`
+
+First AI use case:
+
+- Generate next-step suggestions for a lead.
+- Context includes:
+  - Lead data
+  - Company data
+  - Contact data
+  - Assigned user
+  - Related tasks
+  - Related notes
+  - Recent lead activity events
+
+Generated suggestion behavior:
+
+- Creates an `AiSuggestion` with:
+  - `type = SUGGEST_NEXT_STEPS`
+  - `status = PENDING_REVIEW`
+  - `entityType = LEAD`
+  - `leadId`
+  - `confidenceScore`
+  - `outputJson`
+  - `outputText`
+  - `metadataJson`
+
+- Metadata explicitly includes:
+  - `humanApprovalRequired = true`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+
+Activity Events integration:
+
+- Creating an AI suggestion creates an `AI_SUGGESTION_CREATED` ActivityEvent.
+- Activity event metadata includes:
+  - `aiSuggestionId`
+  - `aiSuggestionType`
+  - `aiSuggestionStatus`
+  - `humanApprovalRequired`
+  - `canApplyAutomatically`
+  - `canSendEmailAutomatically`
+
+Frontend AI Suggestions Review UI:
+
+- Added frontend AI suggestion types:
+  - `apps/web/src/types/ai-suggestions.ts`
+
+- Added frontend API functions:
+  - `getAiSuggestions`
+  - `getAiSuggestion`
+  - `generateLeadNextStepsSuggestion`
+
+- Added AI Suggestions global page:
+  - `/dashboard/ai-suggestions`
+
+- Added AI Suggestion detail page:
+  - `/dashboard/ai-suggestions/:id`
+
+- Added AI Suggestions sidebar navigation:
+  - `apps/web/src/components/DashboardLayout.tsx`
+
+- Added Lead Detail AI Review panel:
+  - `apps/web/src/app/dashboard/leads/[id]/LeadAiSuggestionsPanel.tsx`
+
+Lead Detail AI Review behavior:
+
+- Shows recent AI suggestions for the lead.
+- Allows generating a new `SUGGEST_NEXT_STEPS` suggestion.
+- Shows status, confidence, created date and preview.
+- Provides Review and View all actions.
+- Does not apply suggestions to CRM records.
+
+AI Suggestion detail behavior:
+
+- Shows output text.
+- Shows structured recommendation:
+  - summary
+  - recommended next step
+  - suggested note
+  - suggested tasks
+  - reasoning summary
+
+- Shows suggestion metadata:
+  - created date
+  - expiration date
+  - provider
+  - model
+  - token counts
+  - estimated cost
+
+- Shows safety flags:
+  - human approval required
+  - can apply automatically
+  - can send email automatically
+
+Validation completed:
+
+- Prisma migration applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+- `POST /api/ai-suggestions/leads/:leadId/next-steps` validated in runtime.
+- `GET /api/ai-suggestions` validated in runtime.
+- `GET /api/ai-suggestions/:id` validated in runtime.
+- AI suggestions are created as `PENDING_REVIEW`.
+- AI suggestions are linked to the correct lead.
+- `AI_SUGGESTION_CREATED` ActivityEvent is generated correctly.
+- Endpoint without token returns 401.
+- `/dashboard/ai-suggestions` validated from frontend.
+- `/dashboard/ai-suggestions/:id` validated from frontend.
+- Lead Detail AI Review panel validated from frontend.
+- Suggest next steps button generates new suggestions.
+- Review opens suggestion detail.
+- View all opens AI Suggestions list.
+- Safety flags display correctly.
