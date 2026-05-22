@@ -1469,3 +1469,106 @@ Validation completed:
 - Review opens suggestion detail.
 - View all opens AI Suggestions list.
 - Safety flags display correctly.
+
+## Phase 14B, AI Suggestion Review Actions
+
+Status: completed, validated in runtime, committed locally.
+
+This phase added human review actions for AI suggestions. The goal was to allow users to accept or reject an AI-generated suggestion while still preserving the human-in-the-loop rule: accepting a suggestion does not apply CRM changes automatically.
+
+Core rules preserved:
+
+- Accepting an AI suggestion does not update CRM records.
+- Rejecting an AI suggestion does not update CRM records.
+- AI cannot create tasks, notes, contacts, leads, companies, or emails automatically.
+- AI cannot send emails automatically.
+- Every reviewed suggestion stores who reviewed it and when it was reviewed.
+- ActivityEvents are created for accepted and rejected suggestions.
+
+Backend review actions:
+
+- Added `ReviewAiSuggestionDto`.
+- Added endpoint:
+  - `PATCH /api/ai-suggestions/:id/accept`
+- Added endpoint:
+  - `PATCH /api/ai-suggestions/:id/reject`
+
+Backend behavior:
+
+- Only `PENDING_REVIEW` suggestions can be reviewed.
+- Accepting a suggestion changes status to `ACCEPTED`.
+- Rejecting a suggestion changes status to `REJECTED`.
+- Reviewed suggestions store:
+  - `reviewedByUserId`
+  - `reviewedAt`
+  - review metadata in `metadataJson`
+
+- Attempting to review the same suggestion twice returns `409`.
+- Reviewing without token returns `401`.
+
+Activity Events integration:
+
+- Accepting a suggestion creates:
+  - `AI_SUGGESTION_ACCEPTED`
+
+- Rejecting a suggestion creates:
+  - `AI_SUGGESTION_REJECTED`
+
+- Activity metadata includes:
+  - `aiSuggestionId`
+  - `aiSuggestionType`
+  - previous status
+  - new status
+  - review note
+  - `humanApprovalRequired = true`
+  - `appliedToCrm = false`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+
+Frontend review actions:
+
+- Added frontend type:
+  - `ReviewAiSuggestionInput`
+
+- Added frontend API functions:
+  - `acceptAiSuggestion`
+  - `rejectAiSuggestion`
+
+- Updated AI Suggestion detail page:
+  - Review note input
+  - Accept review button
+  - Reject suggestion button
+  - Success messages
+  - Reviewed at display
+  - Reviewed by display
+  - Reviewed suggestions no longer show review action buttons
+
+Frontend behavior:
+
+- Accepting a suggestion updates the status visually to `ACCEPTED`.
+- Rejecting a suggestion updates the status visually to `REJECTED`.
+- Review actions show that no CRM changes were applied automatically.
+- Safety flags remain visible:
+  - human approval required
+  - cannot apply automatically
+  - cannot send email automatically
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- Accept suggestion validated in runtime.
+- Reject suggestion validated in runtime.
+- `AI_SUGGESTION_ACCEPTED` ActivityEvent validated.
+- `AI_SUGGESTION_REJECTED` ActivityEvent validated.
+- Duplicate review attempt returned `409`.
+- Review without token returned `401`.
+- Frontend Accept review flow validated.
+- Frontend Reject suggestion flow validated.
+- Reviewed status updates correctly in the UI.
+- Reviewed at and reviewed by display correctly.
+- Activity Timeline shows accepted and rejected AI suggestion events.
+
+Important note:
+
+- This phase intentionally does not apply AI suggestions to CRM records.
+- Applying AI suggestions to Lead next step, Tasks, or Notes is reserved for a future phase.

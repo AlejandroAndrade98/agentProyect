@@ -111,3 +111,7 @@ export type QueryAiSuggestionsParams = {
 };
 
 export type PaginatedAiSuggestions = PaginatedResponse<AiSuggestion>;
+
+export type ReviewAiSuggestionInput = {
+  reviewNote?: string;
+};

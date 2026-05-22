@@ -9,9 +9,15 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
-import { ApiClientError, getAiSuggestion } from '@/lib/api-client';
+import {
+  acceptAiSuggestion,
+  ApiClientError,
+  getAiSuggestion,
+  rejectAiSuggestion,
+} from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
 import type { AiSuggestion, AiSuggestionStatus } from '@/types/ai-suggestions';
+import { canUpdateCrm } from '@/lib/permissions';
 
 function getStatusClasses(status: AiSuggestionStatus) {
   const classes: Record<AiSuggestionStatus, string> = {
@@ -35,11 +41,14 @@ function formatConfidence(value: number | null) {
 
 export default function AiSuggestionDetailPage() {
   const params = useParams<{ id: string }>();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [reviewNote, setReviewNote] = useState('');
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   const loadSuggestion = useCallback(async () => {
     if (!token || !params.id) {
@@ -69,6 +78,48 @@ export default function AiSuggestionDetailPage() {
   useEffect(() => {
     loadSuggestion();
   }, [loadSuggestion]);
+
+    async function handleReview(action: 'accept' | 'reject') {
+    if (!token || !suggestion || suggestion.status !== 'PENDING_REVIEW') {
+      return;
+    }
+
+    setIsReviewing(true);
+    setErrorMessage(null);
+    setReviewMessage(null);
+
+    try {
+      const input = {
+        reviewNote: reviewNote.trim() || undefined,
+      };
+
+      const updatedSuggestion =
+        action === 'accept'
+          ? await acceptAiSuggestion(token, suggestion.id, input)
+          : await rejectAiSuggestion(token, suggestion.id, input);
+
+      setSuggestion(updatedSuggestion);
+      setReviewNote('');
+      setReviewMessage(
+        action === 'accept'
+          ? 'Suggestion accepted for review. No CRM changes were applied.'
+          : 'Suggestion rejected. No CRM changes were applied.',
+      );
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setErrorMessage(error.message);
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Could not review AI suggestion.');
+      }
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
+  const canReviewSuggestion =
+  suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
   return (
     <div className="space-y-8">
@@ -193,16 +244,91 @@ export default function AiSuggestionDetailPage() {
               </article>
             ) : null}
 
-            <article className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-              <h2 className="text-base font-semibold text-amber-900">
-                Human approval required
+            {reviewMessage ? (
+              <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800">
+                {reviewMessage}
+              </article>
+            ) : null}
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Human review action
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-amber-800">
-                This AI suggestion is review-only. It cannot update CRM records,
-                create tasks, create notes, or send emails automatically. A human
-                must approve any future action before it becomes official.
-              </p>
+                          {suggestion.metadataJson?.review &&
+            typeof suggestion.metadataJson.review === 'object' &&
+            'note' in suggestion.metadataJson.review ? (
+              <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-950">
+                  Review note
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-slate-700">
+                  {String(suggestion.metadataJson.review.note ?? 'No note')}
+                </p>
+              </article>
+            ) : null}
+
+              {suggestion.status === 'PENDING_REVIEW' ? (
+                <div className="mt-4 space-y-4">
+                  <p className="text-sm leading-6 text-slate-600">
+                    Accepting or rejecting this suggestion only records a human
+                    review decision. It does not update the lead, create tasks,
+                    create notes, or send emails.
+                  </p>
+
+                  <label className="block space-y-2">
+                    <span className="text-sm font-medium text-slate-700">
+                      Review note optional
+                    </span>
+
+                    <textarea
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                      rows={4}
+                      maxLength={1000}
+                      placeholder="Add context about why you accept or reject this suggestion..."
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {canReviewSuggestion ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleReview('accept')}
+                          disabled={isReviewing}
+                          className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isReviewing ? 'Saving...' : 'Accept review'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleReview('reject')}
+                          disabled={isReviewing}
+                          className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isReviewing ? 'Saving...' : 'Reject suggestion'}
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">
+                        You do not have permission to review this suggestion.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  This suggestion has already been reviewed as{' '}
+                  <span className="font-semibold">
+                    {formatEnumLabel(suggestion.status)}
+                  </span>
+                  . No CRM changes were applied automatically.
+                </div>
+              )}
             </article>
           </section>
 
@@ -222,6 +348,20 @@ export default function AiSuggestionDetailPage() {
                   <dt className="text-slate-500">Expires</dt>
                   <dd className="font-medium text-slate-800">
                     {formatDateTime(suggestion.expiresAt)}
+                  </dd>
+                </div>
+
+                                <div>
+                  <dt className="text-slate-500">Reviewed at</dt>
+                  <dd className="font-medium text-slate-800">
+                    {formatDateTime(suggestion.reviewedAt)}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-slate-500">Reviewed by</dt>
+                  <dd className="font-medium text-slate-800">
+                    {suggestion.reviewedBy?.name ?? 'Not reviewed'}
                   </dd>
                 </div>
 
