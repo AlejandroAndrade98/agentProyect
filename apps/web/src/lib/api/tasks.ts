@@ -7,6 +7,7 @@ import type {
   TaskDetail,
   TaskIncludeQuery,
   UpdateTaskInput,
+  MoveTaskBoardInput,
 } from '@/types/crm';
 
 export function getTasks(token: string, query?: QueryTasksParams) {
@@ -47,5 +48,17 @@ export function deleteTask(token: string, id: string) {
   return apiRequest<Task>(`/tasks/${id}`, {
     method: 'DELETE',
     token,
+  });
+}
+
+export function moveTaskBoard(
+  token: string,
+  id: string,
+  input: MoveTaskBoardInput,
+) {
+  return apiRequest<Task>(`/tasks/${id}/board`, {
+    method: 'PATCH',
+    token,
+    body: input,
   });
 }

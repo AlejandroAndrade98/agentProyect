@@ -10,7 +10,7 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getActivityEvents } from '@/lib/api-client';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
 import type {
   ActivityEntityType,
   ActivityEvent,
@@ -278,7 +278,7 @@ export default function ActivityPage() {
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                         <span>Actor: {getActorLabel(event)}</span>
-                        <span>Occurred: {formatDate(event.occurredAt)}</span>
+                        <span>Occurred: {formatDateTime(event.occurredAt)}</span>
                       </div>
                     </div>
 

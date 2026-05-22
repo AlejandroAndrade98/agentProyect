@@ -30,6 +30,8 @@ export type Lead = {
   estimatedBudget: number | null;
   expectedCloseDate: string | null;
   lastContactAt: string | null;
+  pipelinePosition: number;
+  statusChangedAt: string;
   nextStep: string | null;
   deletedAt: string | null;
   createdAt: string;
@@ -121,4 +123,9 @@ export type LeadIncludeQuery = Record<
     | 'tasks'
     | 'notes'
     | 'company,contact,assignedUser,tasks,notes';
+};
+
+export type MoveLeadPipelineInput = {
+  status: LeadStatus;
+  pipelinePosition?: number;
 };

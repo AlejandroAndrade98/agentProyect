@@ -111,14 +111,23 @@ export default function TasksPage() {
         title="Tasks"
         description="Manage follow-ups, deadlines, and sales execution tasks."
         actions={
-          canCreateCrm(user) ? (
+          <div className="flex flex-wrap gap-2">
             <Link
-              href="/dashboard/tasks/new"
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+              href="/dashboard/tasks/board"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              New task
+              Board view
             </Link>
-          ) : null
+
+            {canCreateCrm(user) ? (
+              <Link
+                href="/dashboard/tasks/new"
+                className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+              >
+                New task
+              </Link>
+            ) : null}
+          </div>
         }
       />
 

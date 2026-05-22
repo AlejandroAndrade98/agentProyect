@@ -7,6 +7,7 @@ import type {
   PaginatedResponse,
   QueryLeadsParams,
   UpdateLeadInput,
+  MoveLeadPipelineInput,
 } from '@/types/crm';
 
 export function getLeads(token: string, query?: QueryLeadsParams) {
@@ -47,5 +48,17 @@ export function deleteLead(token: string, id: string) {
   return apiRequest<Lead>(`/leads/${id}`, {
     method: 'DELETE',
     token,
+  });
+}
+
+export function moveLeadPipeline(
+  token: string,
+  id: string,
+  input: MoveLeadPipelineInput,
+) {
+  return apiRequest<Lead>(`/leads/${id}/pipeline`, {
+    method: 'PATCH',
+    token,
+    body: input,
   });
 }

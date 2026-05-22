@@ -23,6 +23,8 @@ export type Task = {
   importanceLevel: ImportanceLevel;
   dueDate: string | null;
   completedAt: string | null;
+  boardPosition: number;
+  statusChangedAt: string;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -85,4 +87,9 @@ export type TaskIncludeQuery = Record<
     | 'contact'
     | 'assignedUser'
     | 'lead,contact,assignedUser';
+};
+
+export type MoveTaskBoardInput = {
+  status: TaskStatus;
+  boardPosition?: number;
 };

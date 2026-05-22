@@ -111,15 +111,24 @@ export default function LeadsPage() {
         title="Leads"
         description="Manage commercial opportunities, track pipeline status, and keep next steps visible."
         actions={
-          canCreateCrm(user) ? (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/leads/pipeline"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Pipeline view
+          </Link>
+
+          {canCreateCrm(user) ? (
             <Link
               href="/dashboard/leads/new"
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
               New lead
             </Link>
-          ) : null
-        }
+          ) : null}
+        </div>
+      }
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

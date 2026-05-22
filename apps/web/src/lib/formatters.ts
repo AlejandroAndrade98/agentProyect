@@ -11,11 +11,34 @@ export function formatDate(value: string | null | undefined) {
     return 'Not set';
   }
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
   return new Intl.DateTimeFormat('en', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(date);
+}
+
+export function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return 'Not set';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
 export function formatMoney(value: number | null | undefined) {
