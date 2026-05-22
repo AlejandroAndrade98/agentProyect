@@ -15,6 +15,7 @@ import { NotesModule } from './notes/notes.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
+import { AiUsageModule } from './ai-usage/ai-usage.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
     ActivityEventsModule,
     DashboardModule,
     AiSuggestionsModule,
+    AiUsageModule,
   ],
   controllers: [],
   providers: [],
