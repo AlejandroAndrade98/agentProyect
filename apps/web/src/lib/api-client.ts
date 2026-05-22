@@ -9,3 +9,4 @@ export * from './api/tasks';
 export * from './api/products';
 export * from './api/notes';
 export * from './api/activity-events';
+export * from './api/ai-suggestions';

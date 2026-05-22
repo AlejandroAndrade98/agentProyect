@@ -45,6 +45,11 @@ const navItems = [
   label: 'Activity',
   href: '/dashboard/activity',
   enabled: true,
+  },  
+  {
+  label: 'Ai Suggestions',
+  href: '/dashboard/ai-suggestions',
+  enabled: true,
   },
 ] as const;
 

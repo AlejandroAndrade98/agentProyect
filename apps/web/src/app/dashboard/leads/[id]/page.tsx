@@ -13,6 +13,8 @@ import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 import type { LeadDetail } from '@/types/crm';
 
+import { LeadAiSuggestionsPanel } from './LeadAiSuggestionsPanel';
+
 function EmptyRelatedState({ label }: { label: string }) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
@@ -216,8 +218,8 @@ export default function LeadDetailPage() {
             <Link
               href={
                 lead.contactId
-                  ? `/dashboard/tasks/new?leadId=${lead.id}&contactId=${lead.contactId}`
-                  : `/dashboard/tasks/new?leadId=${lead.id}`
+                ? `/dashboard/tasks/new?leadId=${lead.id}&contactId=${lead.contactId}`
+                : `/dashboard/tasks/new?leadId=${lead.id}`
               }
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
@@ -226,10 +228,10 @@ export default function LeadDetailPage() {
 
             {canDeleteLead ? (
               <button
-                type="button"
-                onClick={handleDeleteLead}
-                disabled={isDeleting}
-                className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={handleDeleteLead}
+              disabled={isDeleting}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
@@ -238,6 +240,7 @@ export default function LeadDetailPage() {
         </div>
       </section>
 
+      <LeadAiSuggestionsPanel leadId={lead.id} />
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
