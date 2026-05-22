@@ -24,6 +24,10 @@ import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
 
 import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
 
+import { ApplyLeadNextStepDto } from './dto/apply-lead-next-step.dto';
+import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
+import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
+
 @Controller('ai-suggestions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AiSuggestionsController {
@@ -77,5 +81,43 @@ export class AiSuggestionsController {
     @Body() dto: ReviewAiSuggestionDto,
   ) {
     return this.aiSuggestionsService.reject(id, currentUser, dto);
+  }
+
+    @Patch(':id/apply/lead-next-step')
+  @Roles(...CRM_WRITE_ROLES)
+  applyLeadNextStep(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ApplyLeadNextStepDto,
+  ) {
+    return this.aiSuggestionsService.applyLeadNextStep(id, currentUser, dto);
+  }
+
+  @Post(':id/apply/task')
+  @Roles(...CRM_WRITE_ROLES)
+  createTaskFromSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ApplySuggestedTaskDto,
+  ) {
+    return this.aiSuggestionsService.createTaskFromSuggestion(
+      id,
+      currentUser,
+      dto,
+    );
+  }
+
+  @Post(':id/apply/note')
+  @Roles(...CRM_WRITE_ROLES)
+  createNoteFromSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ApplySuggestedNoteDto,
+  ) {
+    return this.aiSuggestionsService.createNoteFromSuggestion(
+      id,
+      currentUser,
+      dto,
+    );
   }
 }

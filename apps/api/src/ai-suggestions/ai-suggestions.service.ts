@@ -4,8 +4,11 @@ import {
   AiSuggestionStatus,
   AiSuggestionType,
   EntityType,
+  ImportanceLevel,
   Prisma,
+  Priority,
   Source,
+  TaskStatus,
 } from '@prisma/client';
 import { createHash } from 'crypto';
 
@@ -23,6 +26,10 @@ import { LeadAiContextService } from './lead-ai-context.service';
 import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
 import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
 
+import { ApplyLeadNextStepDto } from './dto/apply-lead-next-step.dto';
+import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
+import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
+
 type AiSuggestionReviewStatus = Extract<
   AiSuggestionStatus,
   'ACCEPTED' | 'REJECTED'
@@ -32,6 +39,24 @@ type AiSuggestionReviewActivityType = Extract<
   ActivityEventType,
   'AI_SUGGESTION_ACCEPTED' | 'AI_SUGGESTION_REJECTED'
 >;
+
+type SuggestedTaskOutput = {
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  dueInDays?: number;
+};
+
+type LeadNextStepsOutput = {
+  recommendedNextStep?: string;
+  suggestedTasks?: SuggestedTaskOutput[];
+  suggestedNote?: string;
+};
+
+type AppliedActionName =
+  | 'UPDATE_LEAD_NEXT_STEP'
+  | 'CREATE_TASK'
+  | 'CREATE_NOTE';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -294,6 +319,495 @@ export class AiSuggestionsService {
       activityType: ActivityEventType.AI_SUGGESTION_REJECTED,
       reviewNote: dto.reviewNote,
     });
+  }
+
+    async applyLeadNextStep(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ApplyLeadNextStepDto,
+  ) {
+    const { suggestion, lead, output } = await this.getApplicableSuggestion(
+      id,
+      currentUser,
+    );
+
+    if (this.hasAppliedAction(suggestion.metadataJson, 'UPDATE_LEAD_NEXT_STEP')) {
+      throw new ConflictException('Lead next step was already applied');
+    }
+
+    const nextStep = dto.nextStep?.trim() || output.recommendedNextStep?.trim();
+
+    if (!nextStep) {
+      throw new ConflictException('Suggestion does not include a next step');
+    }
+
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedLead = await tx.lead.update({
+        where: {
+          id: lead.id,
+        },
+        data: {
+          nextStep,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'UPDATE_LEAD_NEXT_STEP',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.LEAD,
+            recordId: lead.id,
+            details: {
+              nextStep,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: `AI suggestion applied: lead next step`,
+          description:
+            'A human applied an AI suggested next step to the lead. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'UPDATE_LEAD_NEXT_STEP',
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            nextStep,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        lead: updatedLead,
+      };
+    });
+  }
+
+  async createTaskFromSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ApplySuggestedTaskDto,
+  ) {
+    const { suggestion, lead, output } = await this.getApplicableSuggestion(
+      id,
+      currentUser,
+    );
+
+    const taskIndex = dto.taskIndex ?? 0;
+
+    if (this.hasAppliedAction(suggestion.metadataJson, 'CREATE_TASK', taskIndex)) {
+      throw new ConflictException('Suggested task was already applied');
+    }
+
+    const suggestedTask = output.suggestedTasks?.[taskIndex];
+
+    if (!suggestedTask) {
+      throw new ConflictException('Suggested task not found');
+    }
+
+    const title = dto.title?.trim() || suggestedTask.title?.trim();
+
+    if (!title) {
+      throw new ConflictException('Suggested task title is required');
+    }
+
+    const description =
+      dto.description?.trim() || suggestedTask.description?.trim() || null;
+
+    const priority = dto.priority ?? suggestedTask.priority ?? Priority.MEDIUM;
+
+    const dueDate = dto.dueDate
+      ? new Date(dto.dueDate)
+      : this.buildDueDateFromDays(suggestedTask.dueInDays ?? 2);
+
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          description,
+          leadId: lead.id,
+          contactId: lead.contactId,
+          assignedToUserId: currentUser.id,
+          status: TaskStatus.TODO,
+          priority,
+          importanceLevel: ImportanceLevel.MEDIUM,
+          dueDate,
+          boardPosition: 0,
+          statusChangedAt: appliedAt,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_TASK',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.TASK,
+            recordId: task.id,
+            taskIndex,
+            details: {
+              title,
+              priority,
+              dueDate: dueDate.toISOString(),
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.TASK_CREATED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: `Task created: ${task.title}`,
+          description:
+            'Task was created from an AI suggestion after human approval.',
+          source: Source.AI_SUGGESTION,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: task.createdAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            createdFromAiSuggestion: true,
+            humanApprovalRequired: true,
+          },
+        }),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: `AI suggestion applied: task created`,
+          description:
+            'A human created a task from an AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_TASK',
+            taskIndex,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            taskId: task.id,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        task,
+      };
+    });
+  }
+
+  async createNoteFromSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ApplySuggestedNoteDto,
+  ) {
+    const { suggestion, lead, output } = await this.getApplicableSuggestion(
+      id,
+      currentUser,
+    );
+
+    if (this.hasAppliedAction(suggestion.metadataJson, 'CREATE_NOTE')) {
+      throw new ConflictException('Suggested note was already applied');
+    }
+
+    const content = dto.content?.trim() || output.suggestedNote?.trim();
+
+    if (!content) {
+      throw new ConflictException('Suggestion does not include a note');
+    }
+
+    const title = dto.title?.trim() || `AI suggested note: ${lead.title}`;
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const note = await tx.note.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          content,
+          source: Source.AI_SUGGESTION,
+          importanceLevel: ImportanceLevel.MEDIUM,
+          createdByUserId: currentUser.id,
+          companyId: lead.companyId,
+          contactId: lead.contactId,
+          leadId: lead.id,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_NOTE',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.NOTE,
+            recordId: note.id,
+            details: {
+              title,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.NOTE_CREATED,
+          entityType: EntityType.NOTE,
+          entityId: note.id,
+          title: `Note created: ${note.title ?? note.id}`,
+          description:
+            'Note was created from an AI suggestion after human approval.',
+          source: Source.AI_SUGGESTION,
+          companyId: note.companyId ?? undefined,
+          contactId: note.contactId ?? undefined,
+          leadId: note.leadId ?? undefined,
+          noteId: note.id,
+          occurredAt: note.createdAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            createdFromAiSuggestion: true,
+            humanApprovalRequired: true,
+          },
+        }),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.NOTE,
+          entityId: note.id,
+          title: `AI suggestion applied: note created`,
+          description:
+            'A human created a note from an AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: note.companyId ?? undefined,
+          contactId: note.contactId ?? undefined,
+          leadId: note.leadId ?? undefined,
+          noteId: note.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_NOTE',
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            noteId: note.id,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        note,
+      };
+    });
+  }
+
+    private async getApplicableSuggestion(id: string, currentUser: CurrentUser) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.SUGGEST_NEXT_STEPS) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.leadId) {
+      throw new ConflictException('AI suggestion is not linked to a lead');
+    }
+
+    const lead = await this.prisma.lead.findFirst({
+      where: {
+        id: suggestion.leadId,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+      },
+    });
+
+    if (!lead) {
+      throw new NotFoundException('Lead not found');
+    }
+
+    const output = this.parseLeadNextStepsOutput(suggestion.outputJson);
+
+    return {
+      suggestion,
+      lead,
+      output,
+    };
+  }
+
+  private parseLeadNextStepsOutput(
+    outputJson: Prisma.JsonValue | null,
+  ): LeadNextStepsOutput {
+    if (!outputJson || typeof outputJson !== 'object' || Array.isArray(outputJson)) {
+      throw new ConflictException('AI suggestion output is not structured');
+    }
+
+    return outputJson as LeadNextStepsOutput;
+  }
+
+  private buildDueDateFromDays(days: number) {
+    const dueDate = new Date();
+
+    dueDate.setDate(dueDate.getDate() + days);
+
+    return dueDate;
+  }
+
+  private hasAppliedAction(
+    metadataJson: Prisma.JsonValue | null,
+    action: AppliedActionName,
+    taskIndex?: number,
+  ) {
+    const metadata = this.asMetadataObject(metadataJson);
+    const appliedActions = Array.isArray(metadata.appliedActions)
+      ? metadata.appliedActions
+      : [];
+
+    return appliedActions.some((appliedAction) => {
+      if (
+        !appliedAction ||
+        typeof appliedAction !== 'object' ||
+        Array.isArray(appliedAction)
+      ) {
+        return false;
+      }
+
+      const appliedActionRecord = appliedAction as Record<string, unknown>;
+
+      if (appliedActionRecord.action !== action) {
+        return false;
+      }
+
+      if (action === 'CREATE_TASK') {
+        return appliedActionRecord.taskIndex === taskIndex;
+      }
+
+      return true;
+    });
+  }
+
+  private buildAppliedMetadata({
+    metadataJson,
+    action,
+    currentUser,
+    appliedAt,
+    recordType,
+    recordId,
+    taskIndex,
+    details,
+  }: {
+    metadataJson: Prisma.JsonValue | null;
+    action: AppliedActionName;
+    currentUser: CurrentUser;
+    appliedAt: Date;
+    recordType: EntityType;
+    recordId: string;
+    taskIndex?: number;
+    details?: Record<string, unknown>;
+  }): Prisma.InputJsonValue {
+    const metadata = this.asMetadataObject(metadataJson);
+    const appliedActions = Array.isArray(metadata.appliedActions)
+      ? metadata.appliedActions
+      : [];
+
+    return {
+      ...metadata,
+      appliedToCrm: true,
+      humanApprovalRequired: true,
+      canApplyAutomatically: false,
+      canSendEmailAutomatically: false,
+      appliedActions: [
+        ...appliedActions,
+        {
+          action,
+          taskIndex: taskIndex ?? null,
+          recordType,
+          recordId,
+          appliedByUserId: currentUser.id,
+          appliedAt: appliedAt.toISOString(),
+          details: details ?? {},
+        },
+      ],
+    };
+  }
+
+  private asMetadataObject(metadataJson: Prisma.JsonValue | null) {
+    if (
+      metadataJson &&
+      typeof metadataJson === 'object' &&
+      !Array.isArray(metadataJson)
+    ) {
+      return metadataJson as Record<string, unknown>;
+    }
+
+    return {};
   }
 
   private async reviewSuggestion({

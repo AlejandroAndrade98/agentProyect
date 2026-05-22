@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ActivityEventType" ADD VALUE 'AI_SUGGESTION_APPLIED';
