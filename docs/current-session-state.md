@@ -2273,3 +2273,54 @@ Runtime validation completed:
 Current SaaS onboarding flow is now:
 
 `SUPER_ADMIN creates organization → SUPER_ADMIN invites OWNER → OWNER accepts → OWNER manages their team`
+
+## Phase 15D, Platform Owner Invitation Polish
+
+Status: completed, validated in runtime, documented, committed and pushed.
+
+This phase polished the Platform Admin owner onboarding flow by allowing `SUPER_ADMIN` to revoke pending owner invitations and generate a new one when needed.
+
+Backend:
+
+- Added endpoint:
+  - `PATCH /api/platform/organizations/:id/owner-invitation/:invitationId/revoke`
+
+- The revoke endpoint:
+  - Only works for owner invitations.
+  - Only allows revoking `PENDING` invitations.
+  - Marks expired pending invitations as `EXPIRED`.
+  - Sets invitation status to `REVOKED`.
+  - Stores `revokedAt`.
+  - Returns updated organization detail.
+
+Frontend:
+
+- Added API client function:
+  - `revokePlatformOwnerInvitation`
+
+- Added frontend type:
+  - `RevokePlatformOwnerInvitationResponse`
+
+- Updated:
+  - `/dashboard/platform/organizations/:id`
+
+- Owner onboarding panel now supports:
+  - Viewing pending owner invitation.
+  - Revoking pending owner invitation.
+  - Showing `Owner setup needed` after revocation.
+  - Generating a new owner invitation after revocation.
+  - Showing development invitation link after generating a new owner invitation.
+
+Runtime validation completed:
+
+- Created organization with pending owner invitation.
+- Revoked pending owner invitation successfully.
+- Revoked invitation changed to `REVOKED`.
+- Generated a new owner invitation after revocation.
+- New owner invitation returned temporary development acceptance token.
+- Frontend showed pending state correctly.
+- Frontend revoke action worked.
+- Frontend allowed generating a new owner invitation after revoke.
+- Build passed with 3 successful tasks.
+
+Platform onboarding flow now supports correction/retry when the first owner invitation was sent to the wrong email or was not accepted.
