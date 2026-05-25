@@ -11,6 +11,7 @@ import type {
   AcceptOrganizationInvitationInput,
   AcceptOrganizationInvitationResponse,
   OrganizationInvitationPreview,
+  OrganizationUser,
 } from '@/types/organization-settings';
 
 import { apiRequest } from './core';
@@ -93,6 +94,26 @@ export function acceptOrganizationInvitation(
     {
       method: 'POST',
       body: input,
+    },
+  );
+}
+
+export function deactivateOrganizationUser(token: string, userId: string) {
+  return apiRequest<OrganizationUser>(
+    `/organization/users/${userId}/deactivate`,
+    {
+      method: 'PATCH',
+      token,
+    },
+  );
+}
+
+export function reactivateOrganizationUser(token: string, userId: string) {
+  return apiRequest<OrganizationUser>(
+    `/organization/users/${userId}/reactivate`,
+    {
+      method: 'PATCH',
+      token,
     },
   );
 }

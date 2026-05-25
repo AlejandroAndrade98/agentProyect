@@ -56,6 +56,7 @@ export type OrganizationUser = {
   name: string;
   role: OrganizationUserRole;
   isActive: boolean;
+  organizationId: string;
   createdAt: string;
   updatedAt: string;
 };

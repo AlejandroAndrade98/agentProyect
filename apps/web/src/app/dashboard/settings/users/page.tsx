@@ -12,8 +12,10 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ApiClientError,
   createOrganizationInvitation,
+  deactivateOrganizationUser,
   getOrganizationInvitations,
   getOrganizationUsers,
+  reactivateOrganizationUser,
   revokeOrganizationInvitation,
 } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
@@ -103,6 +105,43 @@ function getInvitableRoles(currentRole?: string): OrganizationUserRole[] {
   return [];
 }
 
+function canManageTargetUser(
+  currentUser:
+    | {
+        id: string;
+        role: string;
+      }
+    | null
+    | undefined,
+  targetUser: OrganizationUser,
+) {
+  if (!currentUser) {
+    return false;
+  }
+
+  if (currentUser.id === targetUser.id) {
+    return false;
+  }
+
+  if (targetUser.role === 'SUPER_ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
+    return false;
+  }
+
+  if (currentUser.role === 'SUPER_ADMIN') {
+    return true;
+  }
+
+  if (currentUser.role === 'OWNER') {
+    return targetUser.role !== 'OWNER';
+  }
+
+  if (currentUser.role === 'ADMIN') {
+    return targetUser.role === 'SALES' || targetUser.role === 'VIEWER';
+  }
+
+  return false;
+}
+
 export default function OrganizationUsersSettingsPage() {
   const { token, user } = useAuth();
 
@@ -138,6 +177,7 @@ export default function OrganizationUsersSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
   const [isSubmittingInvitation, setIsSubmittingInvitation] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const roleOptions = useMemo(
     () => (user?.role === 'SUPER_ADMIN' ? platformRoleOptions : tenantRoleOptions),
@@ -316,6 +356,58 @@ export default function OrganizationUsersSettingsPage() {
       }
     }
   }
+
+async function handleDeactivateUser(userId: string) {
+  if (!token) {
+    return;
+  }
+
+  setUpdatingUserId(userId);
+  setErrorMessage(null);
+  setSuccessMessage(null);
+
+  try {
+    await deactivateOrganizationUser(token, userId);
+    setSuccessMessage('User deactivated.');
+    await loadUsers();
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not deactivate user.');
+    }
+  } finally {
+    setUpdatingUserId(null);
+  }
+}
+
+async function handleReactivateUser(userId: string) {
+  if (!token) {
+    return;
+  }
+
+  setUpdatingUserId(userId);
+  setErrorMessage(null);
+  setSuccessMessage(null);
+
+  try {
+    await reactivateOrganizationUser(token, userId);
+    setSuccessMessage('User reactivated.');
+    await loadUsers();
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not reactivate user.');
+    }
+  } finally {
+    setUpdatingUserId(null);
+  }
+}
 
   return (
     <div className="space-y-8">
@@ -695,10 +787,32 @@ export default function OrganizationUsersSettingsPage() {
                         </p>
                       </div>
 
-                      <div className="grid gap-1 text-sm text-slate-600 lg:text-right">
-                        <span>Created: {formatDateTime(orgUser.createdAt)}</span>
-                        <span>Updated: {formatDateTime(orgUser.updatedAt)}</span>
-                      </div>
+                    <div className="grid gap-2 text-sm text-slate-600 lg:text-right">
+                      <span>Created: {formatDateTime(orgUser.createdAt)}</span>
+                      <span>Updated: {formatDateTime(orgUser.updatedAt)}</span>
+
+                      {canManageTargetUser(user, orgUser) ? (
+                        orgUser.isActive ? (
+                          <button
+                            type="button"
+                            disabled={updatingUserId === orgUser.id}
+                            onClick={() => handleDeactivateUser(orgUser.id)}
+                            className="mt-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {updatingUserId === orgUser.id ? 'Updating...' : 'Deactivate'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={updatingUserId === orgUser.id}
+                            onClick={() => handleReactivateUser(orgUser.id)}
+                            className="mt-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {updatingUserId === orgUser.id ? 'Updating...' : 'Reactivate'}
+                          </button>
+                        )
+                      ) : null}
+                    </div>
                     </div>
                   </article>
                 ))}
