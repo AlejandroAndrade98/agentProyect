@@ -139,15 +139,7 @@ export class OrganizationSettingsService {
         orderBy,
         skip,
         take,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: this.getOrganizationUserSelect(),
       }),
       this.prisma.user.count({
         where,
@@ -155,6 +147,58 @@ export class OrganizationSettingsService {
     ]);
 
     return buildPaginatedResult(data, total, page, pageSize);
+  }
+
+    async deactivateOrganizationUser(currentUser: CurrentUser, userId: string) {
+    this.assertCanManageOrganizationUsers(currentUser);
+
+    const targetUser = await this.getTargetOrganizationUser(
+      currentUser.organizationId,
+      userId,
+    );
+
+    this.assertCanManageTargetUser(currentUser, targetUser.role, targetUser.id);
+
+    if (!targetUser.isActive) {
+      return targetUser;
+    }
+
+    return this.prisma.user.update({
+      where: {
+        id: targetUser.id,
+      },
+      data: {
+        isActive: false,
+      },
+      select: this.getOrganizationUserSelect(),
+    });
+  }
+
+  async reactivateOrganizationUser(currentUser: CurrentUser, userId: string) {
+    this.assertCanManageOrganizationUsers(currentUser);
+
+    const targetUser = await this.getTargetOrganizationUser(
+      currentUser.organizationId,
+      userId,
+    );
+
+    this.assertCanManageTargetUser(currentUser, targetUser.role, targetUser.id);
+
+    if (targetUser.isActive) {
+      return targetUser;
+    }
+
+    await this.assertCanReactivateUser(currentUser.organizationId);
+
+    return this.prisma.user.update({
+      where: {
+        id: targetUser.id,
+      },
+      data: {
+        isActive: true,
+      },
+      select: this.getOrganizationUserSelect(),
+    });
   }
 
     async findOrganizationInvitations(
@@ -547,6 +591,103 @@ export class OrganizationSettingsService {
     ) {
       throw new ConflictException('Organization user limit reached');
     }
+  }
+
+    private async getTargetOrganizationUser(
+    organizationId: string,
+    userId: string,
+  ) {
+    const targetUser = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId,
+      },
+      select: this.getOrganizationUserSelect(),
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    return targetUser;
+  }
+
+  private assertCanManageTargetUser(
+    currentUser: CurrentUser,
+    targetRole: Role,
+    targetUserId: string,
+  ) {
+    if (currentUser.id === targetUserId) {
+      throw new ForbiddenException('You cannot change your own access status');
+    }
+
+    if (targetRole === Role.SUPER_ADMIN && currentUser.role !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException('You cannot manage super admin users');
+    }
+
+    if (currentUser.role === Role.SUPER_ADMIN) {
+      return;
+    }
+
+    if (currentUser.role === Role.OWNER) {
+      if (targetRole === Role.OWNER) {
+        throw new ForbiddenException('Owners cannot manage other owners');
+      }
+
+      return;
+    }
+
+    if (currentUser.role === Role.ADMIN) {
+      if (targetRole === Role.OWNER || targetRole === Role.ADMIN) {
+        throw new ForbiddenException(
+          'Admins can only manage sales and viewer users',
+        );
+      }
+
+      return;
+    }
+
+    throw new ForbiddenException('You do not have permission to manage users');
+  }
+
+  private async assertCanReactivateUser(organizationId: string) {
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        id: organizationId,
+        deletedAt: null,
+      },
+      select: {
+        maxUsers: true,
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const activeUsersCount = await this.prisma.user.count({
+      where: {
+        organizationId,
+        isActive: true,
+      },
+    });
+
+    if (activeUsersCount >= organization.maxUsers) {
+      throw new ConflictException('Organization user limit reached');
+    }
+  }
+
+  private getOrganizationUserSelect() {
+    return {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isActive: true,
+      organizationId: true,
+      createdAt: true,
+      updatedAt: true,
+    } satisfies Prisma.UserSelect;
   }
 
     private assertCanInviteRole(currentUser: CurrentUser, role: Role) {

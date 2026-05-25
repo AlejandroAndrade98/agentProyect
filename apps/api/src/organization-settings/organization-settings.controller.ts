@@ -61,6 +61,30 @@ export class OrganizationSettingsController {
     );
   }
 
+    @Patch('users/:id/deactivate')
+  @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
+  deactivateOrganizationUser(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.organizationSettingsService.deactivateOrganizationUser(
+      currentUser,
+      id,
+    );
+  }
+
+  @Patch('users/:id/reactivate')
+  @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
+  reactivateOrganizationUser(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.organizationSettingsService.reactivateOrganizationUser(
+      currentUser,
+      id,
+    );
+  }
+
     @Get('invitations')
   @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
   findOrganizationInvitations(
