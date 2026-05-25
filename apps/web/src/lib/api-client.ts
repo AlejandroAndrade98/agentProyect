@@ -11,3 +11,4 @@ export * from './api/notes';
 export * from './api/activity-events';
 export * from './api/ai-suggestions';
 export * from './api/ai-usage';
+export * from './api/platform';

@@ -1,68 +1,77 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/hooks/useAuth';
 
-const navItems = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    enabled: true,
-  },
-  {
-    label: 'Companies',
-    href: '/dashboard/companies',
-    enabled: true,
-  },
-  {
-    label: 'Contacts',
-    href: '/dashboard/contacts',
-    enabled: true,
-  },
-  {
-    label: 'Leads',
-    href: '/dashboard/leads',
-    enabled: true,
-  },
-  {
-    label: 'Tasks',
-    href: '/dashboard/tasks',
-    enabled: true,
-  },
-  {
-    label: 'Products',
-    href: '/dashboard/products',
-    enabled: true,
-  },
-  {
-    label: 'Notes',
-    href: '/dashboard/notes',
-    enabled: true,
-  },
-  {
-  label: 'Activity',
-  href: '/dashboard/activity',
-  enabled: true,
-  },  
-  {
-  label: 'Ai Suggestions',
-  href: '/dashboard/ai-suggestions',
-  enabled: true,
-  },  
-  {
-  label: 'Settings',
-  href: '/dashboard/settings',
-  enabled: true,
-  },
-  
-] as const;
-
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const pathname = usePathname();
+
+  const navItems = [
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      enabled: true,
+    },
+    {
+      label: 'Companies',
+      href: '/dashboard/companies',
+      enabled: true,
+    },
+    {
+      label: 'Contacts',
+      href: '/dashboard/contacts',
+      enabled: true,
+    },
+    {
+      label: 'Leads',
+      href: '/dashboard/leads',
+      enabled: true,
+    },
+    {
+      label: 'Tasks',
+      href: '/dashboard/tasks',
+      enabled: true,
+    },
+    {
+      label: 'Products',
+      href: '/dashboard/products',
+      enabled: true,
+    },
+    {
+      label: 'Notes',
+      href: '/dashboard/notes',
+      enabled: true,
+    },
+    {
+      label: 'Activity',
+      href: '/dashboard/activity',
+      enabled: true,
+    },
+    {
+      label: 'AI Suggestions',
+      href: '/dashboard/ai-suggestions',
+      enabled: true,
+    },
+    ...(user?.role === 'SUPER_ADMIN'
+      ? [
+          {
+            label: 'Platform',
+            href: '/dashboard/platform/organizations',
+            enabled: true,
+          },
+        ]
+      : []),
+    {
+      label: 'Settings',
+      href: '/dashboard/settings',
+      enabled: true,
+    },
+  ];
 
   function handleLogout() {
     logout();
@@ -81,36 +90,37 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </h1>
         </div>
 
-<nav className="mt-10 space-y-2">
-  {navItems.map((item) => {
-    const isActive = pathname === item.href;
+        <nav className="mt-10 space-y-2">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-    if (!item.enabled) {
-      return (
-        <span
-          key={item.href}
-          className="block rounded-xl px-4 py-3 text-sm text-slate-500"
-        >
-          {item.label}
-        </span>
-      );
-    }
+            if (!item.enabled) {
+              return (
+                <span
+                  key={item.href}
+                  className="block rounded-xl px-4 py-3 text-sm text-slate-500"
+                >
+                  {item.label}
+                </span>
+              );
+            }
 
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
-          isActive
-            ? 'bg-white/10 text-white'
-            : 'text-slate-400 hover:bg-white/5 hover:text-white'
-        }`}
-      >
-        {item.label}
-      </Link>
-    );
-  })}
-</nav>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
+                  isActive
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-sm font-medium text-white">{user?.name}</p>

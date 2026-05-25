@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrganizationStatus, Prisma } from '@prisma/client';
+import { OrganizationStatus, Prisma, Role } from '@prisma/client';
 
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -226,12 +226,17 @@ export class PlatformOrganizationsService {
           invitations: true,
         },
       },
-      users: {
-        where: {
-          role: 'OWNER',
-        },
-        take: 1,
-        select: {
+        users: {
+          where: {
+            role: {
+              in: [Role.OWNER, Role.SUPER_ADMIN],
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+          take: 1,
+          select: {
           id: true,
           email: true,
           name: true,
