@@ -22,6 +22,8 @@ import { UpdateCurrentOrganizationDto } from './dto/update-current-organization.
 import { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
 import { QueryOrganizationInvitationsDto } from './dto/query-organization-invitations.dto';
 
+import * as bcrypt from 'bcrypt';
+import { AcceptOrganizationInvitationDto } from './dto/accept-organization-invitation.dto';
 
 
 @Injectable()
@@ -320,6 +322,231 @@ export class OrganizationSettingsService {
       },
       select: this.getOrganizationInvitationSelect(),
     });
+  }
+
+    async getInvitationByToken(token: string) {
+    const tokenHash = this.hashInvitationToken(token);
+    const now = new Date();
+
+    const invitation = await this.prisma.organizationInvitation.findUnique({
+      where: {
+        tokenHash,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        expiresAt: true,
+        acceptedAt: true,
+        revokedAt: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            accountType: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== OrganizationInvitationStatus.PENDING) {
+      throw new BadRequestException('Invitation is no longer pending');
+    }
+
+    if (invitation.expiresAt <= now) {
+      await this.prisma.organizationInvitation.update({
+        where: {
+          id: invitation.id,
+        },
+        data: {
+          status: OrganizationInvitationStatus.EXPIRED,
+        },
+      });
+
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    return invitation;
+  }
+
+  async acceptInvitation(dto: AcceptOrganizationInvitationDto) {
+    const tokenHash = this.hashInvitationToken(dto.token);
+    const now = new Date();
+
+    const invitation = await this.prisma.organizationInvitation.findUnique({
+      where: {
+        tokenHash,
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        email: true,
+        role: true,
+        status: true,
+        expiresAt: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.organization.deletedAt) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (invitation.status !== OrganizationInvitationStatus.PENDING) {
+      throw new BadRequestException('Invitation is no longer pending');
+    }
+
+    if (invitation.expiresAt <= now) {
+      await this.prisma.organizationInvitation.update({
+        where: {
+          id: invitation.id,
+        },
+        data: {
+          status: OrganizationInvitationStatus.EXPIRED,
+        },
+      });
+
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: {
+        email: invitation.email,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
+    await this.assertHasAvailableUserSeatForAcceptance(
+      invitation.organizationId,
+      invitation.id,
+      now,
+    );
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: invitation.email,
+          name: dto.name.trim(),
+          passwordHash,
+          role: invitation.role,
+          isActive: true,
+          organizationId: invitation.organizationId,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          organizationId: true,
+          createdAt: true,
+        },
+      });
+
+      const acceptedInvitation = await tx.organizationInvitation.update({
+        where: {
+          id: invitation.id,
+        },
+        data: {
+          status: OrganizationInvitationStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+        select: this.getOrganizationInvitationSelect(),
+      });
+
+      return {
+        user,
+        invitation: acceptedInvitation,
+      };
+    });
+
+    return {
+      message: 'Invitation accepted successfully',
+      organization: {
+        id: invitation.organization.id,
+        name: invitation.organization.name,
+        slug: invitation.organization.slug,
+      },
+      user: result.user,
+      invitation: result.invitation,
+    };
+  }
+
+    private async assertHasAvailableUserSeatForAcceptance(
+    organizationId: string,
+    invitationId: string,
+    now: Date,
+  ) {
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        id: organizationId,
+        deletedAt: null,
+      },
+      select: {
+        maxUsers: true,
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const [activeUsersCount, otherPendingInvitationsCount] =
+      await this.prisma.$transaction([
+        this.prisma.user.count({
+          where: {
+            organizationId,
+            isActive: true,
+          },
+        }),
+        this.prisma.organizationInvitation.count({
+          where: {
+            organizationId,
+            id: {
+              not: invitationId,
+            },
+            status: OrganizationInvitationStatus.PENDING,
+            expiresAt: {
+              gt: now,
+            },
+          },
+        }),
+      ]);
+
+    if (
+      activeUsersCount + 1 + otherPendingInvitationsCount >
+      organization.maxUsers
+    ) {
+      throw new ConflictException('Organization user limit reached');
+    }
   }
 
     private assertCanInviteRole(currentUser: CurrentUser, role: Role) {
