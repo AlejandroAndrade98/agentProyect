@@ -70,4 +70,54 @@ export type QueryOrganizationUsersParams = {
   sortOrder?: 'asc' | 'desc';
 };
 
+export type OrganizationInvitationStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'REVOKED'
+  | 'EXPIRED';
+
+export type OrganizationInvitationUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: OrganizationUserRole;
+};
+
+export type OrganizationInvitation = {
+  id: string;
+  email: string;
+  role: OrganizationUserRole;
+  status: OrganizationInvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  invitedBy: OrganizationInvitationUser | null;
+  acceptedBy: OrganizationInvitationUser | null;
+};
+
+export type QueryOrganizationInvitationsParams = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: OrganizationInvitationStatus;
+  role?: OrganizationUserRole;
+  sortBy?: 'createdAt' | 'email' | 'role' | 'status' | 'expiresAt';
+  sortOrder?: 'asc' | 'desc';
+};
+
+export type CreateOrganizationInvitationInput = {
+  email: string;
+  role: OrganizationUserRole;
+};
+
+export type CreateOrganizationInvitationResponse = {
+  invitation: OrganizationInvitation;
+  acceptanceToken: string;
+};
+
+export type PaginatedOrganizationInvitations =
+  PaginatedResponse<OrganizationInvitation>;
+
 export type PaginatedOrganizationUsers = PaginatedResponse<OrganizationUser>;

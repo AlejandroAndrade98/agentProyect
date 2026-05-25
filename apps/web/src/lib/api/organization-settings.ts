@@ -1,8 +1,13 @@
 import type {
+  CreateOrganizationInvitationInput,
+  CreateOrganizationInvitationResponse,
   CurrentOrganizationResponse,
+  PaginatedOrganizationInvitations,
   PaginatedOrganizationUsers,
+  QueryOrganizationInvitationsParams,
   QueryOrganizationUsersParams,
   UpdateCurrentOrganizationInput,
+  OrganizationInvitation,
 } from '@/types/organization-settings';
 
 import { apiRequest } from './core';
@@ -32,4 +37,41 @@ export function getOrganizationUsers(
     token,
     query: params,
   });
+}
+
+export function getOrganizationInvitations(
+  token: string,
+  params: QueryOrganizationInvitationsParams = {},
+) {
+  return apiRequest<PaginatedOrganizationInvitations>(
+    '/organization/invitations',
+    {
+      token,
+      query: params,
+    },
+  );
+}
+
+export function createOrganizationInvitation(
+  token: string,
+  input: CreateOrganizationInvitationInput,
+) {
+  return apiRequest<CreateOrganizationInvitationResponse>(
+    '/organization/invitations',
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function revokeOrganizationInvitation(token: string, id: string) {
+  return apiRequest<OrganizationInvitation>(
+    `/organization/invitations/${id}/revoke`,
+    {
+      method: 'PATCH',
+      token,
+    },
+  );
 }
