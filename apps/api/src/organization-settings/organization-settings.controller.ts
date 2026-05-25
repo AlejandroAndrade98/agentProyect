@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +20,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { QueryOrganizationUsersDto } from './dto/query-organization-users.dto';
 import { UpdateCurrentOrganizationDto } from './dto/update-current-organization.dto';
 import { OrganizationSettingsService } from './organization-settings.service';
+
+import { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
+import { QueryOrganizationInvitationsDto } from './dto/query-organization-invitations.dto';
 
 @Controller('organization')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -53,6 +58,42 @@ export class OrganizationSettingsController {
     return this.organizationSettingsService.findOrganizationUsers(
       currentUser,
       query,
+    );
+  }
+
+    @Get('invitations')
+  @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
+  findOrganizationInvitations(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Query() query: QueryOrganizationInvitationsDto,
+  ) {
+    return this.organizationSettingsService.findOrganizationInvitations(
+      currentUser,
+      query,
+    );
+  }
+
+  @Post('invitations')
+  @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
+  createOrganizationInvitation(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: CreateOrganizationInvitationDto,
+  ) {
+    return this.organizationSettingsService.createOrganizationInvitation(
+      currentUser,
+      dto,
+    );
+  }
+
+  @Patch('invitations/:id/revoke')
+  @Roles(Role.SUPER_ADMIN, Role.OWNER, Role.ADMIN)
+  revokeOrganizationInvitation(
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.organizationSettingsService.revokeOrganizationInvitation(
+      currentUser,
+      id,
     );
   }
 }
