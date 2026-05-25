@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
@@ -7,6 +11,8 @@ import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
+
+import { OrganizationStatus } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -19,12 +25,22 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResponse> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+        where: { email },
+        include: {
+          organization: {
+            select: {
+              status: true,
+              deletedAt: true,
+            },
+          },
+        },
+      });
 
     if (!user || !user.isActive || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    this.assertOrganizationAllowsAccess(user.organization);
 
     const payload = {
       sub: user.id,
@@ -67,13 +83,25 @@ export class AuthService {
 
       const tokenData = await tx.refreshToken.findUnique({
         where: { tokenHash },
-        include: { user: true },
+        include: {
+          user: {
+            include: {
+              organization: {
+                select: {
+                  status: true,
+                  deletedAt: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!tokenData || tokenData.expiresAt <= new Date() || !tokenData.user?.isActive) {
         throw new UnauthorizedException('Invalid or expired refresh token');
       }
 
+      this.assertOrganizationAllowsAccess(tokenData.user.organization);
       const user = tokenData.user;
       const newRefreshToken = this.generateRefreshToken();
 
@@ -125,6 +153,23 @@ export class AuthService {
 
     return { message: 'Logged out successfully' };
   }
+
+  private assertOrganizationAllowsAccess(organization: {
+  status: OrganizationStatus;
+  deletedAt: Date | null;
+    }) {
+      if (organization.deletedAt) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      if (organization.status === OrganizationStatus.SUSPENDED) {
+        throw new ForbiddenException('Organization is suspended');
+      }
+
+      if (organization.status === OrganizationStatus.CANCELLED) {
+        throw new ForbiddenException('Organization is cancelled');
+      }
+    }
 
   private async createRefreshToken(userId: string): Promise<string> {
     const token = this.generateRefreshToken();

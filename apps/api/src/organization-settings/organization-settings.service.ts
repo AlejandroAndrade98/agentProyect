@@ -5,7 +5,12 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrganizationInvitationStatus, Prisma, Role } from '@prisma/client';
+import {
+  OrganizationInvitationStatus,
+  OrganizationStatus,
+  Prisma,
+  Role,
+} from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
@@ -334,39 +339,46 @@ export class OrganizationSettingsService {
     };
   }
 
-  async revokeOrganizationInvitation(currentUser: CurrentUser, id: string) {
-    this.assertCanManageOrganizationUsers(currentUser);
+async revokeOrganizationInvitation(currentUser: CurrentUser, id: string) {
+  this.assertCanManageOrganizationUsers(currentUser);
 
-    const invitation = await this.prisma.organizationInvitation.findFirst({
-      where: {
-        id,
-        organizationId: currentUser.organizationId,
-      },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
+  const invitation = await this.prisma.organizationInvitation.findFirst({
+    where: {
+      id,
+      organizationId: currentUser.organizationId,
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
 
-    if (!invitation) {
-      throw new NotFoundException('Invitation not found');
-    }
-
-    if (invitation.status !== OrganizationInvitationStatus.PENDING) {
-      throw new BadRequestException('Only pending invitations can be revoked');
-    }
-
-    return this.prisma.organizationInvitation.update({
-      where: {
-        id,
-      },
-      data: {
-        status: OrganizationInvitationStatus.REVOKED,
-        revokedAt: new Date(),
-      },
-      select: this.getOrganizationInvitationSelect(),
-    });
+  if (!invitation) {
+    throw new NotFoundException('Invitation not found');
   }
+
+  if (invitation.status !== OrganizationInvitationStatus.PENDING) {
+    throw new BadRequestException('Only pending invitations can be revoked');
+  }
+
+  return this.prisma.organizationInvitation.update({
+    where: {
+      id,
+    },
+    data: {
+      status: OrganizationInvitationStatus.REVOKED,
+      revokedAt: new Date(),
+    },
+    select: this.getOrganizationInvitationSelect(),
+  });
+}
+
+    private isOrganizationOperational(status: OrganizationStatus) {
+    return (
+      status === OrganizationStatus.TRIAL ||
+      status === OrganizationStatus.ACTIVE
+      );
+    }
 
     async getInvitationByToken(token: string) {
     const tokenHash = this.hashInvitationToken(token);
@@ -393,11 +405,17 @@ export class OrganizationSettingsService {
             status: true,
           },
         },
+        
       },
     });
+    
 
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
+    }
+
+    if (!this.isOrganizationOperational(invitation.organization.status)) {
+      throw new ForbiddenException('Organization is not accepting invitations');
     }
 
     if (invitation.status !== OrganizationInvitationStatus.PENDING) {
@@ -420,57 +438,61 @@ export class OrganizationSettingsService {
     return invitation;
   }
 
-  async acceptInvitation(dto: AcceptOrganizationInvitationDto) {
-    const tokenHash = this.hashInvitationToken(dto.token);
-    const now = new Date();
+async acceptInvitation(dto: AcceptOrganizationInvitationDto) {
+  const tokenHash = this.hashInvitationToken(dto.token);
+  const now = new Date();
 
-    const invitation = await this.prisma.organizationInvitation.findUnique({
-      where: {
-        tokenHash,
-      },
-      select: {
-        id: true,
-        organizationId: true,
-        email: true,
-        role: true,
-        status: true,
-        expiresAt: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            status: true,
-            deletedAt: true,
-          },
+  const invitation = await this.prisma.organizationInvitation.findUnique({
+    where: {
+      tokenHash,
+    },
+    select: {
+      id: true,
+      organizationId: true,
+      email: true,
+      role: true,
+      status: true,
+      expiresAt: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          deletedAt: true,
         },
+      },
+    },
+  });
+
+  if (!invitation) {
+    throw new NotFoundException('Invitation not found');
+  }
+
+  if (invitation.organization.deletedAt) {
+    throw new NotFoundException('Organization not found');
+  }
+
+  if (!this.isOrganizationOperational(invitation.organization.status)) {
+    throw new ForbiddenException('Organization is not accepting invitations');
+  }
+
+  if (invitation.status !== OrganizationInvitationStatus.PENDING) {
+    throw new BadRequestException('Invitation is no longer pending');
+  }
+
+  if (invitation.expiresAt <= now) {
+    await this.prisma.organizationInvitation.update({
+      where: {
+        id: invitation.id,
+      },
+      data: {
+        status: OrganizationInvitationStatus.EXPIRED,
       },
     });
 
-    if (!invitation) {
-      throw new NotFoundException('Invitation not found');
-    }
-
-    if (invitation.organization.deletedAt) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (invitation.status !== OrganizationInvitationStatus.PENDING) {
-      throw new BadRequestException('Invitation is no longer pending');
-    }
-
-    if (invitation.expiresAt <= now) {
-      await this.prisma.organizationInvitation.update({
-        where: {
-          id: invitation.id,
-        },
-        data: {
-          status: OrganizationInvitationStatus.EXPIRED,
-        },
-      });
-
-      throw new BadRequestException('Invitation has expired');
-    }
+    throw new BadRequestException('Invitation has expired');
+  }
 
     const existingUser = await this.prisma.user.findUnique({
       where: {
