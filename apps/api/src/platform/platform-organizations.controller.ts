@@ -62,6 +62,17 @@ export class PlatformOrganizationsController {
       );
     }
 
+    @Patch(':id/owner-invitation/:invitationId/revoke')
+    revokeOwnerInvitation(
+      @Param('id') id: string,
+      @Param('invitationId') invitationId: string,
+    ) {
+      return this.platformOrganizationsService.revokeOwnerInvitation(
+        id,
+        invitationId,
+      );
+    }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.platformOrganizationsService.findOne(id);

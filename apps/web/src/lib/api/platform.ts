@@ -8,6 +8,7 @@ import type {
   UpdatePlatformOrganizationStatusInput,
   CreatePlatformOwnerInvitationInput,
   CreatePlatformOwnerInvitationResponse,
+  RevokePlatformOwnerInvitationResponse
 } from '@/types/platform';
 
 import { apiRequest } from './core';
@@ -47,6 +48,20 @@ export function createPlatformOwnerInvitation(
       method: 'POST',
       token,
       body: input,
+    },
+  );
+}
+
+export function revokePlatformOwnerInvitation(
+  token: string,
+  organizationId: string,
+  invitationId: string,
+) {
+  return apiRequest<RevokePlatformOwnerInvitationResponse>(
+    `/platform/organizations/${organizationId}/owner-invitation/${invitationId}/revoke`,
+    {
+      method: 'PATCH',
+      token,
     },
   );
 }

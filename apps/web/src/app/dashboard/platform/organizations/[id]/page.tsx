@@ -14,6 +14,7 @@ import {
   getPlatformOrganization,
   updatePlatformOrganization,
   updatePlatformOrganizationStatus,
+  revokePlatformOwnerInvitation,
 } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
 import type {
@@ -105,6 +106,8 @@ export default function PlatformOrganizationDetailPage({
   const [ownerInvitationEmail, setOwnerInvitationEmail] = useState('');
   const [isCreatingOwnerInvitation, setIsCreatingOwnerInvitation] =
     useState(false);
+  const [isRevokingOwnerInvitation, setIsRevokingOwnerInvitation] =
+  useState(false);
   const [createdOwnerInvitation, setCreatedOwnerInvitation] =
     useState<PlatformOwnerOnboardingInvitation | null>(null);
 
@@ -287,6 +290,38 @@ export default function PlatformOrganizationDetailPage({
     }
   } finally {
     setIsCreatingOwnerInvitation(false);
+  }
+}
+
+async function handleRevokeOwnerInvitation(invitationId: string) {
+  if (!token) {
+    return;
+  }
+
+  setIsRevokingOwnerInvitation(true);
+  setErrorMessage(null);
+  setSuccessMessage(null);
+  setCreatedOwnerInvitation(null);
+
+  try {
+    const updatedOrganization = await revokePlatformOwnerInvitation(
+      token,
+      params.id,
+      invitationId,
+    );
+
+    setOrganization(updatedOrganization);
+    setSuccessMessage('Owner invitation revoked.');
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not revoke owner invitation.');
+    }
+  } finally {
+    setIsRevokingOwnerInvitation(false);
   }
 }
 
@@ -738,14 +773,27 @@ export default function PlatformOrganizationDetailPage({
           <p className="font-medium text-slate-950">
             {pendingOwnerInvitation.email}
           </p>
+
           <p>
             Pending invitation expires{' '}
             {formatDateTime(pendingOwnerInvitation.expiresAt)}
           </p>
+
           <p className="mt-2">
             A new owner invitation cannot be generated until this one is
             accepted, revoked, or expired.
           </p>
+
+          <button
+            type="button"
+            disabled={isRevokingOwnerInvitation}
+            onClick={() => handleRevokeOwnerInvitation(pendingOwnerInvitation.id)}
+            className="mt-4 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isRevokingOwnerInvitation
+              ? 'Revoking...'
+              : 'Revoke owner invitation'}
+          </button>
         </div>
       ) : (
         <p className="mt-3 text-sm text-slate-600">

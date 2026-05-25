@@ -182,5 +182,7 @@ export type OnboardPlatformOrganizationResponse = {
   ownerInvitation: PlatformOwnerOnboardingInvitation;
 };
 
+export type RevokePlatformOwnerInvitationResponse = PlatformOrganizationDetail;
+
 export type PaginatedPlatformOrganizations =
   PaginatedResponse<PlatformOrganizationListItem>;

@@ -381,6 +381,77 @@ async createOwnerInvitation(
   };
 }
 
+async revokeOwnerInvitation(id: string, invitationId: string) {
+  const organization = await this.prisma.organization.findUnique({
+    where: {
+      id,
+    },
+    select: {
+      id: true,
+      deletedAt: true,
+    },
+  });
+
+  if (!organization || organization.deletedAt) {
+    throw new NotFoundException('Organization not found');
+  }
+
+  const invitation = await this.prisma.organizationInvitation.findFirst({
+    where: {
+      id: invitationId,
+      organizationId: id,
+      role: Role.OWNER,
+    },
+    select: {
+      id: true,
+      status: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!invitation) {
+    throw new NotFoundException('Owner invitation not found');
+  }
+
+  if (invitation.status !== OrganizationInvitationStatus.PENDING) {
+    throw new BadRequestException(
+      'Only pending owner invitations can be revoked',
+    );
+  }
+
+  if (invitation.expiresAt <= new Date()) {
+    await this.prisma.organizationInvitation.update({
+      where: {
+        id: invitation.id,
+      },
+      data: {
+        status: OrganizationInvitationStatus.EXPIRED,
+      },
+    });
+
+    throw new BadRequestException('Owner invitation has expired');
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    await tx.organizationInvitation.update({
+      where: {
+        id: invitation.id,
+      },
+      data: {
+        status: OrganizationInvitationStatus.REVOKED,
+        revokedAt: new Date(),
+      },
+    });
+
+    return tx.organization.findUniqueOrThrow({
+      where: {
+        id,
+      },
+      select: this.getOrganizationDetailSelect(),
+    });
+  });
+}
+
 private createInvitationToken() {
   return randomBytes(32).toString('hex');
 }
