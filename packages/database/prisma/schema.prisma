@@ -15,6 +15,25 @@ enum Role {
   VIEWER
 }
 
+enum OrganizationAccountType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum OrganizationStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum OrganizationInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -161,11 +180,24 @@ enum ExportJobStatus {
 }
 
 model Organization {
-  id                               String    @id @default(cuid())
-  name                             String
-  slug                             String    @unique
-  industry                         String?
-  plan                             String    @default("FREE")
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  industry String?
+  plan     String  @default("FREE")
+
+  accountType  OrganizationAccountType @default(INDIVIDUAL)
+  status       OrganizationStatus      @default(TRIAL)
+  billingEmail String?
+  supportEmail String?
+  timezone     String                  @default("UTC")
+  locale       String                  @default("en")
+  statusReason String?
+  trialEndsAt  DateTime?
+  activatedAt  DateTime?
+  suspendedAt  DateTime?
+  cancelledAt  DateTime?
+
   maxUsers                         Int       @default(1)
   maxActiveLeads                   Int       @default(100)
   aiEnabled                        Boolean   @default(true)
@@ -196,6 +228,7 @@ model Organization {
   aiUserUsageLimits    AiUserUsageLimit[]
   auditLogs            AuditLog[]
   activityEvents       ActivityEvent[]
+  invitations          OrganizationInvitation[]
 }
 
 model User {
@@ -212,24 +245,59 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leads                       Lead[]
-  tasks                       Task[]
-  refreshTokens               RefreshToken[]
-  auditLogs                   AuditLog[]            @relation("AuditLogActor")
-  aiSuggestions               AiSuggestion[]        @relation("AiSuggestionCreatedBy")
-  reviewedSuggestions         AiSuggestion[]        @relation("AiSuggestionReviewedBy")
-  aiExtractions               AiExtraction[]        @relation("AiExtractionCreatedBy")
-  reviewedExtractions         AiExtraction[]        @relation("AiExtractionReviewedBy")
-  approvedInsights            AcceptedAiInsight[]   @relation("AcceptedInsightApprovedBy")
-  createdNotes                Note[]                @relation("NoteCreatedBy")
-  activityEvents              ActivityEvent[]       @relation("ActivityEventActor")
-  aiUsageRecords              AiUsageRecord[]       @relation("AiUsageRecordUser")
-  aiCreditTransactionsCreated AiCreditTransaction[] @relation("AiCreditTransactionActor")
-  aiUsageLimit                AiUserUsageLimit?
+  leads                           Lead[]
+  tasks                           Task[]
+  refreshTokens                   RefreshToken[]
+  auditLogs                       AuditLog[]               @relation("AuditLogActor")
+  aiSuggestions                   AiSuggestion[]           @relation("AiSuggestionCreatedBy")
+  reviewedSuggestions             AiSuggestion[]           @relation("AiSuggestionReviewedBy")
+  aiExtractions                   AiExtraction[]           @relation("AiExtractionCreatedBy")
+  reviewedExtractions             AiExtraction[]           @relation("AiExtractionReviewedBy")
+  approvedInsights                AcceptedAiInsight[]      @relation("AcceptedInsightApprovedBy")
+  createdNotes                    Note[]                   @relation("NoteCreatedBy")
+  activityEvents                  ActivityEvent[]          @relation("ActivityEventActor")
+  aiUsageRecords                  AiUsageRecord[]          @relation("AiUsageRecordUser")
+  aiCreditTransactionsCreated     AiCreditTransaction[]    @relation("AiCreditTransactionActor")
+  aiUsageLimit                    AiUserUsageLimit?
+  sentOrganizationInvitations     OrganizationInvitation[] @relation("OrganizationInvitationInvitedBy")
+  acceptedOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInvitationAcceptedBy")
 
   @@index([organizationId])
   @@index([organizationId, role])
   @@index([organizationId, isActive])
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  email String
+  role  Role
+
+  status    OrganizationInvitationStatus @default(PENDING)
+  tokenHash String                       @unique
+
+  invitedByUserId String?
+  invitedBy       User?   @relation("OrganizationInvitationInvitedBy", fields: [invitedByUserId], references: [id])
+
+  acceptedByUserId String?
+  acceptedBy       User?   @relation("OrganizationInvitationAcceptedBy", fields: [acceptedByUserId], references: [id])
+
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, email])
+  @@index([email])
+  @@index([expiresAt])
+  @@index([invitedByUserId])
+  @@index([acceptedByUserId])
 }
 
 model Product {
