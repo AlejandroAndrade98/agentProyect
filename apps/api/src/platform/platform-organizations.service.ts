@@ -1,5 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrganizationStatus, Prisma, Role } from '@prisma/client';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  OrganizationAccountType,
+  OrganizationInvitationStatus,
+  OrganizationStatus,
+  Prisma,
+  Role,
+} from '@prisma/client';
+import { createHash, randomBytes } from 'crypto';
 
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -11,6 +22,9 @@ import {
 import { QueryPlatformOrganizationsDto } from './dto/query-platform-organizations.dto';
 import { UpdatePlatformOrganizationDto } from './dto/update-platform-organization.dto';
 import { UpdatePlatformOrganizationStatusDto } from './dto/update-platform-organization-status.dto';
+
+import type { CurrentUser } from '../auth/interfaces/current-user.interface';
+import { OnboardPlatformOrganizationDto } from './dto/onboard-platform-organization.dto';
 
 @Injectable()
 export class PlatformOrganizationsService {
@@ -102,6 +116,166 @@ export class PlatformOrganizationsService {
 
     return organization;
   }
+
+  async onboardOrganization(
+  currentUser: CurrentUser,
+  dto: OnboardPlatformOrganizationDto,
+) {
+  const now = new Date();
+  const organizationName = dto.organizationName.trim();
+  const slug = dto.slug.trim().toLowerCase();
+  const ownerEmail = dto.ownerEmail.trim().toLowerCase();
+  const billingEmail = dto.billingEmail?.trim().toLowerCase();
+  const supportEmail = dto.supportEmail?.trim().toLowerCase();
+
+  const existingOrganization = await this.prisma.organization.findUnique({
+    where: {
+      slug,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingOrganization) {
+    throw new ConflictException('Organization slug is already in use');
+  }
+
+  const existingUser = await this.prisma.user.findUnique({
+    where: {
+      email: ownerEmail,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingUser) {
+    throw new ConflictException('Owner email already belongs to an existing user');
+  }
+
+  const existingPendingInvitation =
+    await this.prisma.organizationInvitation.findFirst({
+      where: {
+        email: ownerEmail,
+        status: OrganizationInvitationStatus.PENDING,
+        expiresAt: {
+          gt: now,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (existingPendingInvitation) {
+    throw new ConflictException('Owner email already has a pending invitation');
+  }
+
+  const status = dto.status ?? OrganizationStatus.TRIAL;
+  const accountType = dto.accountType ?? OrganizationAccountType.COMPANY;
+  const acceptanceToken = this.createInvitationToken();
+  const tokenHash = this.hashInvitationToken(acceptanceToken);
+  const expiresAt = this.buildInvitationExpiresAt();
+
+  return this.prisma.$transaction(async (tx) => {
+    const createdOrganization = await tx.organization.create({
+      data: {
+        name: organizationName,
+        slug,
+        industry: dto.industry,
+        plan: dto.plan,
+        accountType,
+        status,
+        statusReason: dto.statusReason,
+        billingEmail,
+        supportEmail,
+        timezone: dto.timezone ?? 'America/Bogota',
+        locale: dto.locale ?? 'es-CO',
+        trialEndsAt: dto.trialEndsAt ? new Date(dto.trialEndsAt) : undefined,
+        maxUsers: dto.maxUsers,
+        maxActiveLeads: dto.maxActiveLeads,
+        aiEnabled: dto.aiEnabled,
+        aiMonthlyCreditsLimit: dto.aiMonthlyCreditsLimit,
+        aiDefaultUserMonthlyCreditsLimit:
+          dto.aiDefaultUserMonthlyCreditsLimit,
+        aiCreditsBalance: dto.aiCreditsBalance,
+        ...(dto.aiCreditsBalance !== undefined && {
+          aiCreditsUpdatedAt: now,
+        }),
+        ...this.getStatusDatePatch(status),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const ownerInvitation = await tx.organizationInvitation.create({
+      data: {
+        organizationId: createdOrganization.id,
+        email: ownerEmail,
+        role: Role.OWNER,
+        tokenHash,
+        status: OrganizationInvitationStatus.PENDING,
+        expiresAt,
+        invitedByUserId: currentUser.id,
+      },
+      select: this.getOnboardingInvitationSelect(),
+    });
+
+    const organization = await tx.organization.findUniqueOrThrow({
+      where: {
+        id: createdOrganization.id,
+      },
+      select: this.getOrganizationDetailSelect(),
+    });
+
+    return {
+      organization,
+      ownerInvitation: {
+        ...ownerInvitation,
+        acceptanceToken,
+      },
+    };
+  });
+}
+
+private createInvitationToken() {
+  return randomBytes(32).toString('hex');
+}
+
+private hashInvitationToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+private buildInvitationExpiresAt() {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  return expiresAt;
+}
+
+private getOnboardingInvitationSelect() {
+  return {
+    id: true,
+    organizationId: true,
+    email: true,
+    role: true,
+    status: true,
+    expiresAt: true,
+    acceptedAt: true,
+    revokedAt: true,
+    createdAt: true,
+    invitedBy: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    },
+  } satisfies Prisma.OrganizationInvitationSelect;
+}
 
   async update(id: string, dto: UpdatePlatformOrganizationDto) {
     await this.ensureOrganizationExists(id);

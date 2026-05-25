@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,10 @@ import { UpdatePlatformOrganizationDto } from './dto/update-platform-organizatio
 import { UpdatePlatformOrganizationStatusDto } from './dto/update-platform-organization-status.dto';
 import { PlatformOrganizationsService } from './platform-organizations.service';
 
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserContext } from '../auth/interfaces/current-user.interface';
+import { OnboardPlatformOrganizationDto } from './dto/onboard-platform-organization.dto';
+
 @Controller('platform/organizations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN)
@@ -30,6 +35,17 @@ export class PlatformOrganizationsController {
   findAll(@Query() query: QueryPlatformOrganizationsDto) {
     return this.platformOrganizationsService.findAll(query);
   }
+
+  @Post('onboard')
+  onboardOrganization(
+    @CurrentUser() currentUser: CurrentUserContext,
+    @Body() dto: OnboardPlatformOrganizationDto,
+  ) {
+    return this.platformOrganizationsService.onboardOrganization(
+      currentUser,
+      dto,
+      );
+    }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
