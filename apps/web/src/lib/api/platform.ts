@@ -1,4 +1,6 @@
 import type {
+  OnboardPlatformOrganizationInput,
+  OnboardPlatformOrganizationResponse,
   PaginatedPlatformOrganizations,
   PlatformOrganizationDetail,
   QueryPlatformOrganizationsParams,
@@ -16,6 +18,20 @@ export function getPlatformOrganizations(
     token,
     query: params,
   });
+}
+
+export function onboardPlatformOrganization(
+  token: string,
+  input: OnboardPlatformOrganizationInput,
+) {
+  return apiRequest<OnboardPlatformOrganizationResponse>(
+    '/platform/organizations/onboard',
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
 }
 
 export function getPlatformOrganization(token: string, id: string) {

@@ -179,8 +179,17 @@ export default function PlatformOrganizationsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Platform Organizations"
-        description="Global customer account view for platform administrators."
+        eyebrow="Platform"
+        title="Organizations"
+        description="Review organizations, account status, usage limits, and platform-level ownership."
+        actions={
+          <Link
+            href="/dashboard/platform/organizations/new"
+            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            Create organization
+          </Link>
+        }
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -133,5 +133,46 @@ export type UpdatePlatformOrganizationStatusInput = {
   statusReason?: string;
 };
 
+export type OnboardPlatformOrganizationInput = {
+  organizationName: string;
+  slug: string;
+  ownerEmail: string;
+  industry?: string;
+  plan?: string;
+  accountType?: OrganizationAccountType;
+  status?: Extract<OrganizationStatus, 'TRIAL' | 'ACTIVE'>;
+  billingEmail?: string;
+  supportEmail?: string;
+  timezone?: string;
+  locale?: string;
+  trialEndsAt?: string;
+  statusReason?: string;
+  maxUsers?: number;
+  maxActiveLeads?: number;
+  aiEnabled?: boolean;
+  aiMonthlyCreditsLimit?: number;
+  aiDefaultUserMonthlyCreditsLimit?: number;
+  aiCreditsBalance?: number;
+};
+
+export type PlatformOwnerOnboardingInvitation = {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  invitedBy: PlatformOrganizationOwner | null;
+  acceptanceToken: string;
+};
+
+export type OnboardPlatformOrganizationResponse = {
+  organization: PlatformOrganizationDetail;
+  ownerInvitation: PlatformOwnerOnboardingInvitation;
+};
+
 export type PaginatedPlatformOrganizations =
   PaginatedResponse<PlatformOrganizationListItem>;
