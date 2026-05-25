@@ -2,6 +2,9 @@
 
 const prisma = new PrismaClient();
 
+const devPasswordHash =
+  '$2b$10$obBeNp05FSzijxOIYQzyz.uZTpvnQ9pgCtdpfCuZVa1pCHHmNncGu';
+
 async function main() {
   console.log('🌱 Starting seed process...');
 
@@ -11,30 +14,51 @@ async function main() {
       name: 'Demo Organization',
       industry: 'Advertising / Media',
       plan: 'FREE',
+      accountType: 'INDIVIDUAL',
+      status: 'TRIAL',
+      statusReason: 'Demo workspace for local development',
+      billingEmail: 'billing@example.com',
+      supportEmail: 'support@example.com',
+      timezone: 'America/Bogota',
+      locale: 'en',
       maxUsers: 5,
       maxActiveLeads: 100,
-      maxAiRequestsPerMonth: 50,
-      maxStorageMb: 100,
+      aiEnabled: true,
+      aiMonthlyCreditsLimit: 5000000,
+      aiDefaultUserMonthlyCreditsLimit: 1000000,
+      aiCreditsBalance: 5000000,
+      aiCreditsUpdatedAt: new Date(),
+      deletedAt: null,
     },
     create: {
       name: 'Demo Organization',
       slug: 'demo',
       industry: 'Advertising / Media',
       plan: 'FREE',
+      accountType: 'INDIVIDUAL',
+      status: 'TRIAL',
+      statusReason: 'Demo workspace for local development',
+      billingEmail: 'billing@example.com',
+      supportEmail: 'support@example.com',
+      timezone: 'America/Bogota',
+      locale: 'en',
       maxUsers: 5,
       maxActiveLeads: 100,
-      maxAiRequestsPerMonth: 50,
-      maxStorageMb: 100,
+      aiEnabled: true,
+      aiMonthlyCreditsLimit: 5000000,
+      aiDefaultUserMonthlyCreditsLimit: 1000000,
+      aiCreditsBalance: 5000000,
+      aiCreditsUpdatedAt: new Date(),
     },
   });
 
-  console.log('✅ Organization seeded: %s', organization.name);
+  console.log('✅ Demo organization seeded: %s', organization.name);
 
   const owner = await prisma.user.upsert({
     where: { email: 'owner@example.com' },
     update: {
       name: 'Demo Owner',
-      passwordHash: '$2b$10$obBeNp05FSzijxOIYQzyz.uZTpvnQ9pgCtdpfCuZVa1pCHHmNncGu',
+      passwordHash: devPasswordHash,
       role: 'OWNER',
       isActive: true,
       organizationId: organization.id,
@@ -42,14 +66,92 @@ async function main() {
     create: {
       email: 'owner@example.com',
       name: 'Demo Owner',
-      passwordHash: '$2b$10$obBeNp05FSzijxOIYQzyz.uZTpvnQ9pgCtdpfCuZVa1pCHHmNncGu',
+      passwordHash: devPasswordHash,
       role: 'OWNER',
       isActive: true,
       organizationId: organization.id,
     },
   });
 
-  console.log('✅ User Owner seeded: %s', owner.email);
+  console.log('✅ Demo owner seeded: %s', owner.email);
+
+  const platformOrganization = await prisma.organization.upsert({
+    where: {
+      slug: 'sales-ai-platform-admin',
+    },
+    update: {
+      name: 'Sales AI Platform Admin',
+      industry: 'Software / SaaS',
+      plan: 'INTERNAL',
+      accountType: 'COMPANY',
+      status: 'ACTIVE',
+      statusReason: 'Internal platform administration workspace',
+      billingEmail: 'alejandro21112@hotmail.com',
+      supportEmail: 'alejandro21112@hotmail.com',
+      timezone: 'America/Bogota',
+      locale: 'en',
+      maxUsers: 5,
+      maxActiveLeads: 100,
+      aiEnabled: true,
+      aiMonthlyCreditsLimit: 5000000,
+      aiDefaultUserMonthlyCreditsLimit: 1000000,
+      aiCreditsBalance: 5000000,
+      aiCreditsUpdatedAt: new Date(),
+      activatedAt: new Date(),
+      suspendedAt: null,
+      cancelledAt: null,
+      deletedAt: null,
+    },
+    create: {
+      name: 'Sales AI Platform Admin',
+      slug: 'sales-ai-platform-admin',
+      industry: 'Software / SaaS',
+      plan: 'INTERNAL',
+      accountType: 'COMPANY',
+      status: 'ACTIVE',
+      statusReason: 'Internal platform administration workspace',
+      billingEmail: 'alejandro21112@hotmail.com',
+      supportEmail: 'alejandro21112@hotmail.com',
+      timezone: 'America/Bogota',
+      locale: 'en',
+      maxUsers: 5,
+      maxActiveLeads: 100,
+      aiEnabled: true,
+      aiMonthlyCreditsLimit: 5000000,
+      aiDefaultUserMonthlyCreditsLimit: 1000000,
+      aiCreditsBalance: 5000000,
+      aiCreditsUpdatedAt: new Date(),
+      activatedAt: new Date(),
+    },
+  });
+
+  console.log(
+    '✅ Platform organization seeded: %s',
+    platformOrganization.name,
+  );
+
+  const superAdmin = await prisma.user.upsert({
+    where: {
+      email: 'alejandro21112@hotmail.com',
+    },
+    update: {
+      name: 'Alejandro Super Admin',
+      role: 'SUPER_ADMIN',
+      isActive: true,
+      organizationId: platformOrganization.id,
+      passwordHash: devPasswordHash,
+    },
+    create: {
+      email: 'alejandro21112@hotmail.com',
+      name: 'Alejandro Super Admin',
+      role: 'SUPER_ADMIN',
+      isActive: true,
+      organizationId: platformOrganization.id,
+      passwordHash: devPasswordHash,
+    },
+  });
+
+  console.log('✅ Super admin seeded: %s', superAdmin.email);
 
   const products = [
     {
@@ -116,5 +218,5 @@ main()
     console.error('❌ Seed process failed:');
     console.error(error);
     await prisma.$disconnect();
-    process.exit(1);
+    throw error;
   });
