@@ -6,6 +6,8 @@ import type {
   QueryPlatformOrganizationsParams,
   UpdatePlatformOrganizationInput,
   UpdatePlatformOrganizationStatusInput,
+  CreatePlatformOwnerInvitationInput,
+  CreatePlatformOwnerInvitationResponse,
 } from '@/types/platform';
 
 import { apiRequest } from './core';
@@ -26,6 +28,21 @@ export function onboardPlatformOrganization(
 ) {
   return apiRequest<OnboardPlatformOrganizationResponse>(
     '/platform/organizations/onboard',
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function createPlatformOwnerInvitation(
+  token: string,
+  organizationId: string,
+  input: CreatePlatformOwnerInvitationInput,
+) {
+  return apiRequest<CreatePlatformOwnerInvitationResponse>(
+    `/platform/organizations/${organizationId}/owner-invitation`,
     {
       method: 'POST',
       token,

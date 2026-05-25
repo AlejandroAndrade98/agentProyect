@@ -169,6 +169,14 @@ export type PlatformOwnerOnboardingInvitation = {
   acceptanceToken: string;
 };
 
+export type CreatePlatformOwnerInvitationInput = {
+  ownerEmail: string;
+};
+
+export type CreatePlatformOwnerInvitationResponse = {
+  ownerInvitation: PlatformOwnerOnboardingInvitation;
+};
+
 export type OnboardPlatformOrganizationResponse = {
   organization: PlatformOrganizationDetail;
   ownerInvitation: PlatformOwnerOnboardingInvitation;

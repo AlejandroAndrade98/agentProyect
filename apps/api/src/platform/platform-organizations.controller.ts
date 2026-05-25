@@ -23,6 +23,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserContext } from '../auth/interfaces/current-user.interface';
 import { OnboardPlatformOrganizationDto } from './dto/onboard-platform-organization.dto';
 
+import { CreatePlatformOwnerInvitationDto } from './dto/create-platform-owner-invitation.dto';
+
 @Controller('platform/organizations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN)
@@ -44,6 +46,19 @@ export class PlatformOrganizationsController {
     return this.platformOrganizationsService.onboardOrganization(
       currentUser,
       dto,
+      );
+    }
+
+    @Post(':id/owner-invitation')
+    createOwnerInvitation(
+      @CurrentUser() currentUser: CurrentUserContext,
+      @Param('id') id: string,
+      @Body() dto: CreatePlatformOwnerInvitationDto,
+    ) {
+      return this.platformOrganizationsService.createOwnerInvitation(
+        currentUser,
+        id,
+        dto,
       );
     }
 

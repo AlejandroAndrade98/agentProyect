@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ApiClientError,
+  createPlatformOwnerInvitation,
   getPlatformOrganization,
   updatePlatformOrganization,
   updatePlatformOrganizationStatus,
@@ -19,6 +20,7 @@ import type {
   OrganizationAccountType,
   OrganizationStatus,
   PlatformOrganizationDetail,
+  PlatformOwnerOnboardingInvitation,
 } from '@/types/platform';
 
 const statusOptions: OrganizationStatus[] = [
@@ -99,8 +101,35 @@ export default function PlatformOrganizationDetailPage({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [ownerInvitationEmail, setOwnerInvitationEmail] = useState('');
+  const [isCreatingOwnerInvitation, setIsCreatingOwnerInvitation] =
+    useState(false);
+  const [createdOwnerInvitation, setCreatedOwnerInvitation] =
+    useState<PlatformOwnerOnboardingInvitation | null>(null);
 
   const canSeePlatform = useMemo(() => canViewPlatform(user?.role), [user?.role]);
+
+  const activeOwner = useMemo(() => {
+  return organization?.users.find(
+    (orgUser) => orgUser.role === 'OWNER' && orgUser.isActive,
+    );
+  }, [organization?.users]);
+
+  const pendingOwnerInvitation = useMemo(() => {
+    return organization?.invitations.find(
+      (invitation) =>
+        invitation.role === 'OWNER' && invitation.status === 'PENDING',
+    );
+  }, [organization?.invitations]);
+
+  const canCreateOwnerInvitation =
+    organization?.status === 'TRIAL' ||
+    organization?.status === 'ACTIVE';
+
+  const createdOwnerInvitationUrl = createdOwnerInvitation?.acceptanceToken
+    ? `/accept-invitation/${createdOwnerInvitation.acceptanceToken}`
+    : null;
 
   const loadOrganization = useCallback(async () => {
     if (!token) {
@@ -223,6 +252,43 @@ export default function PlatformOrganizationDetailPage({
       setIsSaving(false);
     }
   }
+
+  async function handleCreateOwnerInvitation(
+  event: React.FormEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  if (!token) {
+    return;
+  }
+
+  setIsCreatingOwnerInvitation(true);
+  setErrorMessage(null);
+  setSuccessMessage(null);
+  setCreatedOwnerInvitation(null);
+
+  try {
+    const response = await createPlatformOwnerInvitation(token, params.id, {
+      ownerEmail: ownerInvitationEmail.trim().toLowerCase(),
+    });
+
+    setCreatedOwnerInvitation(response.ownerInvitation);
+    setOwnerInvitationEmail('');
+    setSuccessMessage('Owner invitation created.');
+
+    await loadOrganization();
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create owner invitation.');
+    }
+  } finally {
+    setIsCreatingOwnerInvitation(false);
+  }
+}
 
   return (
     <div className="space-y-8">
@@ -630,6 +696,129 @@ export default function PlatformOrganizationDetailPage({
               </button>
             </form>
           </section>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <h3 className="text-lg font-semibold text-slate-950">
+        Owner onboarding
+      </h3>
+      <p className="mt-1 text-sm text-slate-500">
+        Manage the first organization owner invitation from Platform Admin.
+      </p>
+    </div>
+
+    {activeOwner ? (
+      <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+        Active owner found
+      </Badge>
+    ) : pendingOwnerInvitation ? (
+      <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
+        Owner invitation pending
+      </Badge>
+    ) : (
+      <Badge className="bg-amber-50 text-amber-700 ring-amber-200">
+        Owner setup needed
+      </Badge>
+    )}
+  </div>
+
+  <div className="mt-5 grid gap-4 lg:grid-cols-2">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-medium text-slate-700">Current owner status</p>
+
+      {activeOwner ? (
+        <div className="mt-3 text-sm text-slate-600">
+          <p className="font-medium text-slate-950">{activeOwner.name}</p>
+          <p>{activeOwner.email}</p>
+          <p className="mt-2">Active owner account already exists.</p>
+        </div>
+      ) : pendingOwnerInvitation ? (
+        <div className="mt-3 text-sm text-slate-600">
+          <p className="font-medium text-slate-950">
+            {pendingOwnerInvitation.email}
+          </p>
+          <p>
+            Pending invitation expires{' '}
+            {formatDateTime(pendingOwnerInvitation.expiresAt)}
+          </p>
+          <p className="mt-2">
+            A new owner invitation cannot be generated until this one is
+            accepted, revoked, or expired.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-600">
+          No active owner or pending owner invitation was found.
+        </p>
+      )}
+    </div>
+
+    <form
+      onSubmit={handleCreateOwnerInvitation}
+      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+    >
+      <label className="space-y-2">
+        <span className="text-sm font-medium text-slate-700">
+          New owner email
+        </span>
+        <input
+          value={ownerInvitationEmail}
+          onChange={(event) => setOwnerInvitationEmail(event.target.value)}
+          disabled={
+            Boolean(activeOwner) ||
+            Boolean(pendingOwnerInvitation) ||
+            !canCreateOwnerInvitation ||
+            isCreatingOwnerInvitation
+          }
+          required
+          type="email"
+          placeholder="owner@customer.com"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+        />
+      </label>
+
+      <button
+        type="submit"
+        disabled={
+          Boolean(activeOwner) ||
+          Boolean(pendingOwnerInvitation) ||
+          !canCreateOwnerInvitation ||
+          isCreatingOwnerInvitation
+        }
+        className="mt-4 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isCreatingOwnerInvitation
+          ? 'Creating...'
+          : 'Generate owner invitation'}
+      </button>
+
+      {!canCreateOwnerInvitation ? (
+        <p className="mt-3 text-sm text-amber-700">
+          Owner invitations can only be created for TRIAL or ACTIVE
+          organizations.
+        </p>
+      ) : null}
+
+      {createdOwnerInvitationUrl ? (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-sm font-medium text-emerald-800">
+            Development invitation link
+          </p>
+          <p className="mt-2 break-all rounded-lg bg-white p-2 text-sm text-slate-700">
+            {createdOwnerInvitationUrl}
+          </p>
+          <Link
+            href={createdOwnerInvitationUrl}
+            className="mt-3 inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            Open invitation
+          </Link>
+        </div>
+      ) : null}
+    </form>
+  </div>
+</article>
 
           <section className="grid gap-6 xl:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

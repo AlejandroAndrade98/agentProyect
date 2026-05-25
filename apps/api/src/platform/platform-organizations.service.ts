@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -25,6 +26,8 @@ import { UpdatePlatformOrganizationStatusDto } from './dto/update-platform-organ
 
 import type { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { OnboardPlatformOrganizationDto } from './dto/onboard-platform-organization.dto';
+
+import { CreatePlatformOwnerInvitationDto } from './dto/create-platform-owner-invitation.dto';
 
 @Injectable()
 export class PlatformOrganizationsService {
@@ -238,6 +241,144 @@ export class PlatformOrganizationsService {
       },
     };
   });
+}
+
+async createOwnerInvitation(
+  currentUser: CurrentUser,
+  id: string,
+  dto: CreatePlatformOwnerInvitationDto,
+) {
+  const now = new Date();
+  const ownerEmail = dto.ownerEmail.trim().toLowerCase();
+
+  const organization = await this.prisma.organization.findUnique({
+    where: {
+      id,
+    },
+    select: {
+      id: true,
+      status: true,
+      deletedAt: true,
+    },
+  });
+
+  if (!organization || organization.deletedAt) {
+    throw new NotFoundException('Organization not found');
+  }
+
+  if (
+    organization.status !== OrganizationStatus.TRIAL &&
+    organization.status !== OrganizationStatus.ACTIVE
+  ) {
+    throw new BadRequestException(
+      'Owner invitations can only be created for active or trial organizations',
+    );
+  }
+
+  const activeOwner = await this.prisma.user.findFirst({
+    where: {
+      organizationId: id,
+      role: Role.OWNER,
+      isActive: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (activeOwner) {
+    throw new ConflictException('Organization already has an active owner');
+  }
+
+  const existingUser = await this.prisma.user.findUnique({
+    where: {
+      email: ownerEmail,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingUser) {
+    throw new ConflictException('Owner email already belongs to an existing user');
+  }
+
+  await this.prisma.organizationInvitation.updateMany({
+    where: {
+      organizationId: id,
+      role: Role.OWNER,
+      status: OrganizationInvitationStatus.PENDING,
+      expiresAt: {
+        lte: now,
+      },
+    },
+    data: {
+      status: OrganizationInvitationStatus.EXPIRED,
+    },
+  });
+
+  const existingPendingOwnerInvitation =
+    await this.prisma.organizationInvitation.findFirst({
+      where: {
+        organizationId: id,
+        role: Role.OWNER,
+        status: OrganizationInvitationStatus.PENDING,
+        expiresAt: {
+          gt: now,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (existingPendingOwnerInvitation) {
+    throw new ConflictException(
+      'Organization already has a pending owner invitation',
+    );
+  }
+
+  const existingPendingInvitationForEmail =
+    await this.prisma.organizationInvitation.findFirst({
+      where: {
+        email: ownerEmail,
+        status: OrganizationInvitationStatus.PENDING,
+        expiresAt: {
+          gt: now,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (existingPendingInvitationForEmail) {
+    throw new ConflictException('Owner email already has a pending invitation');
+  }
+
+  const acceptanceToken = this.createInvitationToken();
+  const tokenHash = this.hashInvitationToken(acceptanceToken);
+  const expiresAt = this.buildInvitationExpiresAt();
+
+  const ownerInvitation = await this.prisma.organizationInvitation.create({
+    data: {
+      organizationId: id,
+      email: ownerEmail,
+      role: Role.OWNER,
+      tokenHash,
+      status: OrganizationInvitationStatus.PENDING,
+      expiresAt,
+      invitedByUserId: currentUser.id,
+    },
+    select: this.getOnboardingInvitationSelect(),
+  });
+
+  return {
+    ownerInvitation: {
+      ...ownerInvitation,
+      acceptanceToken,
+    },
+  };
 }
 
 private createInvitationToken() {
