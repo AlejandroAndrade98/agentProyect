@@ -1810,3 +1810,201 @@ Validation completed:
 - Settings UI validated.
 - AI Usage UI validated.
 - Usage records display `SUCCESS` and `BLOCKED`.
+
+## Phase 15A, Platform Account & Organization Management Foundation
+
+Status: completed, validated in runtime, documented, committed and pushed.
+
+This phase converted the project into a stronger SaaS platform foundation with platform-level account management, tenant organization settings, user visibility, and a dedicated internal SUPER_ADMIN workspace.
+
+Core platform decisions:
+
+- Every customer account is represented as an `Organization`.
+- Individual accounts are modeled as organizations with `accountType = INDIVIDUAL`.
+- Company accounts are modeled as organizations with `accountType = COMPANY`.
+- `SUPER_ADMIN` manages organizations globally through Platform Admin.
+- `OWNER` and `ADMIN` manage only their own organization through Organization Settings.
+- Settings represents the current user's own organization, not global platform administration.
+- Platform Admin is the correct place for global cross-organization administration.
+- Gmail/Outlook integration and real AI provider integration were intentionally deferred until after account and organization management are solid.
+
+Database changes:
+
+- Added enums:
+  - `OrganizationAccountType`
+  - `OrganizationStatus`
+  - `OrganizationInvitationStatus`
+
+- Added organization account management fields:
+  - `accountType`
+  - `status`
+  - `billingEmail`
+  - `supportEmail`
+  - `timezone`
+  - `locale`
+  - `statusReason`
+  - `trialEndsAt`
+  - `activatedAt`
+  - `suspendedAt`
+  - `cancelledAt`
+
+- Added `OrganizationInvitation` model with:
+  - `organizationId`
+  - `email`
+  - `role`
+  - `status`
+  - `tokenHash`
+  - `invitedByUserId`
+  - `acceptedByUserId`
+  - `expiresAt`
+  - `acceptedAt`
+  - `revokedAt`
+
+- Added invitation relations to `Organization` and `User`.
+
+Backend Platform Admin:
+
+- Added `PlatformModule`.
+- Added `PlatformOrganizationsController`.
+- Added `PlatformOrganizationsService`.
+- Added DTOs:
+  - `QueryPlatformOrganizationsDto`
+  - `UpdatePlatformOrganizationDto`
+  - `UpdatePlatformOrganizationStatusDto`
+
+Platform Admin endpoints:
+
+- `GET /api/platform/organizations`
+- `GET /api/platform/organizations/:id`
+- `PATCH /api/platform/organizations/:id`
+- `PATCH /api/platform/organizations/:id/status`
+
+Authorization behavior:
+
+- Platform Admin endpoints are restricted to `SUPER_ADMIN`.
+- `OWNER` receives 403 when accessing platform organization routes.
+- `SUPER_ADMIN` can list organizations globally.
+- `SUPER_ADMIN` can view organization details globally.
+- `SUPER_ADMIN` can update account settings, limits, credits, and status globally.
+- Nonexistent organization returns 404.
+
+Backend Organization Settings:
+
+- Added `OrganizationSettingsModule`.
+- Added `OrganizationSettingsController`.
+- Added `OrganizationSettingsService`.
+- Added DTOs:
+  - `UpdateCurrentOrganizationDto`
+  - `QueryOrganizationUsersDto`
+
+Organization Settings endpoints:
+
+- `GET /api/organization/current`
+- `PATCH /api/organization/current`
+- `GET /api/organization/users`
+
+Authorization behavior:
+
+- Authenticated CRM users can view their current organization.
+- `OWNER`, `ADMIN`, and `SUPER_ADMIN` can update their own organization settings.
+- `OWNER`, `ADMIN`, and `SUPER_ADMIN` can view users from their own organization.
+- `SALES` and `VIEWER` cannot access organization users.
+- `OWNER` and `ADMIN` cannot query `role=SUPER_ADMIN`.
+- `SUPER_ADMIN` can see `SUPER_ADMIN` users only within the current organization from Settings.
+- Global user administration is intentionally reserved for a future `/dashboard/platform/users`.
+
+Frontend Platform Admin:
+
+- Added platform types:
+  - `apps/web/src/types/platform.ts`
+
+- Added platform API client:
+  - `apps/web/src/lib/api/platform.ts`
+
+- Added routes:
+  - `/dashboard/platform/organizations`
+  - `/dashboard/platform/organizations/:id`
+
+- Added Platform navigation item visible only to `SUPER_ADMIN`.
+
+Platform UI features:
+
+- List organizations globally.
+- Filter by search, status, and account type.
+- Show account type, status, plan, users, leads, AI usage records, and AI credits.
+- Show primary admin using `OWNER` or `SUPER_ADMIN`.
+- View organization detail.
+- Edit account settings.
+- Edit status and status reason.
+- View users and invitations for an organization.
+
+Frontend Organization Settings:
+
+- Added organization settings types:
+  - `apps/web/src/types/organization-settings.ts`
+
+- Added organization settings API client:
+  - `apps/web/src/lib/api/organization-settings.ts`
+
+- Updated Settings page with:
+  - Organization
+  - Users
+  - AI Usage
+  - Appearance, coming soon
+  - Language, coming soon
+
+- Added routes:
+  - `/dashboard/settings/organization`
+  - `/dashboard/settings/users`
+
+Organization Settings UI features:
+
+- Show current organization profile.
+- Show account type, status, plan, billing email, support email, timezone, locale.
+- Show organization counts.
+- Edit name, industry, billing email, support email, timezone, and locale.
+- Show users in the current organization.
+- Filter users by search, role, and active status.
+- Hide Users card for roles that cannot manage users.
+- Hide `SUPER_ADMIN` role filter for non-SUPER_ADMIN users.
+
+Dev seed updates:
+
+- Updated `packages/database/prisma/seed.ts` to match the current schema.
+- Removed old fields:
+  - `maxAiRequestsPerMonth`
+  - `maxStorageMb`
+
+- Seed now creates:
+  - `Demo Organization`
+  - `owner@example.com` as `OWNER`
+  - `Sales AI Platform Admin`
+  - `alejandro21112@hotmail.com` as `SUPER_ADMIN`
+  - Demo products
+
+- Dev login:
+  - `owner@example.com`
+  - `alejandro21112@hotmail.com`
+  - Both use the existing dev password: `dev-password-2026`
+
+Validation completed:
+
+- Prisma migration applied successfully.
+- Prisma generate passed.
+- Seed passed successfully.
+- Build passed with 3 successful tasks.
+- `OWNER` cannot access Platform Admin routes.
+- `SUPER_ADMIN` can access Platform Admin routes.
+- `SUPER_ADMIN` can list and edit organizations globally.
+- `OWNER` can access current organization settings.
+- `OWNER` can update own organization settings.
+- `OWNER` can view organization users.
+- `OWNER` receives 403 when querying `role=SUPER_ADMIN`.
+- `SUPER_ADMIN` has a dedicated internal organization.
+- `SUPER_ADMIN` sees Platform navigation.
+- `OWNER` does not see Platform navigation.
+- `/dashboard/platform/organizations` validated.
+- `/dashboard/platform/organizations/:id` validated.
+- `/dashboard/settings` validated.
+- `/dashboard/settings/organization` validated.
+- `/dashboard/settings/users` validated.
