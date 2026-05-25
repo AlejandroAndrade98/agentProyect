@@ -2169,3 +2169,107 @@ Runtime validation completed:
 - Suspended organization blocked old access tokens with 403.
 - Restoring organization to `TRIAL` restored access.
 - Build passed with 3 successful tasks.
+
+## Phase 15C, Platform Owner Onboarding
+
+Status: completed, validated in runtime, documented, committed and pushed.
+
+This phase completed the SaaS onboarding flow where a `SUPER_ADMIN` can create a customer organization and generate the first `OWNER` invitation.
+
+Core flow:
+
+- `SUPER_ADMIN` creates a new customer organization from Platform Admin.
+- The backend creates the organization and an initial `OWNER` invitation.
+- The development response includes a temporary acceptance token.
+- The invited owner accepts the invitation from the public acceptance page.
+- The accepted owner can log in and access their own organization.
+- The owner can then invite their team from Organization Settings.
+
+Backend:
+
+- Added DTO:
+  - `OnboardPlatformOrganizationDto`
+  - `CreatePlatformOwnerInvitationDto`
+
+- Added endpoint:
+  - `POST /api/platform/organizations/onboard`
+
+- The onboarding endpoint:
+  - Creates a new organization.
+  - Creates an initial pending `OWNER` invitation.
+  - Blocks duplicate organization slugs.
+  - Blocks owner emails already used by existing users.
+  - Blocks owner emails with active pending invitations.
+  - Returns organization detail plus temporary development acceptance token.
+
+- Added endpoint:
+  - `POST /api/platform/organizations/:id/owner-invitation`
+
+- The owner invitation endpoint:
+  - Allows `SUPER_ADMIN` to generate a new owner invitation for an existing organization.
+  - Only works for `TRIAL` or `ACTIVE` organizations.
+  - Blocks organizations with an active owner.
+  - Blocks organizations with a pending owner invitation.
+  - Blocks owner emails already used by existing users.
+  - Blocks owner emails with active pending invitations.
+  - Returns a temporary development acceptance token.
+
+Frontend:
+
+- Added API client functions:
+  - `onboardPlatformOrganization`
+  - `createPlatformOwnerInvitation`
+
+- Added frontend types:
+  - `OnboardPlatformOrganizationInput`
+  - `OnboardPlatformOrganizationResponse`
+  - `PlatformOwnerOnboardingInvitation`
+  - `CreatePlatformOwnerInvitationInput`
+  - `CreatePlatformOwnerInvitationResponse`
+
+- Added page:
+  - `/dashboard/platform/organizations/new`
+
+- The new organization page:
+  - Allows `SUPER_ADMIN` to create a customer organization.
+  - Allows entering owner email.
+  - Supports account type, plan, billing/support email, timezone, locale, max users, max active leads, and AI credit limits.
+  - Shows a success panel after creation.
+  - Shows the temporary development invitation link.
+  - Allows opening the public invitation acceptance page.
+  - Links to the created organization detail page.
+
+- Updated:
+  - `/dashboard/platform/organizations`
+
+- Added:
+  - `Create organization` action button.
+
+- Updated:
+  - `/dashboard/platform/organizations/:id`
+
+- Added Owner onboarding panel:
+  - Shows `Active owner found` when the organization already has an active owner.
+  - Shows `Owner invitation pending` when an owner invitation is pending.
+  - Shows `Owner setup needed` when there is no active owner and no pending owner invitation.
+  - Allows generating a new owner invitation only when valid.
+  - Shows temporary development invitation link after creating a new owner invitation.
+
+Runtime validation completed:
+
+- `SUPER_ADMIN` created a new organization through backend endpoint.
+- Backend created pending `OWNER` invitation.
+- Public invitation preview worked.
+- Public invitation acceptance created the owner user.
+- New owner could log in successfully.
+- Frontend create organization page worked.
+- Frontend displayed development invitation link.
+- Public invitation acceptance from frontend worked.
+- New owner reached dashboard successfully.
+- Organization detail showed active owner state correctly.
+- Attempting to create a second owner invitation while one is pending returned `409`.
+- Build passed with 3 successful tasks.
+
+Current SaaS onboarding flow is now:
+
+`SUPER_ADMIN creates organization → SUPER_ADMIN invites OWNER → OWNER accepts → OWNER manages their team`
