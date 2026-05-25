@@ -2008,3 +2008,164 @@ Validation completed:
 - `/dashboard/settings` validated.
 - `/dashboard/settings/organization` validated.
 - `/dashboard/settings/users` validated.
+
+## Phase 15B, Organization Invitations & User Access Management
+
+Status: completed, validated in runtime, documented, committed and pushed.
+
+This phase added organization-level invitation flows, public invitation acceptance, user activation controls, and real organization status access enforcement.
+
+Core decisions:
+
+- Users are not created directly from Organization Settings.
+- Users are created when an invited person accepts an invitation.
+- Invitations are tenant-aware and belong to one organization.
+- User deletion is not hard delete.
+- User access is controlled with `User.isActive`.
+- Organization-level access is controlled with `Organization.status`.
+- Settings represents the current user's own organization.
+- Platform Admin remains the global cross-organization administration layer.
+
+Invitation management backend:
+
+- Added DTOs:
+  - `CreateOrganizationInvitationDto`
+  - `QueryOrganizationInvitationsDto`
+  - `AcceptOrganizationInvitationDto`
+
+- Added protected organization invitation endpoints:
+  - `GET /api/organization/invitations`
+  - `POST /api/organization/invitations`
+  - `PATCH /api/organization/invitations/:id/revoke`
+
+- Added public invitation acceptance endpoints:
+  - `GET /api/organization/invitations/accept/:token`
+  - `POST /api/organization/invitations/accept`
+
+Invitation rules:
+
+- `OWNER` can invite `ADMIN`, `SALES`, and `VIEWER`.
+- `ADMIN` can invite `SALES` and `VIEWER`.
+- `SUPER_ADMIN` can invite `OWNER`, `ADMIN`, `SALES`, and `VIEWER` inside their current organization.
+- `SUPER_ADMIN` cannot be invited from Organization Settings.
+- `SALES` and `VIEWER` cannot invite users.
+- Duplicate pending invitations are blocked.
+- Existing users cannot be invited again.
+- Pending invitations can be revoked.
+- Accepted, revoked, and expired invitations cannot be reused.
+- Invitations respect `Organization.maxUsers`.
+
+Invitation acceptance:
+
+- Public invitation preview returns organization, email, role, status, and expiration.
+- Accepting an invitation creates a real `User`.
+- Passwords are hashed with bcrypt.
+- The invitation is marked as `ACCEPTED`.
+- `acceptedAt` and `acceptedByUserId` are stored.
+- Accepted users can log in normally.
+- Reusing an accepted token returns an error.
+- Expired invitations are marked as `EXPIRED`.
+
+Frontend invitation admin UI:
+
+- Updated `/dashboard/settings/users`.
+- Added invite user form.
+- Added role selection based on current user role.
+- Added invitation list.
+- Added invitation status filters.
+- Added status badges for `PENDING`, `ACCEPTED`, `REVOKED`, and `EXPIRED`.
+- Added revoke action for pending invitations.
+- Temporarily displays the acceptance token only in development after creating an invitation.
+- Token can be hidden manually and is cleared when the invitation is revoked.
+
+Frontend public invitation acceptance UI:
+
+- Added route:
+  - `/accept-invitation/:token`
+
+- Public page shows:
+  - Organization
+  - Invited email
+  - Assigned role
+  - Expiration date
+
+- Public page allows:
+  - Entering name
+  - Entering password
+  - Confirming password
+  - Accepting invitation
+  - Going to login after success
+
+- Form errors are separated from invitation loading errors.
+- Password mismatch stays inside the form and allows retry.
+- Invalid, revoked, expired, or accepted tokens show an unavailable invitation state.
+
+User access management backend:
+
+- Added endpoints:
+  - `PATCH /api/organization/users/:id/deactivate`
+  - `PATCH /api/organization/users/:id/reactivate`
+
+User access rules:
+
+- Users are deactivated with `isActive = false`.
+- Users are reactivated with `isActive = true`.
+- No hard delete is performed.
+- Deactivated users cannot log in.
+- Reactivated users can log in again.
+- Reactivation respects `Organization.maxUsers`.
+- Users cannot deactivate themselves.
+- `OWNER` can manage `ADMIN`, `SALES`, and `VIEWER`.
+- `ADMIN` can manage `SALES` and `VIEWER`.
+- `OWNER` and `ADMIN` cannot manage `SUPER_ADMIN`.
+- `SALES` and `VIEWER` cannot manage users.
+
+Frontend user access management UI:
+
+- Added Deactivate button for manageable active users.
+- Added Reactivate button for manageable inactive users.
+- Self-management actions are hidden.
+- Unauthorized role actions are hidden.
+- User list refreshes after activation status changes.
+- Success and error messages are shown in Settings Users.
+
+Organization status access enforcement:
+
+- `Organization.status` is now enforced in backend access.
+- `TRIAL` and `ACTIVE` organizations can access the platform.
+- `SUSPENDED` organizations are blocked.
+- `CANCELLED` organizations are blocked.
+- Login is blocked for users in suspended or cancelled organizations.
+- Refresh token flow is blocked for suspended or cancelled organizations.
+- Existing access tokens are blocked by `JwtAuthGuard` when organization status changes.
+- Invitation preview and acceptance are blocked for suspended or cancelled organizations.
+- `SUPER_ADMIN` can restore the organization from Platform Admin.
+
+Security improvements:
+
+- `JwtAuthGuard` now checks the current user and organization from the database.
+- Existing tokens no longer rely only on stale JWT role/status data.
+- Inactive users are rejected by protected endpoints.
+- Suspended/cancelled organizations are rejected by protected endpoints.
+
+Runtime validation completed:
+
+- Owner created invitation successfully.
+- Owner could not invite `SUPER_ADMIN`.
+- Invitation list returned paginated results.
+- Pending invitation could be revoked.
+- Public invitation preview worked.
+- Public invitation acceptance created user.
+- Accepted invitation became `ACCEPTED`.
+- New invited user could log in.
+- Reusing accepted invitation returned error.
+- Password mismatch stayed inside the form and allowed retry.
+- Owner could deactivate a `SALES` user.
+- Deactivated user login returned 401.
+- Owner could reactivate the `SALES` user.
+- Reactivated user could log in again.
+- Owner could not deactivate themselves.
+- Suspended organization blocked login with 403.
+- Suspended organization blocked old access tokens with 403.
+- Restoring organization to `TRIAL` restored access.
+- Build passed with 3 successful tasks.
