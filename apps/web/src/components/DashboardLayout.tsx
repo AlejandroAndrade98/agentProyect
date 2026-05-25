@@ -92,8 +92,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
         <nav className="mt-10 space-y-2">
           {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive =
+            item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             if (!item.enabled) {
               return (

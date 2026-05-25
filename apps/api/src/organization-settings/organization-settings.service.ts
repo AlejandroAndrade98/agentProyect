@@ -67,14 +67,30 @@ export class OrganizationSettingsService {
   ) {
     this.assertCanManageOrganizationUsers(currentUser);
 
+    const canViewSuperAdminUsers = currentUser.role === Role.SUPER_ADMIN;
+
+    if (query.role === Role.SUPER_ADMIN && !canViewSuperAdminUsers) {
+      throw new ForbiddenException(
+        'You do not have permission to view super admin users',
+      );
+    }
+
     const { page, pageSize, skip, take } = getPaginationParams(query);
     const search = normalizeSearch(query.search);
 
     const where: Prisma.UserWhereInput = {
       organizationId: currentUser.organizationId,
-      ...(query.role && {
-        role: query.role,
-      }),
+      ...(query.role
+        ? {
+            role: query.role,
+          }
+        : !canViewSuperAdminUsers
+          ? {
+              role: {
+                not: Role.SUPER_ADMIN,
+              },
+            }
+          : {}),
       ...(query.isActive !== undefined && {
         isActive: query.isActive === 'true',
       }),
