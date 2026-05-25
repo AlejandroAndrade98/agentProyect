@@ -17,6 +17,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
 import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { PlatformModule } from './platform/platform.module';
+import { OrganizationSettingsModule } from './organization-settings/organization-settings.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PlatformModule } from './platform/platform.module';
     AiSuggestionsModule,
     AiUsageModule,
     PlatformModule,
+    OrganizationSettingsModule,
   ],
   controllers: [],
   providers: [],
