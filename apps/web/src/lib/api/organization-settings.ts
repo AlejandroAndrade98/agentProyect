@@ -8,6 +8,9 @@ import type {
   QueryOrganizationUsersParams,
   UpdateCurrentOrganizationInput,
   OrganizationInvitation,
+  AcceptOrganizationInvitationInput,
+  AcceptOrganizationInvitationResponse,
+  OrganizationInvitationPreview,
 } from '@/types/organization-settings';
 
 import { apiRequest } from './core';
@@ -72,6 +75,24 @@ export function revokeOrganizationInvitation(token: string, id: string) {
     {
       method: 'PATCH',
       token,
+    },
+  );
+}
+
+export function getOrganizationInvitationPreview(invitationToken: string) {
+  return apiRequest<OrganizationInvitationPreview>(
+    `/organization/invitations/accept/${invitationToken}`,
+  );
+}
+
+export function acceptOrganizationInvitation(
+  input: AcceptOrganizationInvitationInput,
+) {
+  return apiRequest<AcceptOrganizationInvitationResponse>(
+    '/organization/invitations/accept',
+    {
+      method: 'POST',
+      body: input,
     },
   );
 }

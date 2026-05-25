@@ -121,3 +121,45 @@ export type PaginatedOrganizationInvitations =
   PaginatedResponse<OrganizationInvitation>;
 
 export type PaginatedOrganizationUsers = PaginatedResponse<OrganizationUser>;
+
+export type OrganizationInvitationPreview = {
+  id: string;
+  email: string;
+  role: OrganizationUserRole;
+  status: OrganizationInvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    accountType: string;
+    status: string;
+  };
+};
+
+export type AcceptOrganizationInvitationInput = {
+  token: string;
+  name: string;
+  password: string;
+};
+
+export type AcceptOrganizationInvitationResponse = {
+  message: string;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: OrganizationUserRole;
+    isActive: boolean;
+    organizationId: string;
+    createdAt: string;
+  };
+  invitation: OrganizationInvitation;
+};
