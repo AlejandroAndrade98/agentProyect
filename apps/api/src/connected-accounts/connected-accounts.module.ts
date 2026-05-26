@@ -4,10 +4,15 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { ConnectedAccountsController } from './connected-accounts.controller';
 import { ConnectedAccountsService } from './connected-accounts.service';
+import { ConnectedAccountTokenEncryptionService } from './connected-account-token-encryption.service';
 
 @Module({
   imports: [DatabaseModule, AuthModule],
   controllers: [ConnectedAccountsController],
-  providers: [ConnectedAccountsService],
+  providers: [
+    ConnectedAccountsService,
+    ConnectedAccountTokenEncryptionService,
+  ],
+  exports: [ConnectedAccountTokenEncryptionService],
 })
 export class ConnectedAccountsModule {}

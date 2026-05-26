@@ -7,4 +7,15 @@ export default registerAs('app', () => ({
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+
+  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+  googleOAuthRedirectUri:
+    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    'http://localhost:4000/api/connected-accounts/oauth/google/callback',
+
+  connectedAccountTokenEncryptionKey:
+    process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY,
+  connectedAccountTokenEncryptionVersion:
+    process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION || 'v1',
 }));

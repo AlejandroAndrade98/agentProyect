@@ -2543,3 +2543,56 @@ Important notes:
 - Token encryption is still pending for 16B.2.
 - Google OAuth start URL is still pending for 16B.3.
 - Google OAuth callback and token exchange are still pending for a later block.
+
+## Phase 16B.2, Env/config + TokenEncryptionService
+
+Status: completed, build passed, pending local commit.
+
+This phase added the environment/config foundation and token encryption service needed before implementing real Google OAuth.
+
+Changes completed:
+
+- Added connected account OAuth environment variables to `.env.example`:
+  - `GOOGLE_OAUTH_CLIENT_ID`
+  - `GOOGLE_OAUTH_CLIENT_SECRET`
+  - `GOOGLE_OAUTH_REDIRECT_URI`
+  - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`
+  - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION`
+
+- Updated API configuration to read:
+  - Google OAuth client ID.
+  - Google OAuth client secret.
+  - Google OAuth redirect URI.
+  - Connected account token encryption key.
+  - Connected account token encryption version.
+
+- Added `ConnectedAccountTokenEncryptionService`.
+
+Token encryption behavior:
+
+- Uses AES-256-GCM.
+- Requires a 32-byte base64 encryption key.
+- Stores encrypted payloads with version, IV, auth tag and encrypted data.
+- Rejects missing or invalid encryption keys.
+- Rejects invalid encrypted payload format.
+- Rejects unsupported encryption versions.
+- Keeps token encryption isolated in backend only.
+
+ConnectedAccountsModule updates:
+
+- Registered `ConnectedAccountTokenEncryptionService`.
+- Exported `ConnectedAccountTokenEncryptionService` for future OAuth callback/token exchange code.
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- Real Google OAuth is not implemented yet.
+- OAuth start URL is not implemented yet.
+- OAuth callback and token exchange are not implemented yet.
+- No real Google tokens are stored yet.
+- No email sync is implemented yet.
+- No calendar sync is implemented yet.
+- The real encryption key must be stored only in local/production environment variables and never committed.
