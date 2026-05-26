@@ -19,6 +19,8 @@ import { ConnectedAccountsService } from './connected-accounts.service';
 import { CreateDevConnectedAccountDto } from './dto/create-dev-connected-account.dto';
 import { QueryConnectedAccountsDto } from './dto/query-connected-accounts.dto';
 
+import { StartGoogleOAuthDto } from './dto/start-google-oauth.dto';
+
 const CONNECTED_ACCOUNTS_READ_ROLES = [
   Role.SUPER_ADMIN,
   Role.OWNER,
@@ -54,6 +56,15 @@ export class ConnectedAccountsController {
     @Query() query: QueryConnectedAccountsDto,
   ) {
     return this.connectedAccountsService.findAll(currentUser, query);
+  }
+
+  @Get('oauth/google/start')
+  @Roles(...CONNECTED_ACCOUNTS_CONNECT_ROLES)
+  startGoogleOAuth(
+    @CurrentUserDecorator() currentUser: CurrentUser,
+    @Query() query: StartGoogleOAuthDto,
+  ) {
+    return this.connectedAccountsService.startGoogleOAuth(currentUser, query);
   }
 
   @Get(':id')

@@ -2596,3 +2596,62 @@ Important notes:
 - No email sync is implemented yet.
 - No calendar sync is implemented yet.
 - The real encryption key must be stored only in local/production environment variables and never committed.
+
+## Phase 16B.3, Google OAuth Start URL
+
+Status: completed, validated in build and runtime, pending local commit.
+
+This phase added the first Google OAuth endpoint for starting the authorization flow.
+
+Endpoint added:
+
+- `GET /api/connected-accounts/oauth/google/start`
+
+Behavior implemented:
+
+- Endpoint is protected with `JwtAuthGuard` and `RolesGuard`.
+- Only roles allowed to connect accounts can start OAuth.
+- `VIEWER` users cannot connect accounts.
+- The endpoint respects the one connected account per user rule.
+- If the user already has a connected account, the endpoint returns `409`.
+- Requested capabilities are accepted through query params:
+  - `EMAIL`
+  - `CALENDAR`
+- Default capabilities are `EMAIL` and `CALENDAR`.
+- Google OAuth scopes are generated based on requested capabilities.
+- The endpoint creates a raw secure OAuth state.
+- The raw OAuth state is not stored.
+- A SHA-256 `stateHash` is stored in `ConnectedAccountOAuthState`.
+- OAuth state expires after 10 minutes.
+- Existing pending Google OAuth states for the same user are cancelled before creating a new one.
+- The endpoint returns a Google authorization URL.
+- No callback, token exchange, token storage, email sync, calendar sync or AI processing was implemented in this phase.
+
+Google scopes currently included:
+
+- `openid`
+- `email`
+- `profile`
+- `https://www.googleapis.com/auth/gmail.readonly`
+- `https://www.googleapis.com/auth/calendar.events.readonly`
+
+Runtime validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- OAuth start without token returned 401.
+- OAuth start with a user that already has a connected account returned 409.
+- A temporary SALES user without a connected account was created for happy-path validation.
+- OAuth start returned a valid Google authorization URL.
+- Authorization URL included Gmail readonly and Calendar events readonly scopes.
+- `ConnectedAccountOAuthState` was created with status `PENDING`.
+- `stateHash` was stored as a 64-character hash.
+- Temporary user, refresh tokens and OAuth state were cleaned up after validation.
+
+Important notes:
+
+- Real Google OAuth callback is not implemented yet.
+- Google token exchange is not implemented yet.
+- Real tokens are not stored yet.
+- Email sync is not implemented yet.
+- Calendar sync is not implemented yet.
+- No AI email analysis or AI Review Queue was implemented yet.

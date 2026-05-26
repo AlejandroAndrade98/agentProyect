@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -10,6 +11,7 @@ import {
   ConnectedAccountProvider,
   ConnectedAccountStatus,
   ConnectedAccountSyncStatus,
+  ConnectedAccountOAuthStateStatus,
   EntityType,
   Prisma,
   Role,
@@ -20,6 +22,11 @@ import type { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { PrismaService } from '../database/prisma.service';
 import { CreateDevConnectedAccountDto } from './dto/create-dev-connected-account.dto';
 import { QueryConnectedAccountsDto } from './dto/query-connected-accounts.dto';
+
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomBytes } from 'crypto';
+
+import { StartGoogleOAuthDto } from './dto/start-google-oauth.dto';
 
 const connectedAccountSelect = {
   id: true,
@@ -68,9 +75,27 @@ const connectedAccountSelect = {
   },
 } satisfies Prisma.ConnectedAccountSelect;
 
+const GOOGLE_OAUTH_AUTHORIZATION_URL =
+  'https://accounts.google.com/o/oauth2/v2/auth';
+
+const OAUTH_STATE_EXPIRATION_MINUTES = 10;
+
+const GOOGLE_BASE_SCOPES = ['openid', 'email', 'profile'];
+
+const GOOGLE_EMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+];
+
+const GOOGLE_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events.readonly',
+];
+
 @Injectable()
 export class ConnectedAccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly configService: ConfigService,
+  ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryConnectedAccountsDto) {
     const page = query.page ?? 1;
@@ -166,6 +191,100 @@ export class ConnectedAccountsService {
 
     return account;
   }
+
+  async startGoogleOAuth(
+  currentUser: CurrentUser,
+  query: StartGoogleOAuthDto,
+) {
+  if (currentUser.role === Role.VIEWER) {
+    throw new ForbiddenException('Viewer users cannot connect accounts');
+  }
+
+  const existingAccount = await this.prisma.connectedAccount.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (existingAccount) {
+    throw new ConflictException('User already has a connected account');
+  }
+
+  const clientId = this.configService.get<string>('app.googleOAuthClientId');
+  const redirectUri = this.configService.get<string>(
+    'app.googleOAuthRedirectUri',
+  );
+
+  if (!clientId || !redirectUri) {
+    throw new InternalServerErrorException(
+      'Google OAuth configuration is missing',
+    );
+  }
+
+  const capabilities = this.normalizeOAuthCapabilities(query.capabilities);
+  const scopes = this.getGoogleOAuthScopes(capabilities);
+  const rawState = this.generateOAuthState();
+  const stateHash = this.hashOAuthState(rawState);
+  const expiresAt = this.getOAuthStateExpirationDate();
+
+  await this.prisma.$transaction(async (tx) => {
+    await tx.connectedAccountOAuthState.updateMany({
+      where: {
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        provider: ConnectedAccountProvider.GOOGLE,
+        status: ConnectedAccountOAuthStateStatus.PENDING,
+      },
+      data: {
+        status: ConnectedAccountOAuthStateStatus.CANCELLED,
+      },
+    });
+
+    await tx.connectedAccountOAuthState.create({
+      data: {
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        provider: ConnectedAccountProvider.GOOGLE,
+        capabilities,
+        status: ConnectedAccountOAuthStateStatus.PENDING,
+        stateHash,
+        redirectUri,
+        scopesJson: {
+          scopes,
+          accessType: 'offline',
+          includeGrantedScopes: true,
+          prompt: 'consent',
+        },
+        expiresAt,
+        tokenEncryptionVersion:
+          this.configService.get<string>(
+            'app.connectedAccountTokenEncryptionVersion',
+          ) || 'v1',
+      },
+    });
+  });
+
+  const authorizationUrl = this.buildGoogleAuthorizationUrl({
+    clientId,
+    redirectUri,
+    scopes,
+    state: rawState,
+  });
+
+  return {
+    authorizationUrl,
+    provider: ConnectedAccountProvider.GOOGLE,
+    capabilities,
+    expiresAt,
+  };
+}
 
   async devConnect(
     currentUser: CurrentUser,
@@ -388,6 +507,67 @@ export class ConnectedAccountsService {
 
     return updatedAccount;
   }
+
+  private normalizeOAuthCapabilities(
+  capabilities?: ConnectedAccountCapability[],
+): ConnectedAccountCapability[] {
+  const normalized = capabilities?.length
+    ? capabilities
+    : [
+        ConnectedAccountCapability.EMAIL,
+        ConnectedAccountCapability.CALENDAR,
+      ];
+
+  return Array.from(new Set(normalized));
+}
+
+private getGoogleOAuthScopes(
+  capabilities: ConnectedAccountCapability[],
+): string[] {
+  const scopes = [...GOOGLE_BASE_SCOPES];
+
+  if (capabilities.includes(ConnectedAccountCapability.EMAIL)) {
+    scopes.push(...GOOGLE_EMAIL_SCOPES);
+  }
+
+  if (capabilities.includes(ConnectedAccountCapability.CALENDAR)) {
+    scopes.push(...GOOGLE_CALENDAR_SCOPES);
+  }
+
+  return scopes;
+}
+
+private generateOAuthState(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+private hashOAuthState(rawState: string): string {
+  return createHash('sha256').update(rawState).digest('hex');
+}
+
+private getOAuthStateExpirationDate(): Date {
+  return new Date(Date.now() + OAUTH_STATE_EXPIRATION_MINUTES * 60 * 1000);
+}
+
+private buildGoogleAuthorizationUrl(params: {
+  clientId: string;
+  redirectUri: string;
+  scopes: string[];
+  state: string;
+}): string {
+  const url = new URL(GOOGLE_OAUTH_AUTHORIZATION_URL);
+
+  url.searchParams.set('client_id', params.clientId);
+  url.searchParams.set('redirect_uri', params.redirectUri);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', params.scopes.join(' '));
+  url.searchParams.set('state', params.state);
+  url.searchParams.set('access_type', 'offline');
+  url.searchParams.set('include_granted_scopes', 'true');
+  url.searchParams.set('prompt', 'consent');
+
+  return url.toString();
+}
 
   private normalizeCapabilities(
     capabilities?: ConnectedAccountCapability[],
