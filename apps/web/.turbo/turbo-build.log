@@ -9,24 +9,63 @@
  ✓ Compiled successfully
    Linting and checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/6) ...
-   Generating static pages (1/6) 
-   Generating static pages (2/6) 
-   Generating static pages (4/6) 
- ✓ Generating static pages (6/6)
+   Generating static pages (0/29) ...
+   Generating static pages (7/29) 
+   Generating static pages (14/29) 
+   Generating static pages (21/29) 
+ ✓ Generating static pages (29/29)
    Finalizing page optimization ...
    Collecting build traces ...
 
-Route (app)                              Size     First Load JS
-┌ ○ /                                    142 B          87.4 kB
-├ ○ /_not-found                          872 B          88.1 kB
-├ ○ /dashboard                           142 B          87.4 kB
-└ ○ /login                               2.12 kB        89.4 kB
-+ First Load JS shared by all            87.3 kB
-  ├ chunks/5b8f0dd8-3ced1b42b450e171.js  53.6 kB
-  ├ chunks/749-8323810d55b489a3.js       31.7 kB
-  └ other shared chunks (total)          1.9 kB
+Route (app)                                 Size     First Load JS
+┌ ○ /                                       142 B          87.4 kB
+├ ○ /_not-found                             875 B          88.1 kB
+├ ƒ /accept-invitation/[token]              3.77 kB        99.8 kB
+├ ○ /dashboard                              4.68 kB        91.9 kB
+├ ○ /dashboard/activity                     2.66 kB         101 kB
+├ ○ /dashboard/ai-suggestions               2.61 kB         101 kB
+├ ƒ /dashboard/ai-suggestions/[id]          4.85 kB         104 kB
+├ ○ /dashboard/companies                    2.98 kB         102 kB
+├ ƒ /dashboard/companies/[id]               5.49 kB         101 kB
+├ ƒ /dashboard/companies/[id]/edit          1.36 kB         102 kB
+├ ○ /dashboard/companies/new                871 B           101 kB
+├ ○ /dashboard/contacts                     3 kB            102 kB
+├ ƒ /dashboard/contacts/[id]                5.6 kB          102 kB
+├ ƒ /dashboard/contacts/[id]/edit           1.54 kB         102 kB
+├ ○ /dashboard/contacts/new                 1.05 kB         102 kB
+├ ○ /dashboard/leads                        3.21 kB         102 kB
+├ ƒ /dashboard/leads/[id]                   6.44 kB         102 kB
+├ ƒ /dashboard/leads/[id]/edit              1.59 kB         102 kB
+├ ○ /dashboard/leads/new                    1.12 kB         102 kB
+├ ○ /dashboard/leads/pipeline               3.12 kB         102 kB
+├ ○ /dashboard/notes                        3.19 kB         102 kB
+├ ƒ /dashboard/notes/[id]                   5.07 kB         101 kB
+├ ƒ /dashboard/notes/[id]/edit              1.48 kB         102 kB
+├ ○ /dashboard/notes/new                    1.13 kB         101 kB
+├ ○ /dashboard/platform/organizations       2.66 kB         101 kB
+├ ƒ /dashboard/platform/organizations/[id]  4.47 kB         103 kB
+├ ○ /dashboard/platform/organizations/new   2.6 kB          101 kB
+├ ○ /dashboard/products                     2.99 kB         102 kB
+├ ƒ /dashboard/products/[id]                4.83 kB         101 kB
+├ ƒ /dashboard/products/[id]/edit           1.27 kB         101 kB
+├ ○ /dashboard/products/new                 872 B           100 kB
+├ ○ /dashboard/settings                     1.04 kB        99.8 kB
+├ ○ /dashboard/settings/ai-usage            3.46 kB         102 kB
+├ ○ /dashboard/settings/connected-accounts  3.54 kB        93.6 kB
+├ ○ /dashboard/settings/organization        2.63 kB         101 kB
+├ ○ /dashboard/settings/users               4.04 kB         103 kB
+├ ○ /dashboard/tasks                        3.17 kB         102 kB
+├ ƒ /dashboard/tasks/[id]                   5.07 kB         101 kB
+├ ƒ /dashboard/tasks/[id]/edit              1.51 kB         102 kB
+├ ○ /dashboard/tasks/board                  3.07 kB         102 kB
+├ ○ /dashboard/tasks/new                    1.11 kB         102 kB
+└ ○ /login                                  3.41 kB        90.7 kB
++ First Load JS shared by all               87.3 kB
+  ├ chunks/2749-64e8ec9be2329316.js         31.7 kB
+  ├ chunks/5b8f0dd8-9d0269feffce6376.js     53.6 kB
+  └ other shared chunks (total)             1.9 kB
 
 
-○  (Static)  prerendered as static content
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
 
