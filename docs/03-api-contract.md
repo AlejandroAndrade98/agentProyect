@@ -1,39 +1,141 @@
 # API Contract
 
-## Generalidades
+## General
+
 - **Base URL:** `/api`
-- **Formato:** JSON
-- **Autenticación:** Bearer Token (JWT)
-- **Aislamiento:** Todas las rutas comerciales requieren validación de `organizationId`.
+- **Format:** JSON
+- **Authentication:** Bearer Token, JWT access token.
+- **Refresh Tokens:** Stored hashed in database and rotated through refresh flow.
+- **Tenant Isolation:** All tenant-aware business resources must be scoped by `organizationId` derived from the authenticated user context.
+- **Soft Delete:** Commercial entities use `deletedAt` for soft delete when applicable.
+- **Human-in-the-loop AI:** AI can suggest, but it cannot create official CRM records, apply CRM changes, or send emails without explicit human approval.
 
-## Endpoints Principales
+---
 
-### Auth
-- `POST /auth/register`: Registro de usuario y creación de organización.
-- `POST /auth/login`: Autenticación y entrega de Access/Refresh tokens.
-- `POST /auth/refresh`: Rotación de tokens.
-- `GET /auth/me`: Perfil del usuario actual.
+## Auth
 
-### CRM Core (Pattern: GET /entity, POST /entity, GET /entity/:id, PATCH /entity/:id)
-- `/companies`: Gestión de empresas.
-- `/contacts`: Gestión de contactos.
-- `/leads`: Gestión de leads (incluye cambio de estado).
-- `/tasks`: Gestión de tareas (incluye marcado de completado).
-- `/notes`: Notas rápidas.
+### `POST /auth/login`
 
-### AI Services
-- `POST /ai/analyze-message`: Analiza un texto y sugiere insights.
-- `POST /ai/extract-important-data`: Extrae entidades (Contactos, Leads, etc) de un texto.
-- `POST /ai/generate-reply`: Sugiere una respuesta comercial basada en contexto.
-- `POST /ai/suggest-next-steps`: Sugiere la siguiente acción comercial.
+Authenticates a user and returns access and refresh tokens.
 
-### AI Review Workflow
-- `GET /ai-extractions`: Lista sugerencias pendientes.
-- `POST /ai-extractions/:id/accept`: Convierte la sugerencia en dato oficial.
-- `POST /ai-extractions/:id/edit-and-accept`: Permite modificar antes de guardar.
-- `POST /ai-extractions/:id/reject`: Marca como rechazada y programa limpieza.
+### `POST /auth/refresh`
 
-### Exports & Usage
-- `POST /exports`: Solicita la creación de un archivo (CSV/JSON).
-- `GET /exports/:id/download`: Descarga el archivo generado.
-- `GET /usage/current`: Muestra consumo de tokens y límites del plan.
+Rotates refresh token and returns a new token pair.
+
+### `POST /auth/logout`
+
+Invalidates the current refresh token/session.
+
+### Current user endpoints
+
+### `GET /users/me`
+
+Returns the authenticated user profile.
+
+### `GET /organizations/current`
+
+Returns the authenticated user's current organization.
+
+---
+
+## Platform Admin
+
+Platform Admin endpoints are restricted to `SUPER_ADMIN`.
+
+### Organizations
+
+### `GET /platform/organizations`
+
+Lists organizations globally.
+
+Supports pagination, search, filters and sorting.
+
+Common query params:
+
+- `page`
+- `pageSize`
+- `search`
+- `accountType`
+- `status`
+- `plan`
+- `aiEnabled`
+- `sortBy`
+- `sortOrder`
+
+### `GET /platform/organizations/:id`
+
+Returns organization detail, including users and invitations.
+
+### `PATCH /platform/organizations/:id`
+
+Updates platform-level organization settings.
+
+Can update fields such as:
+
+- `name`
+- `industry`
+- `plan`
+- `accountType`
+- `status`
+- `billingEmail`
+- `supportEmail`
+- `timezone`
+- `locale`
+- `statusReason`
+- `maxUsers`
+- `maxActiveLeads`
+- `aiMonthlyCreditsLimit`
+- `aiDefaultUserMonthlyCreditsLimit`
+- `aiCreditsBalance`
+
+### `PATCH /platform/organizations/:id/status`
+
+Updates organization status.
+
+Allowed organization statuses:
+
+- `TRIAL`
+- `ACTIVE`
+- `SUSPENDED`
+- `CANCELLED`
+
+`SUSPENDED` and `CANCELLED` organizations are blocked from login, refresh and protected API access.
+
+---
+
+## Platform Owner Onboarding
+
+Platform owner onboarding is restricted to `SUPER_ADMIN`.
+
+### `POST /platform/organizations/onboard`
+
+Creates a new customer organization and generates the initial `OWNER` invitation.
+
+Main behavior:
+
+- Creates organization.
+- Creates pending `OWNER` invitation.
+- Blocks duplicate slugs.
+- Blocks owner email if already used by an existing user.
+- Blocks owner email if it already has a pending invitation.
+- Returns organization detail and a temporary development invitation token.
+
+Example body:
+
+```json
+{
+  "organizationName": "Acme Sales",
+  "slug": "acme-sales",
+  "ownerEmail": "owner@acme.com",
+  "billingEmail": "billing@acme.com",
+  "supportEmail": "support@acme.com",
+  "timezone": "America/Bogota",
+  "locale": "es-CO",
+  "accountType": "COMPANY",
+  "status": "TRIAL",
+  "maxUsers": 10,
+  "maxActiveLeads": 100,
+  "aiMonthlyCreditsLimit": 5000000,
+  "aiDefaultUserMonthlyCreditsLimit": 1000000,
+  "aiCreditsBalance": 5000000
+}

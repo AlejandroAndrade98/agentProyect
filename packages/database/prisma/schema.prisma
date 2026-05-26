@@ -34,6 +34,34 @@ enum OrganizationInvitationStatus {
   EXPIRED
 }
 
+enum ConnectedAccountProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum ConnectedAccountStatus {
+  PENDING
+  CONNECTED
+  DISCONNECT_REQUESTED
+  DISCONNECTED
+  REVOKED
+  ERROR
+}
+
+enum ConnectedAccountCapability {
+  EMAIL
+  CALENDAR
+}
+
+enum ConnectedAccountSyncStatus {
+  NOT_STARTED
+  INITIAL_SYNC_PENDING
+  INITIAL_SYNC_RUNNING
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -124,6 +152,7 @@ enum EntityType {
   LEAD
   TASK
   NOTE
+  CONNECTED_ACCOUNT
 }
 
 enum ActivityEventType {
@@ -141,6 +170,11 @@ enum ActivityEventType {
   AI_SUGGESTION_ACCEPTED
   AI_SUGGESTION_REJECTED
   AI_SUGGESTION_APPLIED
+  CONNECTED_ACCOUNT_CONNECTED
+  CONNECTED_ACCOUNT_DISCONNECT_REQUESTED
+  CONNECTED_ACCOUNT_DISCONNECTED
+  CONNECTED_ACCOUNT_REVOKED
+  CONNECTED_ACCOUNT_ERROR
 }
 
 enum InsightType {
@@ -229,6 +263,8 @@ model Organization {
   auditLogs            AuditLog[]
   activityEvents       ActivityEvent[]
   invitations          OrganizationInvitation[]
+  connectedAccounts          ConnectedAccount[]
+  connectedAccountSyncStates ConnectedAccountSyncState[]
 }
 
 model User {
@@ -261,6 +297,7 @@ model User {
   aiUsageLimit                    AiUserUsageLimit?
   sentOrganizationInvitations     OrganizationInvitation[] @relation("OrganizationInvitationInvitedBy")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInvitationAcceptedBy")
+  connectedAccounts ConnectedAccount[]
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -298,6 +335,78 @@ model OrganizationInvitation {
   @@index([expiresAt])
   @@index([invitedByUserId])
   @@index([acceptedByUserId])
+}
+
+model ConnectedAccount {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider ConnectedAccountProvider
+  email    String
+
+  displayName       String?
+  externalAccountId String?
+
+  status ConnectedAccountStatus @default(PENDING)
+
+  capabilities ConnectedAccountCapability[]
+  scopesJson    Json?
+
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  tokenEncryptionVersion String?
+
+  connectedAt               DateTime?
+  disconnectRequestedAt      DateTime?
+  disconnectedAt            DateTime?
+  revokedAt                 DateTime?
+  lastError                 String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  syncStates ConnectedAccountSyncState[]
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([organizationId, userId])
+  @@index([organizationId, provider])
+  @@index([organizationId, status])
+  @@index([organizationId, email])
+}
+
+model ConnectedAccountSyncState {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id])
+
+  capability ConnectedAccountCapability
+  status     ConnectedAccountSyncStatus @default(NOT_STARTED)
+
+  syncFrom DateTime?
+  syncCursor String?
+
+  initialSyncCompletedAt DateTime?
+  lastSyncAttemptAt      DateTime?
+  lastSuccessfulSyncAt   DateTime?
+  lastError              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectedAccountId, capability])
+  @@index([organizationId])
+  @@index([organizationId, connectedAccountId])
+  @@index([organizationId, capability])
+  @@index([organizationId, status])
 }
 
 model Product {
