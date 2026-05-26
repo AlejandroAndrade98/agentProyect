@@ -20,6 +20,8 @@ import type {
   ConnectedAccountCapability,
   ConnectedAccountProvider,
 } from '@/types/connected-accounts';
+import { startGoogleOAuth } from '@/lib/api-client';
+
 
 const providerOptions: ConnectedAccountProvider[] = ['GOOGLE', 'MICROSOFT'];
 const capabilityOptions: ConnectedAccountCapability[] = ['EMAIL', 'CALENDAR'];
@@ -90,6 +92,8 @@ export default function ConnectedAccountsSettingsPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isStartingGoogleOAuth, setIsStartingGoogleOAuth] = useState(false);
+
 
   const [provider, setProvider] =
     useState<ConnectedAccountProvider>('GOOGLE');
@@ -221,6 +225,29 @@ export default function ConnectedAccountsSettingsPage() {
     }
   }
 
+async function handleStartGoogleOAuth() {
+  if (!token) {
+    setErrorMessage('Missing access token');
+    return;
+  }
+
+  try {
+    setIsStartingGoogleOAuth(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const response = await startGoogleOAuth(token, {
+      capabilities: ['EMAIL', 'CALENDAR'],
+    });
+
+    window.location.assign(response.authorizationUrl);
+  } catch (error) {
+    setErrorMessage(getErrorMessage(error));
+  } finally {
+    setIsStartingGoogleOAuth(false);
+  }
+}
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -233,10 +260,9 @@ export default function ConnectedAccountsSettingsPage() {
           Foundation mode
         </p>
         <p className="mt-2 text-sm leading-6 text-blue-700">
-          OAuth, real email sync, calendar sync, AI email analysis, and email
-          drafts are intentionally not implemented yet. This page uses a
-          development connection flow to validate the connected accounts
-          foundation.
+          Real Google OAuth is now available for Gmail and Google Calendar connection.
+          Email sync, calendar sync, AI email analysis, and email drafts are
+          intentionally not implemented yet.
         </p>
       </section>
 
@@ -254,6 +280,34 @@ export default function ConnectedAccountsSettingsPage() {
 
       {canShowDevConnectForm ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">
+                Real OAuth connection
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                Connect Google account
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Connect Gmail and Google Calendar using the real Google OAuth flow.
+                Email sync, calendar sync, AI analysis, and drafts are still pending.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleStartGoogleOAuth}
+              disabled={isStartingGoogleOAuth}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isStartingGoogleOAuth ? 'Starting Google...' : 'Connect Google'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {canShowDevConnectForm ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
               Development connection
@@ -264,6 +318,11 @@ export default function ConnectedAccountsSettingsPage() {
             <p className="mt-2 text-sm leading-6 text-slate-500">
               This creates a local development account only. It does not connect
               to Google or Microsoft yet.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-blue-700">
+              Real Google OAuth is now available for Gmail and Google Calendar connection.
+              Email sync, calendar sync, AI email analysis, and email drafts are intentionally
+              not implemented yet.
             </p>
           </div>
 

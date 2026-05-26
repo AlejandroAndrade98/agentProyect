@@ -2722,3 +2722,48 @@ Important notes:
 - AI Review Queue is not implemented yet.
 - Email drafts are not implemented yet.
 - The UI still uses development connect flow; real Google Connect button is pending.
+
+## Phase 16B.5, Real Google Connect UI
+
+Status: completed, validated in build and runtime, pending local commit.
+
+This phase added the real Google OAuth connection flow to the Connected Accounts settings UI.
+
+Frontend files updated:
+
+- `apps/web/src/lib/api/connected-accounts.ts`
+- `apps/web/src/app/dashboard/settings/connected-accounts/page.tsx`
+
+Behavior implemented:
+
+- Added `startGoogleOAuth` API client function.
+- Added a real `Connect Google` button in `/dashboard/settings/connected-accounts`.
+- The UI calls `GET /api/connected-accounts/oauth/google/start` with the current Bearer token.
+- The UI requests EMAIL and CALENDAR capabilities.
+- The user is redirected to Google using the returned `authorizationUrl`.
+- Existing development connection flow remains available separately.
+- Foundation copy was updated to clarify that real Google OAuth is now available.
+- Email sync, calendar sync, AI email analysis, and email drafts remain intentionally pending.
+
+Runtime validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- Existing disconnected owner connected account was cleaned from local dev database.
+- Connected Accounts page showed the real `Connect Google` button.
+- Clicking `Connect Google` redirected to Google consent.
+- Gmail and Google Calendar permissions were accepted.
+- Google callback returned a connected account JSON response.
+- Returning to `/dashboard/settings/connected-accounts` showed the real Google account as:
+  - provider `GOOGLE`
+  - status `CONNECTED`
+  - capabilities `EMAIL` and `CALENDAR`
+  - sync states `INITIAL_SYNC_PENDING`
+
+Important notes:
+
+- The callback currently returns backend JSON directly in the browser.
+- A polished redirect back to the frontend is pending for a future phase.
+- Real email sync is not implemented yet.
+- Real calendar sync is not implemented yet.
+- AI Review Queue is not implemented yet.
+- Email drafts are not implemented yet.

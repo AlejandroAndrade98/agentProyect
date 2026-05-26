@@ -1,6 +1,8 @@
 import { apiRequest } from './core';
 import type {
   ConnectedAccount,
+  ConnectedAccountCapability,
+  ConnectedAccountProvider,
   ConnectedAccountsQuery,
   ConnectedAccountsResponse,
   CreateDevConnectedAccountInput,
@@ -51,6 +53,37 @@ export function disconnectConnectedAccount(token: string, id: string) {
     `/connected-accounts/${id}/disconnect`,
     {
       method: 'PATCH',
+      token,
+    },
+  );
+}
+
+export type StartGoogleOAuthInput = {
+  capabilities?: ConnectedAccountCapability[];
+};
+
+export type StartGoogleOAuthResponse = {
+  authorizationUrl: string;
+  provider: ConnectedAccountProvider;
+  capabilities: ConnectedAccountCapability[];
+  expiresAt: string;
+};
+
+export async function startGoogleOAuth(
+  token: string,
+  input: StartGoogleOAuthInput = {},
+): Promise<StartGoogleOAuthResponse> {
+  const params = new URLSearchParams();
+
+  if (input.capabilities && input.capabilities.length > 0) {
+    params.set('capabilities', input.capabilities.join(','));
+  }
+
+  const query = params.toString();
+
+  return apiRequest<StartGoogleOAuthResponse>(
+    `/connected-accounts/oauth/google/start${query ? `?${query}` : ''}`,
+    {
       token,
     },
   );
