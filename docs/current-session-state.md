@@ -2773,3 +2773,72 @@ Important notes:
 Status: completed, validated in build/runtime, committed and pushed.
 
 The Google OAuth callback now redirects to `/dashboard/settings/connected-accounts?connected=google` after a successful connection instead of leaving the user on the backend JSON response. The Connected Accounts UI shows a success message when `connected=google` is present. Real email sync, calendar sync, AI Review Queue, and drafts remain pending.
+
+## Phase 16C.1, External Sync Storage DB Foundation
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added database storage foundations for future Gmail and Google Calendar sync metadata.
+
+Database changes:
+
+- Added `ExternalEmailMessage`
+- Added `ExternalCalendarEvent`
+- Added relations from `Organization`
+- Added relations from `ConnectedAccount`
+
+Migration created and applied:
+
+- `20260526235058_add_external_sync_storage`
+
+External email message storage supports:
+
+- provider
+- connectedAccountId
+- externalMessageId
+- externalThreadId
+- subject
+- snippet
+- sender metadata
+- recipients JSON fields
+- labels JSON
+- internalDate
+- metadataJson
+- syncedAt
+- soft delete support
+
+External calendar event storage supports:
+
+- provider
+- connectedAccountId
+- externalCalendarId
+- externalEventId
+- iCalUid
+- status
+- summary
+- description
+- location
+- startAt
+- endAt
+- all-day flag
+- organizer metadata
+- attendeesJson
+- htmlLink
+- metadataJson
+- syncedAt
+- soft delete support
+
+Validation completed:
+
+- Migration applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- No Gmail sync logic implemented yet.
+- No Google Calendar sync logic implemented yet.
+- No email body storage implemented yet.
+- No AI analysis implemented yet.
+- No CRM Contact or Lead creation implemented yet.
+- This phase only prepares safe metadata storage for future sync workers.

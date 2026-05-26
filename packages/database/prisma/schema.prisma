@@ -274,6 +274,8 @@ model Organization {
   connectedAccounts          ConnectedAccount[]
   connectedAccountSyncStates ConnectedAccountSyncState[]
   connectedAccountOAuthStates ConnectedAccountOAuthState[]
+  externalEmailMessages  ExternalEmailMessage[]
+  externalCalendarEvents ExternalCalendarEvent[]
 }
 
 model User {
@@ -388,6 +390,9 @@ model ConnectedAccount {
   @@index([organizationId, provider])
   @@index([organizationId, status])
   @@index([organizationId, email])
+
+  externalEmailMessages  ExternalEmailMessage[]
+  externalCalendarEvents ExternalCalendarEvent[]
 }
 
 model ConnectedAccountSyncState {
@@ -417,6 +422,82 @@ model ConnectedAccountSyncState {
   @@index([organizationId, connectedAccountId])
   @@index([organizationId, capability])
   @@index([organizationId, status])
+}
+
+model ExternalEmailMessage {
+  id                 String                   @id @default(cuid())
+  organizationId     String
+  connectedAccountId String
+  provider           ConnectedAccountProvider
+
+  externalMessageId  String
+  externalThreadId   String?
+  subject            String?
+  snippet            String?
+  fromEmail          String?
+  fromName           String?
+  toEmailsJson       Json?
+  ccEmailsJson       Json?
+  bccEmailsJson      Json?
+  labelIdsJson       Json?
+  internalDate       DateTime?
+  metadataJson       Json?
+
+  syncedAt           DateTime
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  deletedAt          DateTime?
+
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccount   ConnectedAccount         @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([connectedAccountId, externalMessageId])
+  @@index([organizationId])
+  @@index([connectedAccountId])
+  @@index([externalThreadId])
+  @@index([fromEmail])
+  @@index([internalDate])
+  @@index([deletedAt])
+}
+
+model ExternalCalendarEvent {
+  id                 String                   @id @default(cuid())
+  organizationId     String
+  connectedAccountId String
+  provider           ConnectedAccountProvider
+
+  externalCalendarId String
+  externalEventId    String
+  iCalUid            String?
+  status             String?
+  summary            String?
+  description        String?
+  location           String?
+  startAt            DateTime?
+  endAt              DateTime?
+  isAllDay           Boolean                  @default(false)
+  organizerEmail     String?
+  organizerName      String?
+  attendeesJson      Json?
+  htmlLink           String?
+  metadataJson       Json?
+
+  syncedAt           DateTime
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  deletedAt          DateTime?
+
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccount   ConnectedAccount         @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([connectedAccountId, externalCalendarId, externalEventId])
+  @@index([organizationId])
+  @@index([connectedAccountId])
+  @@index([externalCalendarId])
+  @@index([iCalUid])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([deletedAt])
 }
 
 model ConnectedAccountOAuthState {
