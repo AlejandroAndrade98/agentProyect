@@ -2655,3 +2655,70 @@ Important notes:
 - Email sync is not implemented yet.
 - Calendar sync is not implemented yet.
 - No AI email analysis or AI Review Queue was implemented yet.
+
+## Phase 16B.4, Google OAuth Callback + Token Exchange
+
+Status: completed, validated in build and runtime, pending local commit.
+
+This phase implemented the real Google OAuth callback and token exchange flow.
+
+Backend files added:
+
+- `apps/api/src/connected-accounts/connected-accounts-oauth-public.controller.ts`
+- `apps/api/src/connected-accounts/dto/google-oauth-callback.dto.ts`
+
+Backend files updated:
+
+- `apps/api/src/connected-accounts/connected-accounts.module.ts`
+- `apps/api/src/connected-accounts/connected-accounts.service.ts`
+
+Endpoint added:
+
+- `GET /api/connected-accounts/oauth/google/callback`
+
+Behavior implemented:
+
+- Callback is public because Google calls it without Bearer token.
+- Callback security is enforced through OAuth `state`.
+- Missing state returns 400.
+- Invalid state returns 400.
+- Expired state is marked as `EXPIRED`.
+- Used state is rejected.
+- Google OAuth error responses are stored in OAuth state and return 400.
+- Valid callback exchanges Google authorization code for tokens.
+- Google userinfo is fetched using the access token.
+- Access token and refresh token are encrypted before storage.
+- Raw tokens are never returned in API responses.
+- A real `ConnectedAccount` is created with provider `GOOGLE`.
+- Connected account stores Google email, display name and external account ID.
+- EMAIL and CALENDAR sync states are created as `INITIAL_SYNC_PENDING`.
+- OAuth state is marked as `USED`.
+- `CONNECTED_ACCOUNT_CONNECTED` ActivityEvent is created.
+
+Runtime validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- Callback without params returned 400.
+- Callback with invalid state returned 400.
+- Google Cloud OAuth client was configured with redirect URI:
+  - `http://localhost:4000/api/connected-accounts/oauth/google/callback`
+- Gmail API and Google Calendar API were enabled.
+- Test user was added in Google Auth Platform.
+- Real Google consent screen was completed.
+- Real callback created a connected account with:
+  - provider `GOOGLE`
+  - status `CONNECTED`
+  - capabilities `EMAIL` and `CALENDAR`
+  - sync states `INITIAL_SYNC_PENDING`
+- OAuthState was validated as `USED`.
+- ActivityEvent `CONNECTED_ACCOUNT_CONNECTED` was validated.
+- Temporary test user and OAuth data were cleaned up.
+
+Important notes:
+
+- Real email sync is not implemented yet.
+- Real calendar sync is not implemented yet.
+- AI email analysis is not implemented yet.
+- AI Review Queue is not implemented yet.
+- Email drafts are not implemented yet.
+- The UI still uses development connect flow; real Google Connect button is pending.

@@ -4,15 +4,18 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ActivityEventType,
   ConnectedAccountCapability,
+  ConnectedAccountOAuthStateStatus,
   ConnectedAccountProvider,
   ConnectedAccountStatus,
   ConnectedAccountSyncStatus,
-  ConnectedAccountOAuthStateStatus,
   EntityType,
+  OrganizationStatus,
   Prisma,
   Role,
   Source,
@@ -27,6 +30,9 @@ import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 
 import { StartGoogleOAuthDto } from './dto/start-google-oauth.dto';
+
+import { ConnectedAccountTokenEncryptionService } from './connected-account-token-encryption.service';
+import { GoogleOAuthCallbackDto } from './dto/google-oauth-callback.dto';
 
 const connectedAccountSelect = {
   id: true,
@@ -90,11 +96,36 @@ const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events.readonly',
 ];
 
+const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+const GOOGLE_OAUTH_USERINFO_URL =
+  'https://openidconnect.googleapis.com/v1/userinfo';
+
+  type GoogleTokenResponse = {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  id_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleUserInfoResponse = {
+  sub?: string;
+  email?: string;
+  email_verified?: boolean;
+  name?: string;
+  picture?: string;
+};
+
 @Injectable()
 export class ConnectedAccountsService {
   constructor(
   private readonly prisma: PrismaService,
   private readonly configService: ConfigService,
+  private readonly tokenEncryptionService: ConnectedAccountTokenEncryptionService,
   ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryConnectedAccountsDto) {
@@ -284,6 +315,275 @@ export class ConnectedAccountsService {
     capabilities,
     expiresAt,
   };
+}
+
+async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
+  if (!query.state) {
+    throw new BadRequestException('Missing OAuth state');
+  }
+
+  const stateHash = this.hashOAuthState(query.state);
+
+  if (query.error) {
+    await this.markOAuthStateErrorByHash(stateHash, {
+      errorCode: query.error,
+      errorMessage:
+        query.error_description || 'Google OAuth authorization failed',
+    });
+
+    throw new BadRequestException('Google OAuth authorization was not completed');
+  }
+
+  if (!query.code) {
+    throw new BadRequestException('Missing OAuth authorization code');
+  }
+
+  const oauthState = await this.prisma.connectedAccountOAuthState.findUnique({
+    where: {
+      stateHash,
+    },
+    select: {
+      id: true,
+      organizationId: true,
+      userId: true,
+      provider: true,
+      capabilities: true,
+      status: true,
+      redirectUri: true,
+      expiresAt: true,
+      usedAt: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          isActive: true,
+          deletedAt: true,
+          organization: {
+            select: {
+              status: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!oauthState || oauthState.provider !== ConnectedAccountProvider.GOOGLE) {
+    throw new BadRequestException('Invalid OAuth state');
+  }
+
+  if (
+    oauthState.status !== ConnectedAccountOAuthStateStatus.PENDING ||
+    oauthState.usedAt
+  ) {
+    throw new BadRequestException('OAuth state has already been used');
+  }
+
+  if (oauthState.expiresAt.getTime() < Date.now()) {
+    await this.prisma.connectedAccountOAuthState.update({
+      where: {
+        id: oauthState.id,
+      },
+      data: {
+        status: ConnectedAccountOAuthStateStatus.EXPIRED,
+        errorCode: 'OAUTH_STATE_EXPIRED',
+        errorMessage: 'OAuth state expired before callback was completed',
+      },
+    });
+
+    throw new BadRequestException('OAuth state has expired');
+  }
+
+  if (!oauthState.user.isActive || oauthState.user.deletedAt) {
+    throw new UnauthorizedException('User not found or inactive');
+  }
+
+  if (oauthState.user.organization.deletedAt) {
+    throw new UnauthorizedException('Organization not found');
+  }
+
+  if (oauthState.user.organization.status === OrganizationStatus.SUSPENDED) {
+    throw new ForbiddenException('Organization is suspended');
+  }
+
+  if (oauthState.user.organization.status === OrganizationStatus.CANCELLED) {
+    throw new ForbiddenException('Organization is cancelled');
+  }
+
+  const existingAccount = await this.prisma.connectedAccount.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: oauthState.organizationId,
+        userId: oauthState.userId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingAccount) {
+    await this.prisma.connectedAccountOAuthState.update({
+      where: {
+        id: oauthState.id,
+      },
+      data: {
+        status: ConnectedAccountOAuthStateStatus.CANCELLED,
+        errorCode: 'CONNECTED_ACCOUNT_ALREADY_EXISTS',
+        errorMessage: 'User already has a connected account',
+      },
+    });
+
+    throw new ConflictException('User already has a connected account');
+  }
+
+  let tokenResponse: GoogleTokenResponse;
+  let userInfo: GoogleUserInfoResponse;
+
+  try {
+    tokenResponse = await this.exchangeGoogleAuthorizationCode({
+      code: query.code,
+      redirectUri: oauthState.redirectUri,
+    });
+
+    if (!tokenResponse.access_token) {
+      throw new Error('Google token response did not include access_token');
+    }
+
+    if (!tokenResponse.refresh_token) {
+      throw new Error('Google token response did not include refresh_token');
+    }
+
+    userInfo = await this.fetchGoogleUserInfo(tokenResponse.access_token);
+
+    if (!userInfo.sub || !userInfo.email) {
+      throw new Error('Google userinfo response is missing sub or email');
+    }
+  } catch (error) {
+    await this.prisma.connectedAccountOAuthState.update({
+      where: {
+        id: oauthState.id,
+      },
+      data: {
+        status: ConnectedAccountOAuthStateStatus.ERROR,
+        errorCode: 'GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED',
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : 'Google OAuth token exchange failed',
+      },
+    });
+
+    throw new BadRequestException('Google OAuth token exchange failed');
+  }
+
+  const googleEmail = userInfo.email.toLowerCase().trim();
+  const googleDisplayName = userInfo.name || googleEmail;
+  const googleExternalAccountId = userInfo.sub;
+  const googleEmailVerified = userInfo.email_verified ?? null;
+
+  const encryptedAccessToken = this.tokenEncryptionService.encrypt(
+    tokenResponse.access_token,
+  );
+
+  const encryptedRefreshToken = this.tokenEncryptionService.encrypt(
+    tokenResponse.refresh_token,
+  );
+
+  const tokenExpiresAt =
+    typeof tokenResponse.expires_in === 'number'
+      ? new Date(Date.now() + tokenResponse.expires_in * 1000)
+      : null;
+
+  const syncFrom = this.getInitialSyncFromDate();
+  const tokenEncryptionVersion =
+    this.tokenEncryptionService.getEncryptionVersion();
+
+  const account = await this.prisma.$transaction(async (tx) => {
+    const existingInsideTransaction = await tx.connectedAccount.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: oauthState.organizationId,
+          userId: oauthState.userId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingInsideTransaction) {
+      throw new ConflictException('User already has a connected account');
+    }
+
+    const createdAccount = await tx.connectedAccount.create({
+      data: {
+        organizationId: oauthState.organizationId,
+        userId: oauthState.userId,
+        provider: ConnectedAccountProvider.GOOGLE,
+        email: googleEmail,
+        displayName: googleDisplayName,
+        externalAccountId: googleExternalAccountId,
+        status: ConnectedAccountStatus.CONNECTED,
+        capabilities: oauthState.capabilities,
+        scopesJson: {
+          scopes: tokenResponse.scope
+            ? tokenResponse.scope.split(' ')
+            : undefined,
+          tokenType: tokenResponse.token_type,
+          emailVerified: googleEmailVerified,
+          provider: ConnectedAccountProvider.GOOGLE,
+        },
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        tokenExpiresAt,
+        tokenEncryptionVersion,
+        connectedAt: new Date(),
+        syncStates: {
+          create: oauthState.capabilities.map((capability) => ({
+            organizationId: oauthState.organizationId,
+            capability,
+            status: ConnectedAccountSyncStatus.INITIAL_SYNC_PENDING,
+            syncFrom,
+          })),
+        },
+      },
+      select: connectedAccountSelect,
+    });
+
+    await tx.connectedAccountOAuthState.update({
+      where: {
+        id: oauthState.id,
+      },
+      data: {
+        status: ConnectedAccountOAuthStateStatus.USED,
+        usedAt: new Date(),
+      },
+    });
+
+    await this.createActivityEvent(tx, {
+      organizationId: oauthState.organizationId,
+      actorUserId: oauthState.userId,
+      accountId: createdAccount.id,
+      type: ActivityEventType.CONNECTED_ACCOUNT_CONNECTED,
+      title: 'Google account connected',
+      description: `Google account connected for ${createdAccount.email}`,
+      metadataJson: {
+        provider: ConnectedAccountProvider.GOOGLE,
+        email: createdAccount.email,
+        capabilities: createdAccount.capabilities,
+        oauthImplemented: true,
+        syncImplemented: false,
+        initialSyncWindowDays: 30,
+        hasTokens: true,
+      },
+    });
+
+    return createdAccount;
+  });
+
+  return account;
 }
 
   async devConnect(
@@ -507,6 +807,89 @@ export class ConnectedAccountsService {
 
     return updatedAccount;
   }
+
+  private async exchangeGoogleAuthorizationCode(params: {
+  code: string;
+  redirectUri: string;
+}): Promise<GoogleTokenResponse> {
+  const clientId = this.configService.get<string>('app.googleOAuthClientId');
+  const clientSecret = this.configService.get<string>(
+    'app.googleOAuthClientSecret',
+  );
+
+  if (!clientId || !clientSecret) {
+    throw new InternalServerErrorException(
+      'Google OAuth configuration is missing',
+    );
+  }
+
+  const body = new URLSearchParams();
+
+  body.set('code', params.code);
+  body.set('client_id', clientId);
+  body.set('client_secret', clientSecret);
+  body.set('redirect_uri', params.redirectUri);
+  body.set('grant_type', 'authorization_code');
+
+  const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
+
+  const tokenResponse = (await response.json()) as GoogleTokenResponse;
+
+  if (!response.ok || tokenResponse.error) {
+    throw new Error(
+      tokenResponse.error_description ||
+        tokenResponse.error ||
+        'Google token endpoint returned an error',
+    );
+  }
+
+  return tokenResponse;
+}
+
+private async fetchGoogleUserInfo(
+  accessToken: string,
+): Promise<GoogleUserInfoResponse> {
+  const response = await fetch(GOOGLE_OAUTH_USERINFO_URL, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const userInfo = (await response.json()) as GoogleUserInfoResponse;
+
+  if (!response.ok) {
+    throw new Error('Google userinfo endpoint returned an error');
+  }
+
+  return userInfo;
+}
+
+private async markOAuthStateErrorByHash(
+  stateHash: string,
+  params: {
+    errorCode: string;
+    errorMessage: string;
+  },
+) {
+  await this.prisma.connectedAccountOAuthState.updateMany({
+    where: {
+      stateHash,
+      status: ConnectedAccountOAuthStateStatus.PENDING,
+    },
+    data: {
+      status: ConnectedAccountOAuthStateStatus.ERROR,
+      errorCode: params.errorCode,
+      errorMessage: params.errorMessage,
+    },
+  });
+}
 
   private normalizeOAuthCapabilities(
   capabilities?: ConnectedAccountCapability[],
