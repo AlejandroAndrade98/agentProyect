@@ -11,6 +11,19 @@ const CRM_DELETE_ROLES: UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN'];
 
 const PRODUCT_MANAGE_ROLES: UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN'];
 
+const CONNECTED_ACCOUNTS_CONNECT_ROLES: UserRole[] = [
+  'SUPER_ADMIN',
+  'OWNER',
+  'ADMIN',
+  'SALES',
+];
+
+const CONNECTED_ACCOUNTS_MANAGE_ROLES: UserRole[] = [
+  'SUPER_ADMIN',
+  'OWNER',
+  'ADMIN',
+];
+
 function hasRole(user: CurrentUser | null, roles: UserRole[]) {
   if (!user) {
     return false;
@@ -37,4 +50,12 @@ export function canDeleteCrm(user: CurrentUser | null) {
 
 export function canManageProducts(user: CurrentUser | null) {
   return hasRole(user, PRODUCT_MANAGE_ROLES);
+}
+
+export function canConnectConnectedAccount(user: CurrentUser | null) {
+  return hasRole(user, CONNECTED_ACCOUNTS_CONNECT_ROLES);
+}
+
+export function canManageConnectedAccounts(user: CurrentUser | null) {
+  return hasRole(user, CONNECTED_ACCOUNTS_MANAGE_ROLES);
 }

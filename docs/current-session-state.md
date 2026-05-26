@@ -2434,3 +2434,67 @@ Important notes:
 - AI email analysis is not implemented yet.
 - Email drafts are not implemented yet.
 - Reconnect flow is intentionally deferred to a future phase.
+
+## Phase 16A.3, Connected Accounts Settings UI
+
+Status: completed, validated in runtime, build passed, pending local commit.
+
+This phase added the frontend Settings UI for Connected Accounts foundation.
+
+Frontend files added:
+
+- `apps/web/src/types/connected-accounts.ts`
+- `apps/web/src/lib/api/connected-accounts.ts`
+- `apps/web/src/app/dashboard/settings/connected-accounts/page.tsx`
+
+Frontend files updated:
+
+- `apps/web/src/lib/api-client.ts`
+- `apps/web/src/lib/permissions.ts`
+- `apps/web/src/app/dashboard/settings/page.tsx`
+
+UI added:
+
+- New Settings card for Connected Accounts.
+- New route:
+  - `/dashboard/settings/connected-accounts`
+
+Connected Accounts UI behavior:
+
+- Shows foundation mode notice.
+- Shows development connection form.
+- Allows choosing provider:
+  - GOOGLE
+  - MICROSOFT
+- Allows choosing capabilities:
+  - EMAIL
+  - CALENDAR
+- Creates simulated development connected accounts.
+- Shows connected account list.
+- Shows provider, email, display name, owner user, status, timestamps and capabilities.
+- Shows separate sync states for EMAIL and CALENDAR.
+- Shows Request disconnect action.
+- Shows Admin disconnect action for roles that can manage connected accounts.
+- Shows one connected account per user notice when the current user already has a connected account.
+
+Runtime validation completed:
+
+- `/dashboard/settings` shows Connected Accounts card.
+- `/dashboard/settings/connected-accounts` loads successfully.
+- Development connected account creation works from UI.
+- Created account appears in account list.
+- EMAIL and CALENDAR sync states appear as `INITIAL_SYNC_PENDING`.
+- Request disconnect changes account status to `DISCONNECT_REQUESTED`.
+- Admin disconnect changes account status to `DISCONNECTED`.
+- EMAIL and CALENDAR sync states change to `PAUSED`.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- OAuth is not implemented yet.
+- Real email sync is not implemented yet.
+- Real calendar sync is not implemented yet.
+- AI email analysis is not implemented yet.
+- Email drafts are not implemented yet.
+- Reconnect/account replacement flow is intentionally deferred to a future phase.
+- The future AI Review Queue should let users accept, edit or ignore detected candidates with minimal manual effort.

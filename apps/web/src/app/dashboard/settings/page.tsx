@@ -63,6 +63,20 @@ export default function SettingsPage() {
           </p>
         </Link>
 
+        <Link
+          href="/dashboard/settings/connected-accounts"
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
+        >
+          <p className="text-sm font-medium text-blue-700">Integrations</p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-950">
+            Connected Accounts
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Review Gmail, Outlook, email, and calendar connections prepared for future
+            sync and AI review workflows.
+          </p>
+        </Link>
+
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
           <p className="text-sm font-medium text-slate-500">Coming soon</p>
           <h2 className="mt-2 text-lg font-semibold text-slate-800">
