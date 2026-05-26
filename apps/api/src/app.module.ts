@@ -18,6 +18,7 @@ import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
 import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { PlatformModule } from './platform/platform.module';
 import { OrganizationSettingsModule } from './organization-settings/organization-settings.module';
+import { ConnectedAccountsModule } from './connected-accounts/connected-accounts.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { OrganizationSettingsModule } from './organization-settings/organization
     AiUsageModule,
     PlatformModule,
     OrganizationSettingsModule,
+    ConnectedAccountsModule,
   ],
   controllers: [],
   providers: [],

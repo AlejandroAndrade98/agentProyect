@@ -2324,3 +2324,113 @@ Runtime validation completed:
 - Build passed with 3 successful tasks.
 
 Platform onboarding flow now supports correction/retry when the first owner invitation was sent to the wrong email or was not accepted.
+
+## Phase 16A.1, Connected Accounts Database Foundation
+
+Status: completed, validated with Prisma migration, Prisma generate and build, committed locally.
+
+This phase introduced the database foundation for future Gmail/Outlook and Calendar integrations while keeping the platform human-in-the-loop and multi-tenant.
+
+Core product decisions:
+
+- Each user can have one connected account.
+- A connected account can support EMAIL and/or CALENDAR capabilities.
+- Email and Calendar sync states are tracked separately.
+- Future initial sync should be limited to the last 30 days.
+- Future incremental sync should use provider cursors/checkpoints.
+- Sync should not consume AI tokens.
+- AI processing should only happen for suggestions, summaries, extractions, drafts or review flows.
+- The platform must not create official Contacts or Leads automatically from emails.
+- The future AI Review Queue should surface candidates so users can quickly accept, edit or ignore them.
+
+Database changes:
+
+- Added enums:
+  - `ConnectedAccountProvider`
+  - `ConnectedAccountStatus`
+  - `ConnectedAccountCapability`
+  - `ConnectedAccountSyncStatus`
+
+- Added `CONNECTED_ACCOUNT` to `EntityType`.
+
+- Added ActivityEvent types:
+  - `CONNECTED_ACCOUNT_CONNECTED`
+  - `CONNECTED_ACCOUNT_DISCONNECT_REQUESTED`
+  - `CONNECTED_ACCOUNT_DISCONNECTED`
+  - `CONNECTED_ACCOUNT_REVOKED`
+  - `CONNECTED_ACCOUNT_ERROR`
+
+- Added models:
+  - `ConnectedAccount`
+  - `ConnectedAccountSyncState`
+
+Validation completed:
+
+- Prisma migration applied successfully.
+- Prisma Client generated successfully after closing the process that was locking Prisma's Windows query engine file.
+- `pnpm build` passed with 3 successful tasks.
+
+## Phase 16A.2, Connected Accounts Backend Foundation
+
+Status: completed, validated in runtime, pending local commit.
+
+This phase added the backend foundation for connected accounts without implementing OAuth, email sync, calendar sync, AI processing or frontend UI.
+
+Backend files added:
+
+- `apps/api/src/connected-accounts/connected-accounts.module.ts`
+- `apps/api/src/connected-accounts/connected-accounts.controller.ts`
+- `apps/api/src/connected-accounts/connected-accounts.service.ts`
+- `apps/api/src/connected-accounts/dto/query-connected-accounts.dto.ts`
+- `apps/api/src/connected-accounts/dto/create-dev-connected-account.dto.ts`
+
+Backend module registration:
+
+- `ConnectedAccountsModule` registered in `AppModule`.
+
+Endpoints added:
+
+- `GET /api/connected-accounts`
+- `GET /api/connected-accounts/:id`
+- `POST /api/connected-accounts/dev-connect`
+- `PATCH /api/connected-accounts/:id/disconnect-request`
+- `PATCH /api/connected-accounts/:id/disconnect`
+
+Behavior implemented:
+
+- Endpoints are protected with `JwtAuthGuard` and `RolesGuard`.
+- All queries are scoped by `organizationId` from the authenticated user.
+- `organizationId` is not accepted from request body.
+- Each user can have only one connected account.
+- `dev-connect` creates a simulated connected account for development only.
+- `dev-connect` creates sync states for selected capabilities.
+- Initial sync window is prepared as last 30 days through `syncFrom`.
+- Duplicate connected account creation returns `409`.
+- Disconnect request changes status to `DISCONNECT_REQUESTED`.
+- Admin disconnect changes status to `DISCONNECTED`.
+- Disconnect clears token fields and pauses sync states.
+- ActivityEvents are created for connect, disconnect request and disconnect.
+- ActivityEvent metadata does not include secrets or tokens.
+
+Runtime validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- `GET /api/connected-accounts` without token returned 401.
+- `GET /api/connected-accounts` with token returned OK.
+- `POST /api/connected-accounts/dev-connect` created a GOOGLE account with EMAIL and CALENDAR capabilities.
+- Created sync states for EMAIL and CALENDAR with `INITIAL_SYNC_PENDING`.
+- Duplicate dev connection returned 409.
+- `PATCH /disconnect-request` changed status to `DISCONNECT_REQUESTED`.
+- `PATCH /disconnect` changed status to `DISCONNECTED`.
+- Disconnect paused EMAIL and CALENDAR sync states.
+- `CONNECTED_ACCOUNT_CONNECTED` ActivityEvent was created.
+- `CONNECTED_ACCOUNT_DISCONNECTED` ActivityEvent was created.
+
+Important notes:
+
+- OAuth is not implemented yet.
+- Email sync is not implemented yet.
+- Calendar sync is not implemented yet.
+- AI email analysis is not implemented yet.
+- Email drafts are not implemented yet.
+- Reconnect flow is intentionally deferred to a future phase.
