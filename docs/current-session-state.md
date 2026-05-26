@@ -2498,3 +2498,48 @@ Important notes:
 - Email drafts are not implemented yet.
 - Reconnect/account replacement flow is intentionally deferred to a future phase.
 - The future AI Review Queue should let users accept, edit or ignore detected candidates with minimal manual effort.
+
+## Phase 16B.1, Connected Account OAuth State DB Foundation
+
+Status: completed, validated with Prisma migration, Prisma generate and build, pending local commit.
+
+This phase added the database foundation for secure Google OAuth state handling before implementing real OAuth flows.
+
+Core decisions:
+
+- Redis is deferred for future sync jobs, locks, BullMQ and rate limiting.
+- OAuth state is stored in PostgreSQL using Prisma.
+- OAuth state is temporary and expires through `expiresAt`.
+- OAuth state can be marked as used through `usedAt` and status `USED`.
+- The raw OAuth state should not be stored directly.
+- Future callback handlers should hash the received state and compare it with `stateHash`.
+- OAuth attempts are scoped by `organizationId` and `userId`.
+- Requested capabilities are stored, for example EMAIL, CALENDAR, or both.
+- PKCE fields are prepared for future OAuth implementation.
+- No Google OAuth real flow was implemented yet.
+- No token exchange was implemented yet.
+- No email/calendar sync was implemented yet.
+
+Database changes:
+
+- Added enum:
+  - `ConnectedAccountOAuthStateStatus`
+
+- Added model:
+  - `ConnectedAccountOAuthState`
+
+- Added relations:
+  - `Organization.connectedAccountOAuthStates`
+  - `User.connectedAccountOAuthStates`
+
+Validation completed:
+
+- Prisma migration `20260526151015_add_connected_account_oauth_states` applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- Token encryption is still pending for 16B.2.
+- Google OAuth start URL is still pending for 16B.3.
+- Google OAuth callback and token exchange are still pending for a later block.

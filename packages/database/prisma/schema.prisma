@@ -62,6 +62,14 @@ enum ConnectedAccountSyncStatus {
   ERROR
 }
 
+enum ConnectedAccountOAuthStateStatus {
+  PENDING
+  USED
+  EXPIRED
+  CANCELLED
+  ERROR
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -265,6 +273,7 @@ model Organization {
   invitations          OrganizationInvitation[]
   connectedAccounts          ConnectedAccount[]
   connectedAccountSyncStates ConnectedAccountSyncState[]
+  connectedAccountOAuthStates ConnectedAccountOAuthState[]
 }
 
 model User {
@@ -298,6 +307,7 @@ model User {
   sentOrganizationInvitations     OrganizationInvitation[] @relation("OrganizationInvitationInvitedBy")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInvitationAcceptedBy")
   connectedAccounts ConnectedAccount[]
+  connectedAccountOAuthStates ConnectedAccountOAuthState[]
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -407,6 +417,45 @@ model ConnectedAccountSyncState {
   @@index([organizationId, connectedAccountId])
   @@index([organizationId, capability])
   @@index([organizationId, status])
+}
+
+model ConnectedAccountOAuthState {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider     ConnectedAccountProvider
+  capabilities ConnectedAccountCapability[]
+
+  status ConnectedAccountOAuthStateStatus @default(PENDING)
+
+  stateHash String @unique
+
+  redirectUri String
+  scopesJson  Json?
+
+  pkceCodeChallenge          String?
+  encryptedPkceCodeVerifier  String?
+  tokenEncryptionVersion     String?
+
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  errorCode    String?
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, userId])
+  @@index([organizationId, provider])
+  @@index([organizationId, status])
+  @@index([organizationId, expiresAt])
+  @@index([userId])
 }
 
 model Product {
