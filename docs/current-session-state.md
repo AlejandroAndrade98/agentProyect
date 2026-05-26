@@ -2767,3 +2767,9 @@ Important notes:
 - Real calendar sync is not implemented yet.
 - AI Review Queue is not implemented yet.
 - Email drafts are not implemented yet.
+
+## Phase 16B.6, Google OAuth Callback Redirect Polish
+
+Status: completed, validated in build/runtime, committed and pushed.
+
+The Google OAuth callback now redirects to `/dashboard/settings/connected-accounts?connected=google` after a successful connection instead of leaving the user on the backend JSON response. The Connected Accounts UI shows a success message when `connected=google` is present. Real email sync, calendar sync, AI Review Queue, and drafts remain pending.

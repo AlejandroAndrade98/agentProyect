@@ -143,6 +143,14 @@ export default function ConnectedAccountsSettingsPage() {
     void loadAccounts();
   }, [loadAccounts]);
 
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get('connected') === 'google') {
+    setSuccessMessage('Google account connected successfully.');
+  }
+  }, []);
+
   function toggleCapability(capability: ConnectedAccountCapability) {
     setCapabilities((current) => {
       if (current.includes(capability)) {
