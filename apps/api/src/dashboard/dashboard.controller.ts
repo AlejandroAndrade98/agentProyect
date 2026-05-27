@@ -41,4 +41,10 @@ export class DashboardController {
   ) {
     return this.dashboardService.getRecentActivity(currentUser, query);
   }
+
+  @Get('external-sync')
+  @Roles(...CRM_READ_ROLES)
+  getExternalSyncOverview(@CurrentUserDecorator() currentUser: CurrentUser) {
+    return this.dashboardService.getExternalSyncOverview(currentUser);
+  }
 }

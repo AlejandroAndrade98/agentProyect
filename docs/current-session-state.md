@@ -3000,3 +3000,53 @@ Important notes:
 - No CRM Task, Lead, Contact or Note creation is implemented.
 - No background worker sync is implemented yet.
 - This is a manual sync foundation only.
+
+## Phase 16D.1, Dashboard External Sync Overview API
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added a dashboard overview endpoint for external sync data.
+
+Backend files updated:
+
+- `apps/api/src/dashboard/dashboard.controller.ts`
+- `apps/api/src/dashboard/dashboard.service.ts`
+
+Endpoint added:
+
+- `GET /api/dashboard/external-sync`
+
+Behavior implemented:
+
+- Endpoint is protected with `JwtAuthGuard` and `RolesGuard`.
+- Endpoint uses `CRM_READ_ROLES`.
+- Data is tenant-aware using `organizationId` from the current user.
+- Data is also scoped to the current user connected account.
+- Returns current connected Google account summary.
+- Returns next upcoming calendar event as `nextMeeting`.
+- Returns up to 5 upcoming calendar events.
+- Returns up to 5 recent synced email messages.
+- Returns EMAIL and CALENDAR sync states.
+- Provider tokens are not returned.
+
+Runtime validation completed:
+
+- `GET /api/dashboard/external-sync` with token returned OK.
+- Validation showed:
+  - `hasConnectedAccount: true`
+  - `connectedStatus: CONNECTED`
+  - `nextMeetingExists: true`
+  - `upcomingEventsCount: 1`
+  - `recentEmailsCount: 5`
+  - `emailSyncStatus: ACTIVE`
+  - `calendarSyncStatus: ACTIVE`
+- Endpoint returned 401 without token.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- This endpoint only exposes already-synced metadata.
+- It does not call Gmail or Google Calendar directly.
+- It does not run AI analysis.
+- It does not create CRM records.
+- Frontend dashboard widgets are pending.

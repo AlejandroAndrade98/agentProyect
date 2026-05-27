@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { LeadStatus, Prisma, Priority, TaskStatus } from '@prisma/client';
+
+import {
+  ConnectedAccountCapability,
+  ConnectedAccountProvider,
+  LeadStatus,
+  Prisma,
+  Priority,
+  TaskStatus,
+} from '@prisma/client';
 
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 import { PrismaService } from '../database/prisma.service';
@@ -599,4 +607,197 @@ export class DashboardService {
       recentActivity,
     };
   }
+
+  async getExternalSyncOverview(currentUser: CurrentUser) {
+  const organizationId = currentUser.organizationId;
+  const now = new Date();
+
+  const connectedAccount = await this.prisma.connectedAccount.findFirst({
+    where: {
+      organizationId,
+      userId: currentUser.id,
+      provider: ConnectedAccountProvider.GOOGLE,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+    select: {
+      id: true,
+      provider: true,
+      email: true,
+      displayName: true,
+      status: true,
+      capabilities: true,
+      connectedAt: true,
+      disconnectRequestedAt: true,
+      disconnectedAt: true,
+      lastError: true,
+      updatedAt: true,
+    },
+  });
+
+  const [nextMeeting, upcomingCalendarEvents, recentEmailMessages, syncStates] =
+    await this.prisma.$transaction([
+      this.prisma.externalCalendarEvent.findFirst({
+        where: {
+          organizationId,
+          deletedAt: null,
+          startAt: {
+            gte: now,
+          },
+          connectedAccount: {
+            userId: currentUser.id,
+          },
+        },
+        orderBy: {
+          startAt: 'asc',
+        },
+        select: {
+          id: true,
+          connectedAccountId: true,
+          provider: true,
+          externalCalendarId: true,
+          externalEventId: true,
+          status: true,
+          summary: true,
+          location: true,
+          startAt: true,
+          endAt: true,
+          isAllDay: true,
+          organizerEmail: true,
+          organizerName: true,
+          attendeesJson: true,
+          htmlLink: true,
+          metadataJson: true,
+          syncedAt: true,
+          connectedAccount: {
+            select: {
+              id: true,
+              provider: true,
+              email: true,
+              displayName: true,
+              status: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.externalCalendarEvent.findMany({
+        where: {
+          organizationId,
+          deletedAt: null,
+          startAt: {
+            gte: now,
+          },
+          connectedAccount: {
+            userId: currentUser.id,
+          },
+        },
+        orderBy: {
+          startAt: 'asc',
+        },
+        take: 5,
+        select: {
+          id: true,
+          connectedAccountId: true,
+          provider: true,
+          externalCalendarId: true,
+          externalEventId: true,
+          status: true,
+          summary: true,
+          location: true,
+          startAt: true,
+          endAt: true,
+          isAllDay: true,
+          organizerEmail: true,
+          organizerName: true,
+          attendeesJson: true,
+          htmlLink: true,
+          metadataJson: true,
+          syncedAt: true,
+        },
+      }),
+
+      this.prisma.externalEmailMessage.findMany({
+        where: {
+          organizationId,
+          deletedAt: null,
+          connectedAccount: {
+            userId: currentUser.id,
+          },
+        },
+        orderBy: [{ internalDate: 'desc' }, { createdAt: 'desc' }],
+        take: 5,
+        select: {
+          id: true,
+          connectedAccountId: true,
+          provider: true,
+          externalMessageId: true,
+          externalThreadId: true,
+          subject: true,
+          snippet: true,
+          fromEmail: true,
+          fromName: true,
+          internalDate: true,
+          labelIdsJson: true,
+          metadataJson: true,
+          syncedAt: true,
+        },
+      }),
+
+      this.prisma.connectedAccountSyncState.findMany({
+        where: {
+          organizationId,
+          connectedAccount: {
+            userId: currentUser.id,
+          },
+          capability: {
+            in: [
+              ConnectedAccountCapability.EMAIL,
+              ConnectedAccountCapability.CALENDAR,
+            ],
+          },
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
+        select: {
+          id: true,
+          connectedAccountId: true,
+          capability: true,
+          status: true,
+          syncFrom: true,
+          syncCursor: true,
+          initialSyncCompletedAt: true,
+          lastSyncAttemptAt: true,
+          lastSuccessfulSyncAt: true,
+          lastError: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
+
+  const emailSyncState =
+    syncStates.find(
+      (syncState) => syncState.capability === ConnectedAccountCapability.EMAIL,
+    ) ?? null;
+
+  const calendarSyncState =
+    syncStates.find(
+      (syncState) =>
+        syncState.capability === ConnectedAccountCapability.CALENDAR,
+    ) ?? null;
+
+  return {
+    connectedAccount,
+    nextMeeting,
+    upcomingCalendarEvents,
+    recentEmailMessages,
+    syncStates: {
+      email: emailSyncState,
+      calendar: calendarSyncState,
+    },
+    generatedAt: now,
+  };
+}
 }
