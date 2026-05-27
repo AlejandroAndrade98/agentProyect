@@ -23,7 +23,13 @@ export class ExternalSyncController {
   @Roles(...CRM_WRITE_ROLES)
   syncGmailMessages(@CurrentUser() currentUser: CurrentUserType) {
     return this.externalSyncService.syncGmailMessages(currentUser);
-  } 
+  }   
+
+  @Post('calendar-events/sync')
+  @Roles(...CRM_WRITE_ROLES)
+  syncGoogleCalendarEvents(@CurrentUser() currentUser: CurrentUserType) {
+    return this.externalSyncService.syncGoogleCalendarEvents(currentUser);
+  }
 
   @Get('email-messages')
   findEmailMessages(

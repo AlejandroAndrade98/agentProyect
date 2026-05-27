@@ -2945,3 +2945,58 @@ Important notes:
 - No CRM Contact or Lead creation is implemented.
 - No email sending or drafts are implemented.
 - This is a manual sync foundation only, not a background worker yet.
+
+## Phase 16C.4, Google Calendar Sync Service Foundation
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added a manual Google Calendar metadata sync foundation.
+
+Backend files updated:
+
+- `apps/api/src/external-sync/external-sync.controller.ts`
+- `apps/api/src/external-sync/external-sync.service.ts`
+
+Endpoint added:
+
+- `POST /api/external-sync/calendar-events/sync`
+
+Behavior implemented:
+
+- Manual calendar sync endpoint protected with `JwtAuthGuard` and `RolesGuard`.
+- Sync endpoint uses `CRM_WRITE_ROLES`.
+- Sync uses the current user's connected Google account.
+- Connected account must have provider `GOOGLE`, status `CONNECTED`, and CALENDAR capability.
+- Access token is decrypted internally.
+- Access token refresh uses the same shared Google token refresh flow.
+- Google Calendar events are fetched from the primary calendar.
+- Sync fetches up to 10 events within the next 30 days.
+- Stored metadata includes external calendar ID, event ID, iCal UID, status, summary, description, location, start/end dates, all-day flag, organizer, attendees, htmlLink and metadataJson.
+- Calendar body/full content handling remains limited to metadata storage.
+- AI analysis is not run.
+- CRM records are not created.
+- CALENDAR sync state is updated from `INITIAL_SYNC_RUNNING` to `ACTIVE`.
+- Errors update sync state and connected account `lastError`.
+
+Runtime validation completed:
+
+- Initial calendar sync with no events returned OK with `eventsFetched: 0` and `eventsStored: 0`.
+- A temporary Google Calendar event was created manually.
+- `POST /api/external-sync/calendar-events/sync` returned OK.
+- Sync fetched 1 Google Calendar event.
+- Sync stored 1 calendar metadata record.
+- `GET /api/external-sync/calendar-events?page=1&pageSize=10` returned synced calendar metadata.
+- Validation confirmed:
+  - `total: 1`
+  - `pageCount: 1`
+  - `firstHasSummary: true`
+  - `firstHasStartAt: true`
+  - `bodyStored: false`
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- No AI calendar analysis is implemented.
+- No CRM Task, Lead, Contact or Note creation is implemented.
+- No background worker sync is implemented yet.
+- This is a manual sync foundation only.

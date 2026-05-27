@@ -28,6 +28,15 @@ const GMAIL_SYNC_MAX_RESULTS = 10;
 
 const GMAIL_METADATA_HEADERS = ['From', 'To', 'Cc', 'Bcc', 'Subject', 'Date'];
 
+const GOOGLE_CALENDAR_EVENTS_BASE_URL =
+  'https://www.googleapis.com/calendar/v3/calendars';
+
+const GOOGLE_CALENDAR_PRIMARY_ID = 'primary';
+
+const GOOGLE_CALENDAR_SYNC_MAX_RESULTS = 10;
+
+const GOOGLE_CALENDAR_SYNC_DAYS_AHEAD = 30;
+
 type GmailMessagesListResponse = {
   messages?: Array<{
     id?: string;
@@ -65,6 +74,50 @@ type GoogleRefreshTokenResponse = {
 type ParsedEmailAddress = {
   email: string | null;
   name: string | null;
+};
+
+type GoogleCalendarEventsListResponse = {
+  items?: GoogleCalendarEventResponse[];
+  nextPageToken?: string;
+  nextSyncToken?: string;
+  summary?: string;
+};
+
+type GoogleCalendarEventResponse = {
+  id?: string;
+  iCalUID?: string;
+  status?: string;
+  summary?: string;
+  description?: string;
+  location?: string;
+  htmlLink?: string;
+  created?: string;
+  updated?: string;
+  start?: {
+    date?: string;
+    dateTime?: string;
+    timeZone?: string;
+  };
+  end?: {
+    date?: string;
+    dateTime?: string;
+    timeZone?: string;
+  };
+  organizer?: {
+    email?: string;
+    displayName?: string;
+  };
+  attendees?: Array<{
+    email?: string;
+    displayName?: string;
+    responseStatus?: string;
+    optional?: boolean;
+  }>;
+};
+
+type ParsedCalendarDate = {
+  value: Date | null;
+  isAllDay: boolean;
 };
 
 @Injectable()
@@ -213,6 +266,148 @@ export class ExternalSyncService {
       throw new BadRequestException(message);
     }
   }
+
+  async syncGoogleCalendarEvents(currentUser: CurrentUserType) {
+  const account = await this.prisma.connectedAccount.findFirst({
+    where: {
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      provider: ConnectedAccountProvider.GOOGLE,
+      status: ConnectedAccountStatus.CONNECTED,
+      capabilities: {
+        has: ConnectedAccountCapability.CALENDAR,
+      },
+    },
+    select: {
+      id: true,
+      organizationId: true,
+      userId: true,
+      provider: true,
+      email: true,
+      encryptedAccessToken: true,
+      encryptedRefreshToken: true,
+      tokenExpiresAt: true,
+    },
+  });
+
+  if (!account) {
+    throw new BadRequestException(
+      'Current user does not have a connected Google calendar account',
+    );
+  }
+
+  if (!account.encryptedAccessToken || !account.encryptedRefreshToken) {
+    throw new BadRequestException(
+      'Connected account does not have OAuth tokens',
+    );
+  }
+
+  await this.prisma.connectedAccountSyncState.updateMany({
+    where: {
+      organizationId: currentUser.organizationId,
+      connectedAccountId: account.id,
+      capability: ConnectedAccountCapability.CALENDAR,
+    },
+    data: {
+      status: ConnectedAccountSyncStatus.INITIAL_SYNC_RUNNING,
+      lastSyncAttemptAt: new Date(),
+      lastError: null,
+    },
+  });
+
+  const timeMin = new Date();
+  const timeMax = this.addDays(timeMin, GOOGLE_CALENDAR_SYNC_DAYS_AHEAD);
+
+  try {
+    const accessToken = await this.getValidGoogleAccessToken(account);
+
+    const listResponse = await this.fetchGoogleCalendarEventsList(accessToken, {
+      calendarId: GOOGLE_CALENDAR_PRIMARY_ID,
+      timeMin,
+      timeMax,
+    });
+
+    const events = listResponse.items ?? [];
+    const syncedAt = new Date();
+
+    let storedCount = 0;
+
+    for (const event of events) {
+      if (!event.id) {
+        continue;
+      }
+
+      await this.upsertExternalCalendarEvent({
+        organizationId: currentUser.organizationId,
+        connectedAccountId: account.id,
+        provider: account.provider,
+        externalCalendarId: GOOGLE_CALENDAR_PRIMARY_ID,
+        event,
+        syncedAt,
+      });
+
+      storedCount += 1;
+    }
+
+    await this.prisma.connectedAccountSyncState.updateMany({
+      where: {
+        organizationId: currentUser.organizationId,
+        connectedAccountId: account.id,
+        capability: ConnectedAccountCapability.CALENDAR,
+      },
+      data: {
+        status: ConnectedAccountSyncStatus.ACTIVE,
+        initialSyncCompletedAt: syncedAt,
+        lastSuccessfulSyncAt: syncedAt,
+        lastError: null,
+      },
+    });
+
+    await this.prisma.connectedAccount.update({
+      where: { id: account.id },
+      data: { lastError: null },
+    });
+
+    return {
+      connectedAccountId: account.id,
+      provider: account.provider,
+      email: account.email,
+      externalCalendarId: GOOGLE_CALENDAR_PRIMARY_ID,
+      eventsFetched: events.length,
+      eventsStored: storedCount,
+      nextPageToken: listResponse.nextPageToken ?? null,
+      nextSyncToken: listResponse.nextSyncToken ?? null,
+      timeMin,
+      timeMax,
+      syncedAt,
+      bodyStored: false,
+      aiAnalysisRun: false,
+      crmRecordsCreated: false,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Google Calendar sync failed';
+
+    await this.prisma.connectedAccountSyncState.updateMany({
+      where: {
+        organizationId: currentUser.organizationId,
+        connectedAccountId: account.id,
+        capability: ConnectedAccountCapability.CALENDAR,
+      },
+      data: {
+        status: ConnectedAccountSyncStatus.ERROR,
+        lastError: message,
+      },
+    });
+
+    await this.prisma.connectedAccount.update({
+      where: { id: account.id },
+      data: { lastError: message },
+    });
+
+    throw new BadRequestException(message);
+  }
+}
 
   async findEmailMessages(
     currentUser: CurrentUserType,
@@ -614,6 +809,175 @@ export class ExternalSyncService {
 
     return data;
   }
+
+  private async fetchGoogleCalendarEventsList(
+  accessToken: string,
+  params: {
+    calendarId: string;
+    timeMin: Date;
+    timeMax: Date;
+  },
+): Promise<GoogleCalendarEventsListResponse> {
+  const url = new URL(
+    `${GOOGLE_CALENDAR_EVENTS_BASE_URL}/${encodeURIComponent(
+      params.calendarId,
+    )}/events`,
+  );
+
+  url.searchParams.set('maxResults', String(GOOGLE_CALENDAR_SYNC_MAX_RESULTS));
+  url.searchParams.set('singleEvents', 'true');
+  url.searchParams.set('orderBy', 'startTime');
+  url.searchParams.set('showDeleted', 'false');
+  url.searchParams.set('timeMin', params.timeMin.toISOString());
+  url.searchParams.set('timeMax', params.timeMax.toISOString());
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = (await response.json()) as GoogleCalendarEventsListResponse;
+
+  if (!response.ok) {
+    throw new Error('Google Calendar events list endpoint returned an error');
+  }
+
+  return data;
+}
+
+private async upsertExternalCalendarEvent(params: {
+  organizationId: string;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  externalCalendarId: string;
+  event: GoogleCalendarEventResponse;
+  syncedAt: Date;
+}) {
+  const start = this.parseGoogleCalendarDate(params.event.start);
+  const end = this.parseGoogleCalendarDate(params.event.end);
+  const attendees = this.mapGoogleCalendarAttendees(params.event.attendees);
+
+  await this.prisma.externalCalendarEvent.upsert({
+    where: {
+      connectedAccountId_externalCalendarId_externalEventId: {
+        connectedAccountId: params.connectedAccountId,
+        externalCalendarId: params.externalCalendarId,
+        externalEventId: params.event.id as string,
+      },
+    },
+    create: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      provider: params.provider,
+      externalCalendarId: params.externalCalendarId,
+      externalEventId: params.event.id as string,
+      iCalUid: params.event.iCalUID ?? null,
+      status: params.event.status ?? null,
+      summary: params.event.summary ?? null,
+      description: params.event.description ?? null,
+      location: params.event.location ?? null,
+      startAt: start.value,
+      endAt: end.value,
+      isAllDay: start.isAllDay,
+      organizerEmail: params.event.organizer?.email?.toLowerCase() ?? null,
+      organizerName: params.event.organizer?.displayName ?? null,
+      attendeesJson:
+        attendees.length > 0
+          ? (attendees as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      htmlLink: params.event.htmlLink ?? null,
+      metadataJson: {
+        calendarId: params.externalCalendarId,
+        created: params.event.created ?? null,
+        updated: params.event.updated ?? null,
+        startTimeZone: params.event.start?.timeZone ?? null,
+        endTimeZone: params.event.end?.timeZone ?? null,
+        hasDescription: Boolean(params.event.description),
+        bodyStored: false,
+      },
+      syncedAt: params.syncedAt,
+    },
+    update: {
+      iCalUid: params.event.iCalUID ?? null,
+      status: params.event.status ?? null,
+      summary: params.event.summary ?? null,
+      description: params.event.description ?? null,
+      location: params.event.location ?? null,
+      startAt: start.value,
+      endAt: end.value,
+      isAllDay: start.isAllDay,
+      organizerEmail: params.event.organizer?.email?.toLowerCase() ?? null,
+      organizerName: params.event.organizer?.displayName ?? null,
+      attendeesJson:
+        attendees.length > 0
+          ? (attendees as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      htmlLink: params.event.htmlLink ?? null,
+      metadataJson: {
+        calendarId: params.externalCalendarId,
+        created: params.event.created ?? null,
+        updated: params.event.updated ?? null,
+        startTimeZone: params.event.start?.timeZone ?? null,
+        endTimeZone: params.event.end?.timeZone ?? null,
+        hasDescription: Boolean(params.event.description),
+        bodyStored: false,
+      },
+      syncedAt: params.syncedAt,
+      deletedAt: null,
+    },
+  });
+}
+
+private parseGoogleCalendarDate(
+  value?: GoogleCalendarEventResponse['start'],
+): ParsedCalendarDate {
+  if (!value) {
+    return {
+      value: null,
+      isAllDay: false,
+    };
+  }
+
+  if (value.dateTime) {
+    return {
+      value: new Date(value.dateTime),
+      isAllDay: false,
+    };
+  }
+
+  if (value.date) {
+    return {
+      value: new Date(`${value.date}T00:00:00.000Z`),
+      isAllDay: true,
+    };
+  }
+
+  return {
+    value: null,
+    isAllDay: false,
+  };
+}
+
+private mapGoogleCalendarAttendees(
+  attendees?: GoogleCalendarEventResponse['attendees'],
+) {
+  return (attendees ?? [])
+    .map((attendee) => ({
+      email: attendee.email?.toLowerCase() ?? null,
+      displayName: attendee.displayName ?? null,
+      responseStatus: attendee.responseStatus ?? null,
+      optional: attendee.optional ?? false,
+    }))
+    .filter((attendee) => Boolean(attendee.email || attendee.displayName));
+}
+
+private addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
 
   private async upsertExternalEmailMessage(params: {
     organizationId: string;
