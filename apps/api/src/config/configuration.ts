@@ -1,3 +1,5 @@
+// FILE: apps/api/src/config/configuration.ts
+
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('app', () => ({
@@ -18,4 +20,9 @@ export default registerAs('app', () => ({
     process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY,
   connectedAccountTokenEncryptionVersion:
     process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION || 'v1',
+
+  aiProvider: process.env.AI_PROVIDER || 'mock',
+  openAiApiKey: process.env.OPENAI_API_KEY,
+  openAiModel: process.env.OPENAI_MODEL || 'gpt-5.5',
+  aiMaxInputChars: Number(process.env.AI_MAX_INPUT_CHARS || 10000),
 }));

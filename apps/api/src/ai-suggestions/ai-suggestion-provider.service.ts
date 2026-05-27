@@ -1,3 +1,6 @@
+// FILE: apps/api/src/ai-suggestions/ai-suggestion-provider.service.ts
+
+import OpenAI from 'openai';
 import { Injectable } from '@nestjs/common';
 
 import { LeadNextStepsContext } from './lead-ai-context.service';
@@ -121,10 +124,43 @@ export type ExternalCalendarEventAnalysisOutput = {
 
 @Injectable()
 export class AiSuggestionProviderService {
+
+    private readonly aiProvider = process.env.AI_PROVIDER || 'mock';
+  private readonly openAiApiKey = process.env.OPENAI_API_KEY;
+  private readonly openAiModel = process.env.OPENAI_MODEL || 'gpt-5.5';
+  private readonly aiMaxInputChars = Number(
+    process.env.AI_MAX_INPUT_CHARS || 10000,
+  );
+
+  private getOpenAiClient() {
+    if (this.aiProvider !== 'openai') {
+      return null;
+    }
+
+    if (!this.openAiApiKey) {
+      throw new Error(
+        'OPENAI_API_KEY is required when AI_PROVIDER is set to openai',
+      );
+    }
+
+    return new OpenAI({
+      apiKey: this.openAiApiKey,
+    });
+  }
+
+  private assertInputWithinLimit(inputText: string) {
+    if (inputText.length > this.aiMaxInputChars) {
+      throw new Error(
+        `AI input exceeds configured limit of ${this.aiMaxInputChars} characters`,
+      );
+    }
+  }
+
   generateLeadNextSteps(
     context: LeadNextStepsContext,
     inputText: string,
   ): GeneratedAiSuggestion {
+    this.assertInputWithinLimit(inputText);
     const hasNextStep = Boolean(context.lead.nextStep);
     const hasPendingTasks = context.tasks.some(
       (task) => task.status !== 'COMPLETED' && task.status !== 'CANCELLED',
@@ -196,6 +232,7 @@ export class AiSuggestionProviderService {
     email: ExternalEmailMetadataForAi,
     inputText: string,
   ): GeneratedAiSuggestion<ExternalEmailAnalysisOutput> {
+    this.assertInputWithinLimit(inputText);
     const subject = email.subject?.trim() || '(No subject)';
     const snippet = email.snippet?.trim() || '';
     const sender = email.fromName || email.fromEmail || 'Unknown sender';
@@ -323,6 +360,7 @@ export class AiSuggestionProviderService {
     event: ExternalCalendarEventMetadataForAi,
     inputText: string,
   ): GeneratedAiSuggestion<ExternalCalendarEventAnalysisOutput> {
+    this.assertInputWithinLimit(inputText);
     const eventSummary = event.summary?.trim() || '(No title)';
     const description = event.description?.trim() || '';
     const location = event.location?.trim() || '';

@@ -3299,3 +3299,36 @@ Validation completed:
 - ActivityEvent `AI_SUGGESTION_CREATED` was created.
 - Duplicate pending suggestion returns 409.
 - Endpoint without token returns 401.
+
+## Phase 17B.1 + 17B.2, Real AI Provider Config & Provider Foundation
+
+Status: completed, validated in build, pending commit/push.
+
+This phase added the safe foundation for real AI provider integration without replacing the current mock behavior yet.
+
+Implemented:
+
+- Added backend AI provider configuration:
+  - `AI_PROVIDER`
+  - `OPENAI_API_KEY`
+  - `OPENAI_MODEL`
+  - `AI_MAX_INPUT_CHARS`
+
+- Updated `.env.example` to default to `AI_PROVIDER=mock`.
+- Added OpenAI SDK dependency to the API package.
+- Added OpenAI client foundation inside `AiSuggestionProviderService`.
+- Added input length guard through `AI_MAX_INPUT_CHARS`.
+- Existing AI suggestion generation still uses mock outputs.
+- No real OpenAI requests are made yet.
+
+Safety rules preserved:
+
+- API keys remain backend-only.
+- No API key is exposed to frontend.
+- AI suggestions remain human-in-the-loop.
+- No CRM records are created automatically.
+- No emails are sent automatically.
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.

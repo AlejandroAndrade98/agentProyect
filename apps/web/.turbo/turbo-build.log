@@ -23,8 +23,8 @@ Route (app)                                 Size     First Load JS
 ├ ƒ /accept-invitation/[token]              3.83 kB        99.8 kB
 ├ ○ /dashboard                              6.55 kB        93.8 kB
 ├ ○ /dashboard/activity                     2.69 kB         101 kB
-├ ○ /dashboard/ai-suggestions               3.02 kB         102 kB
-├ ƒ /dashboard/ai-suggestions/[id]          5.92 kB         105 kB
+├ ○ /dashboard/ai-suggestions               3.11 kB         102 kB
+├ ƒ /dashboard/ai-suggestions/[id]          6.65 kB         105 kB
 ├ ○ /dashboard/companies                    3 kB            102 kB
 ├ ƒ /dashboard/companies/[id]               3.17 kB         102 kB
 ├ ƒ /dashboard/companies/[id]/edit          1.36 kB         102 kB

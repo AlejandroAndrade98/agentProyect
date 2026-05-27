@@ -1,3 +1,4 @@
+// FILE: apps/web/src/app/dashboard/ai-suggestions/page.tsx
 'use client';
 
 import Link from 'next/link';
@@ -294,6 +295,44 @@ export default function AiSuggestionsPage() {
                           </div>
                         </>
                       ) : null}
+
+                      {suggestion.externalCalendarEvent ? (
+                      <>
+                        <div>
+                          <p className="font-medium text-slate-950">Calendar summary</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalCalendarEvent.summary ?? 'No title'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">Start</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalCalendarEvent.startAt
+                              ? formatDateTime(suggestion.externalCalendarEvent.startAt)
+                              : 'Not set'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">End</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalCalendarEvent.endAt
+                              ? formatDateTime(suggestion.externalCalendarEvent.endAt)
+                              : 'Not set'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">Status</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalCalendarEvent.status
+                              ? formatEnumLabel(suggestion.externalCalendarEvent.status)
+                              : 'Not set'}
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
 
                     {suggestion.externalEmailMessageId ? (
                       <span>Email message: {suggestion.externalEmailMessageId}</span>

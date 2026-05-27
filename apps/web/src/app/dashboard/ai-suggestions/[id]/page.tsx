@@ -1,3 +1,4 @@
+// FILE: apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx
 'use client';
 
 import Link from 'next/link';
@@ -22,6 +23,7 @@ import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
 import type {
   AiSuggestion,
   AiSuggestionStatus,
+  ExternalCalendarEventAnalysisOutput,
   ExternalEmailAnalysisOutput,
   LeadNextStepsSuggestionOutput,
 } from '@/types/ai-suggestions';
@@ -61,6 +63,17 @@ function isLeadNextStepsOutput(
 function isExternalEmailAnalysisOutput(
   output: AiSuggestion['outputJson'],
 ): output is ExternalEmailAnalysisOutput {
+  return Boolean(
+    output &&
+      'suggestedReviewAction' in output &&
+      'importanceLevel' in output &&
+      'detectedSignals' in output,
+  );
+}
+
+function isExternalCalendarEventAnalysisOutput(
+  output: AiSuggestion['outputJson'],
+): output is ExternalCalendarEventAnalysisOutput {
   return Boolean(
     output &&
       'suggestedReviewAction' in output &&
@@ -142,8 +155,10 @@ export default function AiSuggestionDetailPage() {
       return;
     }
 
-    if (isExternalEmailAnalysisOutput(suggestion.outputJson)) {
-      setNextStepDraft('');
+      if (
+        suggestion.type === 'ANALYZE_EXTERNAL_EMAIL' &&
+        isExternalEmailAnalysisOutput(suggestion.outputJson)
+      ) {
 
       const firstTask = suggestion.outputJson.suggestedTasks[0];
 
@@ -158,6 +173,28 @@ export default function AiSuggestionDetailPage() {
       }
 
       setNoteTitleDraft('AI suggested email review note');
+      setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
+    }
+
+    if (
+      suggestion.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT' &&
+      isExternalCalendarEventAnalysisOutput(suggestion.outputJson)
+    ) {
+      setNextStepDraft('');
+
+      const firstTask = suggestion.outputJson.suggestedTasks[0];
+
+      if (firstTask) {
+        setTaskTitleDraft(firstTask.title ?? '');
+        setTaskDescriptionDraft(firstTask.description ?? '');
+        setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
+      } else {
+        setTaskTitleDraft('');
+        setTaskDescriptionDraft('');
+        setTaskPriorityDraft('MEDIUM');
+      }
+
+      setNoteTitleDraft('AI suggested calendar review note');
       setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
     }
   }, [suggestion]);
@@ -335,6 +372,8 @@ function hasAppliedAction(
 
 const isLeadNextStepsSuggestion = suggestion?.type === 'SUGGEST_NEXT_STEPS';
 const isExternalEmailSuggestion = suggestion?.type === 'ANALYZE_EXTERNAL_EMAIL';
+const isExternalCalendarSuggestion =
+  suggestion?.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT';
 
 const canApplySuggestion =
   Boolean(isLeadNextStepsSuggestion) &&
@@ -458,86 +497,252 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
                 </article>
               ) : null}
 
-{isExternalEmailSuggestion ? (
+              {isExternalEmailSuggestion ? (
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-950">
+                    External email metadata
+                  </h2>
+
+                  <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
+                    {suggestion.externalEmailMessage ? (
+                      <>
+                        <div>
+                          <p className="font-medium text-slate-950">Subject</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalEmailMessage.subject ?? 'No subject'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">From</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalEmailMessage.fromName ||
+                              suggestion.externalEmailMessage.fromEmail ||
+                              'Unknown sender'}
+                          </p>
+                          {suggestion.externalEmailMessage.fromEmail ? (
+                            <p className="mt-1 break-all text-xs text-slate-500">
+                              {suggestion.externalEmailMessage.fromEmail}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <p className="font-medium text-slate-950">Snippet</p>
+                          <p className="mt-1 leading-6 text-slate-600">
+                            {suggestion.externalEmailMessage.snippet ??
+                              'No snippet available'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">Internal date</p>
+                          <p className="mt-1 text-slate-600">
+                            {suggestion.externalEmailMessage.internalDate
+                              ? formatDateTime(suggestion.externalEmailMessage.internalDate)
+                              : 'Not set'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">Synced at</p>
+                          <p className="mt-1 text-slate-600">
+                            {formatDateTime(suggestion.externalEmailMessage.syncedAt)}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500">
+                        Email metadata relation was not loaded.
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="font-medium text-slate-950">External email message ID</p>
+                      <p className="mt-1 break-all text-slate-600">
+                        {suggestion.externalEmailMessageId ?? 'Not linked'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">
+                        External provider message ID
+                      </p>
+                      <p className="mt-1 break-all text-slate-600">
+                        {String(suggestion.metadataJson?.externalMessageId ?? 'Not set')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">External thread ID</p>
+                      <p className="mt-1 break-all text-slate-600">
+                        {String(suggestion.metadataJson?.externalThreadId ?? 'Not set')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Connected account ID</p>
+                      <p className="mt-1 break-all text-slate-600">
+                        {String(suggestion.metadataJson?.connectedAccountId ?? 'Not set')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Analysis scope</p>
+                      <p className="mt-1 text-slate-600">
+                        {String(suggestion.metadataJson?.aiAnalysisScope ?? 'metadata_only')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Body stored</p>
+                      <p className="mt-1 text-slate-600">
+                        {formatBooleanFlag(suggestion.metadataJson?.bodyStored)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">CRM records created</p>
+                      <p className="mt-1 text-slate-600">
+                        {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Email sent automatically</p>
+                      <p className="mt-1 text-slate-600">
+                        {formatBooleanFlag(suggestion.metadataJson?.emailSentAutomatically)}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
+              {isExternalCalendarSuggestion ? (
   <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
     <h2 className="text-lg font-semibold text-slate-950">
-      External email metadata
+      External calendar metadata
     </h2>
 
     <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
-      {suggestion.externalEmailMessage ? (
+      {suggestion.externalCalendarEvent ? (
         <>
           <div>
-            <p className="font-medium text-slate-950">Subject</p>
+            <p className="font-medium text-slate-950">Summary</p>
             <p className="mt-1 text-slate-600">
-              {suggestion.externalEmailMessage.subject ?? 'No subject'}
+              {suggestion.externalCalendarEvent.summary ?? 'No title'}
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">From</p>
+            <p className="font-medium text-slate-950">Status</p>
             <p className="mt-1 text-slate-600">
-              {suggestion.externalEmailMessage.fromName ||
-                suggestion.externalEmailMessage.fromEmail ||
-                'Unknown sender'}
+              {suggestion.externalCalendarEvent.status
+                ? formatEnumLabel(suggestion.externalCalendarEvent.status)
+                : 'Not set'}
             </p>
-            {suggestion.externalEmailMessage.fromEmail ? (
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">Start</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalCalendarEvent.startAt
+                ? formatDateTime(suggestion.externalCalendarEvent.startAt)
+                : 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">End</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalCalendarEvent.endAt
+                ? formatDateTime(suggestion.externalCalendarEvent.endAt)
+                : 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">All day</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalCalendarEvent.isAllDay ? 'Yes' : 'No'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">Organizer</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalCalendarEvent.organizerName ||
+                suggestion.externalCalendarEvent.organizerEmail ||
+                'Unknown organizer'}
+            </p>
+            {suggestion.externalCalendarEvent.organizerEmail ? (
               <p className="mt-1 break-all text-xs text-slate-500">
-                {suggestion.externalEmailMessage.fromEmail}
+                {suggestion.externalCalendarEvent.organizerEmail}
               </p>
             ) : null}
           </div>
 
-          <div className="md:col-span-2">
-            <p className="font-medium text-slate-950">Snippet</p>
-            <p className="mt-1 leading-6 text-slate-600">
-              {suggestion.externalEmailMessage.snippet ??
-                'No snippet available'}
-            </p>
-          </div>
-
           <div>
-            <p className="font-medium text-slate-950">Internal date</p>
-            <p className="mt-1 text-slate-600">
-              {suggestion.externalEmailMessage.internalDate
-                ? formatDateTime(suggestion.externalEmailMessage.internalDate)
-                : 'Not set'}
+            <p className="font-medium text-slate-950">iCal UID</p>
+            <p className="mt-1 break-all text-slate-600">
+              {suggestion.externalCalendarEvent.iCalUid ?? 'Not set'}
             </p>
           </div>
 
           <div>
             <p className="font-medium text-slate-950">Synced at</p>
             <p className="mt-1 text-slate-600">
-              {formatDateTime(suggestion.externalEmailMessage.syncedAt)}
+              {formatDateTime(suggestion.externalCalendarEvent.syncedAt)}
             </p>
           </div>
+
+          {suggestion.externalCalendarEvent.location ? (
+            <div>
+              <p className="font-medium text-slate-950">Location</p>
+              <p className="mt-1 text-slate-600">
+                {suggestion.externalCalendarEvent.location}
+              </p>
+            </div>
+          ) : null}
+
+          {suggestion.externalCalendarEvent.htmlLink ? (
+            <div>
+              <p className="font-medium text-slate-950">Google Calendar link</p>
+              <a
+                href={suggestion.externalCalendarEvent.htmlLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex text-blue-700 hover:text-blue-800"
+              >
+                Open event
+              </a>
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500">
-          Email metadata relation was not loaded.
+          Calendar metadata relation was not loaded.
         </div>
       )}
 
       <div>
-        <p className="font-medium text-slate-950">External email message ID</p>
+        <p className="font-medium text-slate-950">External calendar event ID</p>
         <p className="mt-1 break-all text-slate-600">
-          {suggestion.externalEmailMessageId ?? 'Not linked'}
+          {suggestion.externalCalendarEventId ?? 'Not linked'}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">
-          External provider message ID
-        </p>
+        <p className="font-medium text-slate-950">External calendar ID</p>
         <p className="mt-1 break-all text-slate-600">
-          {String(suggestion.metadataJson?.externalMessageId ?? 'Not set')}
+          {String(suggestion.metadataJson?.externalCalendarId ?? 'Not set')}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">External thread ID</p>
+        <p className="font-medium text-slate-950">External event ID</p>
         <p className="mt-1 break-all text-slate-600">
-          {String(suggestion.metadataJson?.externalThreadId ?? 'Not set')}
+          {String(suggestion.metadataJson?.externalEventId ?? 'Not set')}
         </p>
       </div>
 
@@ -556,13 +761,6 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">Body stored</p>
-        <p className="mt-1 text-slate-600">
-          {formatBooleanFlag(suggestion.metadataJson?.bodyStored)}
-        </p>
-      </div>
-
-      <div>
         <p className="font-medium text-slate-950">CRM records created</p>
         <p className="mt-1 text-slate-600">
           {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated)}
@@ -577,9 +775,116 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
       </div>
     </div>
   </article>
-) : null}
+              ) : null}
 
-              {suggestion.outputJson && isExternalEmailAnalysisOutput(suggestion.outputJson) ? (
+              {isExternalCalendarSuggestion &&
+              suggestion.outputJson &&
+              isExternalCalendarEventAnalysisOutput(suggestion.outputJson) ? (
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">
+                        External calendar review
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                        Synced calendar metadata analysis
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        This recommendation was generated from synced calendar metadata only.
+                        It does not create CRM records, tasks, notes, or emails automatically.
+                      </p>
+                    </div>
+
+                    <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
+                      {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">Importance</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {formatEnumLabel(suggestion.outputJson.importanceLevel)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">Suggested action</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-5 text-sm text-slate-700">
+                    <div>
+                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Detected signals</p>
+
+                      {suggestion.outputJson.detectedSignals.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {suggestion.outputJson.detectedSignals.map((signal) => (
+                            <Badge
+                              key={signal}
+                              className="bg-slate-100 text-slate-700 ring-slate-200"
+                            >
+                              {formatEnumLabel(signal)}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 leading-6 text-slate-500">No signals detected.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested tasks</p>
+
+                      {suggestion.outputJson.suggestedTasks.length > 0 ? (
+                        <div className="mt-2 space-y-3">
+                          {suggestion.outputJson.suggestedTasks.map((task) => (
+                            <div
+                              key={`${task.title}-${task.dueInDays}`}
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                            >
+                              <p className="font-medium text-slate-950">{task.title}</p>
+                              <p className="mt-1 leading-6">{task.description}</p>
+                              <p className="mt-2 text-xs text-slate-500">
+                                Priority: {formatEnumLabel(task.priority)} · Due in{' '}
+                                {task.dueInDays} day(s)
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 leading-6 text-slate-500">
+                          No task candidate suggested.
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="mt-1 leading-6">
+                        {suggestion.outputJson.reasoningSummary}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
+              {isExternalEmailSuggestion &&
+                suggestion.outputJson &&
+                isExternalEmailAnalysisOutput(suggestion.outputJson) ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
@@ -682,11 +987,11 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
                 </article>
               ) : null}
 
-            {reviewMessage ? (
-              <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800">
-                {reviewMessage}
-              </article>
-            ) : null}
+              {reviewMessage ? (
+                <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800">
+                  {reviewMessage}
+                </article>
+              ) : null}
 
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-950">

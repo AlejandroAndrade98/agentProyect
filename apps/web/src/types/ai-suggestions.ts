@@ -1,3 +1,4 @@
+// FILE: apps/web/src/types/ai-suggestions.ts
 import type { PaginatedResponse } from './crm';
 
 export type AiSuggestionStatus =
@@ -78,9 +79,35 @@ export type ExternalEmailAnalysisOutput = {
   noAutomaticEmailSending: true;
 };
 
+export type ExternalCalendarEventAnalysisOutput = {
+  summary: string;
+  importanceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  suggestedReviewAction:
+    | 'IGNORE'
+    | 'FOLLOW_UP'
+    | 'CREATE_TASK_CANDIDATE'
+    | 'CREATE_NOTE_CANDIDATE'
+    | 'LINK_TO_EXISTING_RECORD'
+    | 'PREPARE_MEETING_BRIEF';
+  detectedSignals: string[];
+  suggestedTasks: Array<{
+    title: string;
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    dueInDays: number;
+  }>;
+  suggestedNote: string;
+  reasoningSummary: string;
+  confidenceScore: number;
+  humanApprovalRequired: true;
+  noAutomaticCrmChanges: true;
+  noAutomaticEmailSending: true;
+};
+
 export type AiSuggestionOutput =
   | LeadNextStepsSuggestionOutput
-  | ExternalEmailAnalysisOutput;
+  | ExternalEmailAnalysisOutput
+  | ExternalCalendarEventAnalysisOutput;
 
 export type AiSuggestionExternalEmailMessage = {
   id: string;
@@ -103,11 +130,17 @@ export type AiSuggestionExternalCalendarEvent = {
   provider: string;
   externalCalendarId: string;
   externalEventId: string;
+  iCalUid: string | null;
+  status: string | null;
   summary: string | null;
   description: string | null;
   location: string | null;
   startAt: string | null;
   endAt: string | null;
+  isAllDay: boolean;
+  organizerEmail: string | null;
+  organizerName: string | null;
+  attendeesJson: unknown;
   htmlLink: string | null;
   syncedAt: string;
 };
@@ -154,6 +187,9 @@ export type AiSuggestion = {
     externalCalendarEventId?: string;
     externalMessageId?: string;
     externalThreadId?: string;
+    externalCalendarId?: string;
+    externalEventId?: string;
+    iCalUid?: string;
     review?: unknown;
     appliedActions?: unknown;
     [key: string]: unknown;
