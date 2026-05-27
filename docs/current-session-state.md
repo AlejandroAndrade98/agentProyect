@@ -2892,3 +2892,56 @@ Important notes:
 - No AI analysis is implemented yet.
 - No CRM Contact or Lead creation is implemented yet.
 - This phase only exposes read-only metadata endpoints for future sync workers.
+
+## Phase 16C.3, Gmail Sync Service Foundation
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added a manual Gmail metadata sync foundation.
+
+Backend files updated:
+
+- `apps/api/src/external-sync/external-sync.module.ts`
+- `apps/api/src/external-sync/external-sync.controller.ts`
+- `apps/api/src/external-sync/external-sync.service.ts`
+
+Endpoint added:
+
+- `POST /api/external-sync/email-messages/sync`
+
+Behavior implemented:
+
+- Manual sync endpoint protected with `JwtAuthGuard` and `RolesGuard`.
+- Sync endpoint uses `CRM_WRITE_ROLES`.
+- Sync uses the current user's connected Google account.
+- Connected account must have provider `GOOGLE`, status `CONNECTED`, and EMAIL capability.
+- Access token is decrypted internally.
+- Access token is refreshed with the refresh token when expired or close to expiration.
+- Gmail messages are fetched using metadata-only format.
+- Sync fetches up to 10 recent Gmail messages.
+- Stored metadata includes external message ID, thread ID, subject, snippet, sender, recipients, label IDs, internal date, Gmail history ID, and size estimate.
+- Email body is not stored.
+- AI analysis is not run.
+- CRM records are not created.
+- EMAIL sync state is updated from `INITIAL_SYNC_RUNNING` to `ACTIVE`.
+- Errors update sync state and connected account `lastError`.
+
+Runtime validation completed:
+
+- `POST /api/external-sync/email-messages/sync` returned OK.
+- Sync fetched 10 Gmail messages.
+- Sync stored 10 Gmail metadata records.
+- Response confirmed:
+  - `bodyStored: false`
+  - `aiAnalysisRun: false`
+  - `crmRecordsCreated: false`
+- `GET /api/external-sync/email-messages?page=1&pageSize=10` returned synced Gmail metadata.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- No email body storage is implemented.
+- No AI email analysis is implemented.
+- No CRM Contact or Lead creation is implemented.
+- No email sending or drafts are implemented.
+- This is a manual sync foundation only, not a background worker yet.
