@@ -19,6 +19,7 @@ import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { PlatformModule } from './platform/platform.module';
 import { OrganizationSettingsModule } from './organization-settings/organization-settings.module';
 import { ConnectedAccountsModule } from './connected-accounts/connected-accounts.module';
+import { ExternalSyncModule } from './external-sync/external-sync.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ConnectedAccountsModule } from './connected-accounts/connected-accounts
     PlatformModule,
     OrganizationSettingsModule,
     ConnectedAccountsModule,
+    ExternalSyncModule,
   ],
   controllers: [],
   providers: [],

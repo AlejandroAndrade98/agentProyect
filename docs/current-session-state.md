@@ -2842,3 +2842,53 @@ Important notes:
 - No AI analysis implemented yet.
 - No CRM Contact or Lead creation implemented yet.
 - This phase only prepares safe metadata storage for future sync workers.
+
+## Phase 16C.2, External Sync Read API Foundation
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added read-only backend endpoints for future external Gmail and Google Calendar sync metadata.
+
+Backend files added:
+
+- `apps/api/src/external-sync/external-sync.module.ts`
+- `apps/api/src/external-sync/external-sync.controller.ts`
+- `apps/api/src/external-sync/external-sync.service.ts`
+- `apps/api/src/external-sync/dto/query-external-email-messages.dto.ts`
+- `apps/api/src/external-sync/dto/query-external-calendar-events.dto.ts`
+
+Backend files updated:
+
+- `apps/api/src/app.module.ts`
+
+Endpoints added:
+
+- `GET /api/external-sync/email-messages`
+- `GET /api/external-sync/calendar-events`
+
+Behavior implemented:
+
+- Endpoints are protected with `JwtAuthGuard` and `RolesGuard`.
+- Access is limited to `CRM_READ_ROLES`.
+- Queries are tenant-aware using `organizationId` from the current user token.
+- Soft-deleted records are excluded with `deletedAt: null`.
+- Email metadata supports pagination and filters by connected account, query text, sender email, thread ID, and internal date range.
+- Calendar metadata supports pagination and filters by connected account, calendar ID, query text, and start date range.
+- Responses include safe connected account and user metadata.
+- No provider tokens are returned.
+
+Runtime validation completed:
+
+- `GET /api/external-sync/email-messages?page=1&pageSize=10` with token returned OK with empty data and pagination metadata.
+- `GET /api/external-sync/calendar-events?page=1&pageSize=10` with token returned OK with empty data and pagination metadata.
+- Both endpoints returned 401 without token.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- No real Gmail sync is implemented yet.
+- No real Google Calendar sync is implemented yet.
+- No email body storage is implemented yet.
+- No AI analysis is implemented yet.
+- No CRM Contact or Lead creation is implemented yet.
+- This phase only exposes read-only metadata endpoints for future sync workers.
