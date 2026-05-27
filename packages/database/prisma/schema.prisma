@@ -118,6 +118,8 @@ enum AiSuggestionType {
   EXTRACT_IMPORTANT_DATA
   SUMMARIZE_LEAD
   SUGGEST_NEXT_STEPS
+  ANALYZE_EXTERNAL_EMAIL
+  ANALYZE_EXTERNAL_CALENDAR_EVENT
 }
 
 enum AiSuggestionStatus {
@@ -130,6 +132,8 @@ enum AiSuggestionStatus {
 
 enum AiUsageFeature {
   LEAD_NEXT_STEPS
+  EXTERNAL_EMAIL_ANALYSIS
+  EXTERNAL_CALENDAR_ANALYSIS
 }
 
 enum AiUsageStatus {
@@ -161,6 +165,8 @@ enum EntityType {
   TASK
   NOTE
   CONNECTED_ACCOUNT
+  EXTERNAL_EMAIL_MESSAGE
+  EXTERNAL_CALENDAR_EVENT
 }
 
 enum ActivityEventType {
@@ -451,6 +457,8 @@ model ExternalEmailMessage {
   organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connectedAccount   ConnectedAccount         @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
 
+  aiSuggestions AiSuggestion[]
+
   @@unique([connectedAccountId, externalMessageId])
   @@index([organizationId])
   @@index([connectedAccountId])
@@ -489,6 +497,8 @@ model ExternalCalendarEvent {
 
   organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connectedAccount   ConnectedAccount         @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  aiSuggestions AiSuggestion[]
 
   @@unique([connectedAccountId, externalCalendarId, externalEventId])
   @@index([organizationId])
@@ -719,6 +729,13 @@ model AiSuggestion {
   leadId           String?
   taskId           String?
   noteId           String?
+
+  externalEmailMessageId  String?
+  externalEmailMessage    ExternalEmailMessage?  @relation(fields: [externalEmailMessageId], references: [id])
+
+  externalCalendarEventId String?
+  externalCalendarEvent   ExternalCalendarEvent? @relation(fields: [externalCalendarEventId], references: [id])
+
   inputText        String
   inputHash        String
   outputJson       Json?
@@ -748,6 +765,8 @@ model AiSuggestion {
   @@index([organizationId, contactId])
   @@index([organizationId, taskId])
   @@index([organizationId, noteId])
+  @@index([organizationId, externalEmailMessageId])
+  @@index([organizationId, externalCalendarEventId])
 }
 
 model AiExtraction {

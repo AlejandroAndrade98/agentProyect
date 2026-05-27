@@ -3130,3 +3130,56 @@ Important notes:
 - No AI analysis is implemented yet.
 - No CRM records are created automatically.
 - Gmail cleanup is intentionally conservative and checks recent local messages instead of deleting all missing messages from the top 10 list.
+
+## Phase 17A.1, Email Metadata AI Review Queue Backend Foundation
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added the first AI Review Queue foundation for synced Gmail metadata.
+
+Backend behavior implemented:
+
+- Added schema support for external email/calendar AI suggestions:
+  - `AiSuggestionType.ANALYZE_EXTERNAL_EMAIL`
+  - `AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS`
+  - `AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS`
+  - `EntityType.EXTERNAL_EMAIL_MESSAGE`
+  - `EntityType.EXTERNAL_CALENDAR_EVENT`
+  - `AiSuggestion.externalEmailMessageId`
+  - `AiSuggestion.externalCalendarEventId`
+
+- Added endpoint:
+  - `POST /api/ai-suggestions/external-sync/email-messages/:emailMessageId/analyze`
+
+- The endpoint:
+  - requires auth and CRM write roles
+  - is tenant-aware through `organizationId`
+  - only analyzes synced email metadata for the current user's connected account
+  - creates an `AiSuggestion` with status `PENDING_REVIEW`
+  - links the suggestion to `ExternalEmailMessage`
+  - records AI usage with `EXTERNAL_EMAIL_ANALYSIS`
+  - creates `AI_SUGGESTION_CREATED` ActivityEvent
+  - blocks duplicate pending review suggestions for the same email
+
+Safety rules preserved:
+
+- Email body is not stored.
+- Analysis uses metadata/snippet only.
+- No CRM records are created automatically.
+- No email is sent automatically.
+- Human review is required before any CRM action.
+
+Validation completed:
+
+- Prisma migration applied successfully.
+- Prisma Client generated successfully.
+- `pnpm build` passed with 3 successful tasks.
+- Email metadata analysis created `PENDING_REVIEW` suggestion.
+- Suggestion type is `ANALYZE_EXTERNAL_EMAIL`.
+- Entity type is `EXTERNAL_EMAIL_MESSAGE`.
+- Suggestion is linked to the synced `ExternalEmailMessage`.
+- AI usage record was created with `EXTERNAL_EMAIL_ANALYSIS`.
+- ActivityEvent `AI_SUGGESTION_CREATED` was created.
+- Duplicate pending suggestion returns 409.
+- Endpoint without token returns 401.

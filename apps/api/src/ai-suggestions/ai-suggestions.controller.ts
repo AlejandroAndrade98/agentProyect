@@ -63,6 +63,18 @@ export class AiSuggestionsController {
     );
   }
 
+  @Post('external-sync/email-messages/:emailMessageId/analyze')
+  @Roles(...CRM_WRITE_ROLES)
+  analyzeExternalEmailMessage(
+    @Param('emailMessageId') emailMessageId: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.analyzeExternalEmailMessage(
+      emailMessageId,
+      currentUser,
+    );
+  }
+
   @Patch(':id/accept')
   @Roles(...CRM_WRITE_ROLES)
   accept(
@@ -92,6 +104,8 @@ export class AiSuggestionsController {
   ) {
     return this.aiSuggestionsService.applyLeadNextStep(id, currentUser, dto);
   }
+
+
 
   @Post(':id/apply/task')
   @Roles(...CRM_WRITE_ROLES)

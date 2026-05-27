@@ -325,6 +325,203 @@ export class AiSuggestionsService {
     });
   }
 
+    async analyzeExternalEmailMessage(
+    emailMessageId: string,
+    currentUser: CurrentUser,
+  ) {
+    const emailMessage = await this.prisma.externalEmailMessage.findFirst({
+      where: {
+        id: emailMessageId,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+        connectedAccount: {
+          userId: currentUser.id,
+        },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        connectedAccountId: true,
+        provider: true,
+        externalMessageId: true,
+        externalThreadId: true,
+        subject: true,
+        snippet: true,
+        fromEmail: true,
+        fromName: true,
+        toEmailsJson: true,
+        ccEmailsJson: true,
+        bccEmailsJson: true,
+        labelIdsJson: true,
+        internalDate: true,
+        metadataJson: true,
+        syncedAt: true,
+        connectedAccount: {
+          select: {
+            id: true,
+            provider: true,
+            email: true,
+            displayName: true,
+            status: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!emailMessage) {
+      throw new NotFoundException('External email message not found');
+    }
+
+    const existingPendingSuggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        organizationId: currentUser.organizationId,
+        type: AiSuggestionType.ANALYZE_EXTERNAL_EMAIL,
+        status: AiSuggestionStatus.PENDING_REVIEW,
+        externalEmailMessageId: emailMessage.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingPendingSuggestion) {
+      throw new ConflictException(
+        'This email already has a pending AI review suggestion',
+      );
+    }
+
+    const inputText = this.buildExternalEmailMetadataInputText(emailMessage);
+    const inputHash = this.hashInput(inputText);
+
+    const estimatedCreditsRequired =
+      this.aiUsageService.estimateCreditsFromText(inputText, 220);
+
+    await this.aiUsageService.assertCanUseAi(currentUser, {
+      feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
+      estimatedCreditsRequired,
+      metadataJson: {
+        externalEmailMessageId: emailMessage.id,
+        connectedAccountId: emailMessage.connectedAccountId,
+        externalMessageId: emailMessage.externalMessageId,
+        feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
+        estimatedCreditsRequired,
+        bodyStored: false,
+      },
+    });
+
+    const generated =
+      this.aiSuggestionProviderService.generateExternalEmailAnalysis(
+        {
+          id: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          provider: emailMessage.provider,
+          externalMessageId: emailMessage.externalMessageId,
+          externalThreadId: emailMessage.externalThreadId,
+          subject: emailMessage.subject,
+          snippet: emailMessage.snippet,
+          fromEmail: emailMessage.fromEmail,
+          fromName: emailMessage.fromName,
+          toEmailsJson: emailMessage.toEmailsJson,
+          ccEmailsJson: emailMessage.ccEmailsJson,
+          bccEmailsJson: emailMessage.bccEmailsJson,
+          labelIdsJson: emailMessage.labelIdsJson,
+          internalDate: emailMessage.internalDate,
+          syncedAt: emailMessage.syncedAt,
+        },
+        inputText,
+      );
+
+    return this.prisma.$transaction(async (tx) => {
+      const suggestion = await tx.aiSuggestion.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          userId: currentUser.id,
+          provider: generated.provider,
+          type: AiSuggestionType.ANALYZE_EXTERNAL_EMAIL,
+          status: AiSuggestionStatus.PENDING_REVIEW,
+          title: generated.title,
+          entityType: EntityType.EXTERNAL_EMAIL_MESSAGE,
+          entityId: emailMessage.id,
+          externalEmailMessageId: emailMessage.id,
+          inputText,
+          inputHash,
+          outputJson: generated.outputJson as Prisma.InputJsonValue,
+          outputText: generated.outputText,
+          confidenceScore: generated.confidenceScore,
+          metadataJson: {
+            model: generated.model,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            generatedFor: 'external_email_review',
+            source: 'external_sync',
+            connectedAccountId: emailMessage.connectedAccountId,
+            externalEmailMessageId: emailMessage.id,
+            externalMessageId: emailMessage.externalMessageId,
+            externalThreadId: emailMessage.externalThreadId,
+            bodyStored: false,
+            aiAnalysisScope: 'metadata_only',
+            crmRecordsCreated: false,
+            emailSentAutomatically: false,
+          },
+          tokensInput: generated.tokensInput,
+          tokensOutput: generated.tokensOutput,
+          estimatedCostUsd: generated.estimatedCostUsd,
+          expiresAt: this.getDefaultExpirationDate(),
+        },
+      });
+
+      await this.aiUsageService.recordSuccessfulUsage(tx, currentUser, {
+        feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
+        provider: generated.provider,
+        model: generated.model,
+        tokensInput: generated.tokensInput,
+        tokensOutput: generated.tokensOutput,
+        estimatedCostUsd: generated.estimatedCostUsd,
+        aiSuggestionId: suggestion.id,
+        metadataJson: {
+          aiSuggestionId: suggestion.id,
+          aiSuggestionType: suggestion.type,
+          externalEmailMessageId: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          externalMessageId: emailMessage.externalMessageId,
+          estimatedCreditsRequired,
+          bodyStored: false,
+          crmRecordsCreated: false,
+        },
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_CREATED,
+          entityType: EntityType.EXTERNAL_EMAIL_MESSAGE,
+          entityId: emailMessage.id,
+          title: `AI email review suggestion created`,
+          description:
+            'AI generated a review suggestion from synced email metadata. Human review is required before creating any CRM record.',
+          source: Source.AI_SUGGESTION,
+          occurredAt: suggestion.createdAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            aiSuggestionStatus: suggestion.status,
+            externalEmailMessageId: emailMessage.id,
+            connectedAccountId: emailMessage.connectedAccountId,
+            externalMessageId: emailMessage.externalMessageId,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            bodyStored: false,
+            crmRecordsCreated: false,
+          },
+        }),
+      });
+
+      return suggestion;
+    });
+  }
+
     async accept(
     id: string,
     currentUser: CurrentUser,
@@ -993,6 +1190,65 @@ export class AiSuggestionsService {
         canSendEmailAutomatically: false,
       },
     };
+  }
+
+    private buildExternalEmailMetadataInputText(emailMessage: {
+    id: string;
+    connectedAccountId: string;
+    provider: string;
+    externalMessageId: string;
+    externalThreadId: string | null;
+    subject: string | null;
+    snippet: string | null;
+    fromEmail: string | null;
+    fromName: string | null;
+    toEmailsJson: Prisma.JsonValue | null;
+    ccEmailsJson: Prisma.JsonValue | null;
+    bccEmailsJson: Prisma.JsonValue | null;
+    labelIdsJson: Prisma.JsonValue | null;
+    internalDate: Date | null;
+    metadataJson: Prisma.JsonValue | null;
+    syncedAt: Date;
+  }) {
+    return [
+      'External email metadata AI review',
+      `Email message id: ${emailMessage.id}`,
+      `Connected account id: ${emailMessage.connectedAccountId}`,
+      `Provider: ${emailMessage.provider}`,
+      `External message id: ${emailMessage.externalMessageId}`,
+      `External thread id: ${emailMessage.externalThreadId ?? 'none'}`,
+      `Subject: ${emailMessage.subject ?? '(no subject)'}`,
+      `Snippet: ${emailMessage.snippet ?? '(no snippet)'}`,
+      `From email: ${emailMessage.fromEmail ?? '(unknown)'}`,
+      `From name: ${emailMessage.fromName ?? '(unknown)'}`,
+      `To: ${this.safeStringifyJson(emailMessage.toEmailsJson)}`,
+      `Cc: ${this.safeStringifyJson(emailMessage.ccEmailsJson)}`,
+      `Bcc: ${this.safeStringifyJson(emailMessage.bccEmailsJson)}`,
+      `Labels: ${this.safeStringifyJson(emailMessage.labelIdsJson)}`,
+      `Internal date: ${
+        emailMessage.internalDate?.toISOString() ?? '(unknown)'
+      }`,
+      `Synced at: ${emailMessage.syncedAt.toISOString()}`,
+      '',
+      'Important safety constraints:',
+      '- Email body is not stored.',
+      '- Analyze metadata/snippet only.',
+      '- Do not create CRM records automatically.',
+      '- Do not send emails automatically.',
+      '- Human review is required.',
+    ].join('\n');
+  }
+
+  private safeStringifyJson(value: Prisma.JsonValue | null) {
+    if (value === null || value === undefined) {
+      return 'null';
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable-json]';
+    }
   }
 
   private hashInput(inputText: string) {
