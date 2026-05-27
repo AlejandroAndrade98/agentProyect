@@ -3235,3 +3235,67 @@ Validation completed:
 - External email metadata is visible in the detail page.
 - External email analysis output is visible.
 - Apply to CRM actions are not shown for external email suggestions.
+
+## Phase 17A.3, Calendar Metadata AI Review Queue Backend Foundation
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added backend AI Review Queue support for synced Google Calendar metadata.
+
+Backend behavior implemented:
+
+- Added endpoint:
+  - `POST /api/ai-suggestions/external-sync/calendar-events/:calendarEventId/analyze`
+
+- The endpoint:
+  - requires auth and CRM write roles
+  - is tenant-aware through `organizationId`
+  - only analyzes synced calendar events for the current user's connected account
+  - creates an `AiSuggestion` with status `PENDING_REVIEW`
+  - uses `AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - uses `EntityType.EXTERNAL_CALENDAR_EVENT`
+  - links the suggestion to `ExternalCalendarEvent`
+  - records AI usage with `EXTERNAL_CALENDAR_ANALYSIS`
+  - creates `AI_SUGGESTION_CREATED` ActivityEvent
+  - blocks duplicate pending review suggestions for the same calendar event
+
+Provider behavior implemented:
+
+- Added mock calendar metadata analysis.
+- Analysis uses calendar metadata such as:
+  - summary
+  - description
+  - location
+  - startAt/endAt
+  - organizer
+  - attendees
+  - htmlLink presence
+- Output includes:
+  - suggested review action
+  - importance
+  - detected signals
+  - suggested note
+  - suggested tasks
+  - reasoning summary
+
+Safety rules preserved:
+
+- Calendar analysis uses synced metadata only.
+- No CRM records are created automatically.
+- No tasks are created automatically.
+- No notes are created automatically.
+- No emails are sent automatically.
+- Human review is required before any CRM action.
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- Calendar metadata analysis created `PENDING_REVIEW` suggestion.
+- Suggestion type is `ANALYZE_EXTERNAL_CALENDAR_EVENT`.
+- Entity type is `EXTERNAL_CALENDAR_EVENT`.
+- Suggestion is linked to the synced `ExternalCalendarEvent`.
+- Detail endpoint returns external calendar metadata including iCal UID, status, isAllDay, organizer and attendees fields.
+- AI usage record was created with `EXTERNAL_CALENDAR_ANALYSIS`.
+- ActivityEvent `AI_SUGGESTION_CREATED` was created.
+- Duplicate pending suggestion returns 409.
+- Endpoint without token returns 401.

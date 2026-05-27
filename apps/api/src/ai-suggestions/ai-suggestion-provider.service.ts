@@ -73,6 +73,52 @@ export type ExternalEmailAnalysisOutput = {
   noAutomaticEmailSending: true;
 };
 
+export type ExternalCalendarEventMetadataForAi = {
+  id: string;
+  connectedAccountId: string;
+  provider: string;
+  externalCalendarId: string;
+  externalEventId: string;
+  iCalUid: string | null;
+  status: string | null;
+  summary: string | null;
+  description: string | null;
+  location: string | null;
+  startAt: Date | null;
+  endAt: Date | null;
+  isAllDay: boolean;
+  organizerEmail: string | null;
+  organizerName: string | null;
+  attendeesJson: unknown;
+  htmlLink: string | null;
+  syncedAt: Date;
+};
+
+export type ExternalCalendarEventAnalysisOutput = {
+  summary: string;
+  importanceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  suggestedReviewAction:
+    | 'IGNORE'
+    | 'FOLLOW_UP'
+    | 'CREATE_TASK_CANDIDATE'
+    | 'CREATE_NOTE_CANDIDATE'
+    | 'LINK_TO_EXISTING_RECORD'
+    | 'PREPARE_MEETING_BRIEF';
+  detectedSignals: string[];
+  suggestedTasks: Array<{
+    title: string;
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    dueInDays: number;
+  }>;
+  suggestedNote: string;
+  reasoningSummary: string;
+  confidenceScore: number;
+  humanApprovalRequired: true;
+  noAutomaticCrmChanges: true;
+  noAutomaticEmailSending: true;
+};
+
 @Injectable()
 export class AiSuggestionProviderService {
   generateLeadNextSteps(
@@ -269,6 +315,140 @@ export class AiSuggestionProviderService {
       confidenceScore: outputJson.confidenceScore,
       tokensInput: Math.ceil(inputText.length / 4),
       tokensOutput: 220,
+      estimatedCostUsd: 0,
+    };
+  }
+
+    generateExternalCalendarEventAnalysis(
+    event: ExternalCalendarEventMetadataForAi,
+    inputText: string,
+  ): GeneratedAiSuggestion<ExternalCalendarEventAnalysisOutput> {
+    const eventSummary = event.summary?.trim() || '(No title)';
+    const description = event.description?.trim() || '';
+    const location = event.location?.trim() || '';
+    const organizer =
+      event.organizerName || event.organizerEmail || 'Unknown organizer';
+
+    const combinedText =
+      `${eventSummary} ${description} ${location} ${organizer}`.toLowerCase();
+
+    const detectedSignals: string[] = [];
+
+    if (
+      combinedText.includes('demo') ||
+      combinedText.includes('discovery') ||
+      combinedText.includes('sales') ||
+      combinedText.includes('proposal') ||
+      combinedText.includes('pricing') ||
+      combinedText.includes('quote')
+    ) {
+      detectedSignals.push('COMMERCIAL_MEETING_SIGNAL');
+    }
+
+    if (
+      combinedText.includes('follow up') ||
+      combinedText.includes('follow-up') ||
+      combinedText.includes('review') ||
+      combinedText.includes('sync') ||
+      combinedText.includes('check in') ||
+      combinedText.includes('check-in')
+    ) {
+      detectedSignals.push('FOLLOW_UP_SIGNAL');
+    }
+
+    if (
+      combinedText.includes('urgent') ||
+      combinedText.includes('important') ||
+      combinedText.includes('deadline')
+    ) {
+      detectedSignals.push('URGENCY_SIGNAL');
+    }
+
+    if (event.startAt) {
+      detectedSignals.push('SCHEDULED_EVENT_SIGNAL');
+    }
+
+    if (event.attendeesJson) {
+      detectedSignals.push('ATTENDEES_AVAILABLE_SIGNAL');
+    }
+
+    const hasCommercialSignal = detectedSignals.includes(
+      'COMMERCIAL_MEETING_SIGNAL',
+    );
+    const hasFollowUpSignal = detectedSignals.includes('FOLLOW_UP_SIGNAL');
+    const hasUrgencySignal = detectedSignals.includes('URGENCY_SIGNAL');
+    const hasScheduledSignal = detectedSignals.includes(
+      'SCHEDULED_EVENT_SIGNAL',
+    );
+
+    const importanceLevel: ExternalCalendarEventAnalysisOutput['importanceLevel'] =
+      hasUrgencySignal
+        ? 'HIGH'
+        : hasCommercialSignal || hasFollowUpSignal
+          ? 'MEDIUM'
+          : 'LOW';
+
+    const suggestedReviewAction: ExternalCalendarEventAnalysisOutput['suggestedReviewAction'] =
+      hasCommercialSignal
+        ? 'PREPARE_MEETING_BRIEF'
+        : hasFollowUpSignal
+          ? 'FOLLOW_UP'
+          : hasScheduledSignal
+            ? 'CREATE_NOTE_CANDIDATE'
+            : 'IGNORE';
+
+    const suggestedTasks =
+      suggestedReviewAction === 'IGNORE'
+        ? []
+        : [
+            {
+              title: `Review calendar event: ${eventSummary}`,
+              description:
+                'Review this synced calendar event metadata and decide whether it should become an official CRM task, note, or follow-up action.',
+              priority: importanceLevel,
+              dueInDays: importanceLevel === 'HIGH' ? 0 : 1,
+            },
+          ];
+
+    const outputJson: ExternalCalendarEventAnalysisOutput = {
+      summary: `Calendar event "${eventSummary}" organized by ${organizer} may require CRM review based on synced calendar metadata.`,
+      importanceLevel,
+      suggestedReviewAction,
+      detectedSignals,
+      suggestedTasks,
+      suggestedNote:
+        'AI reviewed synced calendar metadata only. A human should verify the meeting context before creating any CRM record.',
+      reasoningSummary:
+        'This suggestion was generated from calendar metadata such as title, description, location, organizer, attendees, and start/end time. No CRM record, task, note, lead, or email was created automatically.',
+      confidenceScore: detectedSignals.length > 0 ? 0.74 : 0.56,
+      humanApprovalRequired: true,
+      noAutomaticCrmChanges: true,
+      noAutomaticEmailSending: true,
+    };
+
+    return {
+      provider: 'mock-ai-provider',
+      model: 'mock-external-calendar-analysis-v1',
+      title: `AI calendar review suggestion: ${eventSummary}`,
+      outputJson,
+      outputText: [
+        outputJson.summary,
+        '',
+        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        '',
+        `Importance: ${outputJson.importanceLevel}`,
+        '',
+        `Detected signals: ${
+          outputJson.detectedSignals.length > 0
+            ? outputJson.detectedSignals.join(', ')
+            : 'None'
+        }`,
+        '',
+        `Reasoning: ${outputJson.reasoningSummary}`,
+      ].join('\n'),
+      confidenceScore: outputJson.confidenceScore,
+      tokensInput: Math.ceil(inputText.length / 4),
+      tokensOutput: 240,
       estimatedCostUsd: 0,
     };
   }

@@ -202,64 +202,7 @@ export class AiSuggestionsService {
         id,
         organizationId: currentUser.organizationId,
       },
-      include: {
-        externalEmailMessage: {
-            select: {
-              id: true,
-              provider: true,
-              externalMessageId: true,
-              externalThreadId: true,
-              subject: true,
-              snippet: true,
-              fromEmail: true,
-              fromName: true,
-              toEmailsJson: true,
-              ccEmailsJson: true,
-              labelIdsJson: true,
-              internalDate: true,
-              syncedAt: true,
-            },
-          },
-          externalCalendarEvent: {
-            select: {
-              id: true,
-              provider: true,
-              externalCalendarId: true,
-              externalEventId: true,
-              summary: true,
-              description: true,
-              location: true,
-              startAt: true,
-              endAt: true,
-              htmlLink: true,
-              syncedAt: true,
-            },
-          },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            organizationId: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-        reviewedBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            organizationId: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
+      include: this.getSuggestionInclude(),
     });
 
     if (!suggestion) {
@@ -375,7 +318,7 @@ export class AiSuggestionsService {
     });
   }
 
-    async analyzeExternalEmailMessage(
+  async analyzeExternalEmailMessage(
     emailMessageId: string,
     currentUser: CurrentUser,
   ) {
@@ -571,6 +514,214 @@ export class AiSuggestionsService {
       return suggestion;
     });
   }
+
+  async analyzeExternalCalendarEvent(
+    calendarEventId: string,
+    currentUser: CurrentUser,
+  ) {
+    const calendarEvent = await this.prisma.externalCalendarEvent.findFirst({
+      where: {
+        id: calendarEventId,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+        connectedAccount: {
+          userId: currentUser.id,
+        },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        connectedAccountId: true,
+        provider: true,
+        externalCalendarId: true,
+        externalEventId: true,
+        iCalUid: true,
+        status: true,
+        summary: true,
+        description: true,
+        location: true,
+        startAt: true,
+        endAt: true,
+        isAllDay: true,
+        organizerEmail: true,
+        organizerName: true,
+        attendeesJson: true,
+        htmlLink: true,
+        metadataJson: true,
+        syncedAt: true,
+        connectedAccount: {
+          select: {
+            id: true,
+            provider: true,
+            email: true,
+            displayName: true,
+            status: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!calendarEvent) {
+      throw new NotFoundException('External calendar event not found');
+    }
+
+    const existingPendingSuggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        organizationId: currentUser.organizationId,
+        type: AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT,
+        status: AiSuggestionStatus.PENDING_REVIEW,
+        externalCalendarEventId: calendarEvent.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingPendingSuggestion) {
+      throw new ConflictException(
+        'This calendar event already has a pending AI review suggestion',
+      );
+    }
+
+    const inputText =
+      this.buildExternalCalendarEventMetadataInputText(calendarEvent);
+    const inputHash = this.hashInput(inputText);
+
+    const estimatedCreditsRequired =
+      this.aiUsageService.estimateCreditsFromText(inputText, 240);
+
+    await this.aiUsageService.assertCanUseAi(currentUser, {
+      feature: AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS,
+      estimatedCreditsRequired,
+      metadataJson: {
+        externalCalendarEventId: calendarEvent.id,
+        connectedAccountId: calendarEvent.connectedAccountId,
+        externalCalendarId: calendarEvent.externalCalendarId,
+        externalEventId: calendarEvent.externalEventId,
+        feature: AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS,
+        estimatedCreditsRequired,
+        crmRecordsCreated: false,
+        emailSentAutomatically: false,
+      },
+    });
+
+    const generated =
+      this.aiSuggestionProviderService.generateExternalCalendarEventAnalysis(
+        {
+          id: calendarEvent.id,
+          connectedAccountId: calendarEvent.connectedAccountId,
+          provider: calendarEvent.provider,
+          externalCalendarId: calendarEvent.externalCalendarId,
+          externalEventId: calendarEvent.externalEventId,
+          iCalUid: calendarEvent.iCalUid,
+          status: calendarEvent.status,
+          summary: calendarEvent.summary,
+          description: calendarEvent.description,
+          location: calendarEvent.location,
+          startAt: calendarEvent.startAt,
+          endAt: calendarEvent.endAt,
+          isAllDay: calendarEvent.isAllDay,
+          organizerEmail: calendarEvent.organizerEmail,
+          organizerName: calendarEvent.organizerName,
+          attendeesJson: calendarEvent.attendeesJson,
+          htmlLink: calendarEvent.htmlLink,
+          syncedAt: calendarEvent.syncedAt,
+        },
+        inputText,
+      );
+
+    return this.prisma.$transaction(async (tx) => {
+      const suggestion = await tx.aiSuggestion.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          userId: currentUser.id,
+          provider: generated.provider,
+          type: AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT,
+          status: AiSuggestionStatus.PENDING_REVIEW,
+          title: generated.title,
+          entityType: EntityType.EXTERNAL_CALENDAR_EVENT,
+          entityId: calendarEvent.id,
+          externalCalendarEventId: calendarEvent.id,
+          inputText,
+          inputHash,
+          outputJson: generated.outputJson as Prisma.InputJsonValue,
+          outputText: generated.outputText,
+          confidenceScore: generated.confidenceScore,
+          metadataJson: {
+            model: generated.model,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            generatedFor: 'external_calendar_event_review',
+            source: 'external_sync',
+            connectedAccountId: calendarEvent.connectedAccountId,
+            externalCalendarEventId: calendarEvent.id,
+            externalCalendarId: calendarEvent.externalCalendarId,
+            externalEventId: calendarEvent.externalEventId,
+            iCalUid: calendarEvent.iCalUid,
+            aiAnalysisScope: 'metadata_only',
+            crmRecordsCreated: false,
+            emailSentAutomatically: false,
+          },
+          tokensInput: generated.tokensInput,
+          tokensOutput: generated.tokensOutput,
+          estimatedCostUsd: generated.estimatedCostUsd,
+          expiresAt: this.getDefaultExpirationDate(),
+        },
+      });
+
+      await this.aiUsageService.recordSuccessfulUsage(tx, currentUser, {
+        feature: AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS,
+        provider: generated.provider,
+        model: generated.model,
+        tokensInput: generated.tokensInput,
+        tokensOutput: generated.tokensOutput,
+        estimatedCostUsd: generated.estimatedCostUsd,
+        aiSuggestionId: suggestion.id,
+        metadataJson: {
+          aiSuggestionId: suggestion.id,
+          aiSuggestionType: suggestion.type,
+          externalCalendarEventId: calendarEvent.id,
+          connectedAccountId: calendarEvent.connectedAccountId,
+          externalCalendarId: calendarEvent.externalCalendarId,
+          externalEventId: calendarEvent.externalEventId,
+          estimatedCreditsRequired,
+          crmRecordsCreated: false,
+          emailSentAutomatically: false,
+        },
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_CREATED,
+          entityType: EntityType.EXTERNAL_CALENDAR_EVENT,
+          entityId: calendarEvent.id,
+          title: `AI calendar review suggestion created`,
+          description:
+            'AI generated a review suggestion from synced calendar metadata. Human review is required before creating any CRM record.',
+          source: Source.AI_SUGGESTION,
+          occurredAt: suggestion.createdAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            aiSuggestionStatus: suggestion.status,
+            externalCalendarEventId: calendarEvent.id,
+            connectedAccountId: calendarEvent.connectedAccountId,
+            externalCalendarId: calendarEvent.externalCalendarId,
+            externalEventId: calendarEvent.externalEventId,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            crmRecordsCreated: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return suggestion;
+    });
+  }  
 
     async accept(
     id: string,
@@ -1179,34 +1330,72 @@ export class AiSuggestionsService {
     });
   }
 
-  private getSuggestionInclude() {
-    return {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          organizationId: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+private getSuggestionInclude(): Prisma.AiSuggestionInclude {
+  return {
+    externalEmailMessage: {
+      select: {
+        id: true,
+        provider: true,
+        externalMessageId: true,
+        externalThreadId: true,
+        subject: true,
+        snippet: true,
+        fromEmail: true,
+        fromName: true,
+        toEmailsJson: true,
+        ccEmailsJson: true,
+        labelIdsJson: true,
+        internalDate: true,
+        syncedAt: true,
       },
-      reviewedBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          organizationId: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+    },
+    externalCalendarEvent: {
+      select: {
+        id: true,
+        provider: true,
+        externalCalendarId: true,
+        externalEventId: true,
+        iCalUid: true,
+        status: true,
+        summary: true,
+        description: true,
+        location: true,
+        startAt: true,
+        endAt: true,
+        isAllDay: true,
+        organizerEmail: true,
+        organizerName: true,
+        attendeesJson: true,
+        htmlLink: true,
+        syncedAt: true,
       },
-    };
-  }
+    },
+    user: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        organizationId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    },
+    reviewedBy: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        organizationId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    },
+  };
+}
 
   private buildReviewedMetadata({
     metadataJson,
@@ -1242,7 +1431,7 @@ export class AiSuggestionsService {
     };
   }
 
-    private buildExternalEmailMetadataInputText(emailMessage: {
+  private buildExternalEmailMetadataInputText(emailMessage: {
     id: string;
     connectedAccountId: string;
     provider: string;
@@ -1288,6 +1477,58 @@ export class AiSuggestionsService {
       '- Human review is required.',
     ].join('\n');
   }
+
+  private buildExternalCalendarEventMetadataInputText(calendarEvent: {
+    id: string;
+    connectedAccountId: string;
+    provider: string;
+    externalCalendarId: string;
+    externalEventId: string;
+    iCalUid: string | null;
+    status: string | null;
+    summary: string | null;
+    description: string | null;
+    location: string | null;
+    startAt: Date | null;
+    endAt: Date | null;
+    isAllDay: boolean;
+    organizerEmail: string | null;
+    organizerName: string | null;
+    attendeesJson: Prisma.JsonValue | null;
+    htmlLink: string | null;
+    metadataJson: Prisma.JsonValue | null;
+    syncedAt: Date;
+  }) {
+    return [
+      'External calendar event metadata AI review',
+      `Calendar event id: ${calendarEvent.id}`,
+      `Connected account id: ${calendarEvent.connectedAccountId}`,
+      `Provider: ${calendarEvent.provider}`,
+      `External calendar id: ${calendarEvent.externalCalendarId}`,
+      `External event id: ${calendarEvent.externalEventId}`,
+      `iCal UID: ${calendarEvent.iCalUid ?? 'none'}`,
+      `Status: ${calendarEvent.status ?? '(unknown)'}`,
+      `Summary: ${calendarEvent.summary ?? '(no summary)'}`,
+      `Description: ${calendarEvent.description ?? '(no description)'}`,
+      `Location: ${calendarEvent.location ?? '(no location)'}`,
+      `Start at: ${calendarEvent.startAt?.toISOString() ?? '(unknown)'}`,
+      `End at: ${calendarEvent.endAt?.toISOString() ?? '(unknown)'}`,
+      `All day: ${calendarEvent.isAllDay ? 'true' : 'false'}`,
+      `Organizer email: ${calendarEvent.organizerEmail ?? '(unknown)'}`,
+      `Organizer name: ${calendarEvent.organizerName ?? '(unknown)'}`,
+      `Attendees: ${this.safeStringifyJson(calendarEvent.attendeesJson)}`,
+      `HTML link available: ${calendarEvent.htmlLink ? 'true' : 'false'}`,
+      `Synced at: ${calendarEvent.syncedAt.toISOString()}`,
+      '',
+      'Important safety constraints:',
+      '- Analyze synced calendar metadata only.',
+      '- Do not create CRM records automatically.',
+      '- Do not create tasks automatically.',
+      '- Do not create notes automatically.',
+      '- Do not send emails automatically.',
+      '- Human review is required.',
+    ].join('\n');
+  }  
 
   private safeStringifyJson(value: Prisma.JsonValue | null) {
     if (value === null || value === undefined) {

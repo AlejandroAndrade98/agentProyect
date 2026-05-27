@@ -75,6 +75,18 @@ export class AiSuggestionsController {
     );
   }
 
+  @Post('external-sync/calendar-events/:calendarEventId/analyze')
+  @Roles(...CRM_WRITE_ROLES)
+  analyzeExternalCalendarEvent(
+    @Param('calendarEventId') calendarEventId: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.analyzeExternalCalendarEvent(
+      calendarEventId,
+      currentUser,
+    );
+  }
+
   @Patch(':id/accept')
   @Roles(...CRM_WRITE_ROLES)
   accept(
