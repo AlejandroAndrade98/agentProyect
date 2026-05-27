@@ -3091,3 +3091,42 @@ Important notes:
 - They do not trigger Gmail or Calendar sync automatically.
 - They do not run AI analysis.
 - They do not create CRM records.
+
+## Phase 16E, Dashboard Manual Sync Actions UX
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added manual Gmail and Google Calendar sync actions directly from the Dashboard.
+
+Frontend behavior implemented:
+
+- Added `Sync Gmail` button in the dashboard sync status card.
+- Added `Sync Calendar` button in the dashboard sync status card.
+- Buttons show loading states while sync is running.
+- Dashboard refreshes external sync overview after successful sync.
+- Success and error messages are shown inline.
+- Gmail sync updates recent synced email metadata.
+- Calendar sync updates next meeting and upcoming event metadata.
+
+Backend behavior improved:
+
+- Google Calendar sync now marks stale local events as deleted when they no longer appear in Google Calendar within the synced range.
+- Gmail sync now excludes Trash and Spam from the list query.
+- Gmail sync checks recent local messages and marks missing, trashed, or spam messages as deleted locally.
+- Dashboard read endpoints continue filtering `deletedAt: null`.
+
+Validation completed:
+
+- `Sync Calendar` removed a deleted Google Calendar event from the dashboard.
+- Recreating the Google Calendar event and syncing again showed it in the dashboard.
+- `Sync Gmail` refreshed Gmail metadata from the dashboard.
+- Deleted/trashed Gmail messages no longer remain visible after sync.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- Sync remains manual from the Dashboard.
+- No background worker sync is implemented yet.
+- No AI analysis is implemented yet.
+- No CRM records are created automatically.
+- Gmail cleanup is intentionally conservative and checks recent local messages instead of deleting all missing messages from the top 10 list.

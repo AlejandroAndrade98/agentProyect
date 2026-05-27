@@ -9,6 +9,8 @@ import {
   getDashboardRecentActivity,
   getDashboardSummary,
   getDashboardTasks,
+  syncDashboardCalendarEvents,
+  syncDashboardGmailMessages,
 } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import type {
@@ -380,9 +382,21 @@ function RecentEmailItem({
 function ExternalSyncOverviewSection({
   externalSync,
   now,
+  isSyncingEmail,
+  isSyncingCalendar,
+  syncActionMessage,
+  syncActionError,
+  onSyncEmail,
+  onSyncCalendar,
 }: {
   externalSync: DashboardExternalSyncOverview;
   now: Date;
+  isSyncingEmail: boolean;
+  isSyncingCalendar: boolean;
+  syncActionMessage: string | null;
+  syncActionError: string | null;
+  onSyncEmail: () => void;
+  onSyncCalendar: () => void;
 }) {
   return (
     <section className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
@@ -421,6 +435,45 @@ function ExternalSyncOverviewSection({
               syncState={externalSync.syncStates.calendar}
             />
           </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onSyncEmail}
+              disabled={
+                isSyncingEmail ||
+                isSyncingCalendar ||
+                !externalSync.connectedAccount
+              }
+              className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSyncingEmail ? 'Syncing Gmail...' : 'Sync Gmail'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onSyncCalendar}
+              disabled={
+                isSyncingEmail ||
+                isSyncingCalendar ||
+                !externalSync.connectedAccount
+              }
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSyncingCalendar ? 'Syncing Calendar...' : 'Sync Calendar'}
+            </button>
+          </div>
+
+          {syncActionMessage ? (
+            <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {syncActionMessage}
+            </p>
+          ) : null}
+
+          {syncActionError ? (
+            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {syncActionError}
+            </p>
+          ) : null}
         </div>
 
         <NextMeetingCard meeting={externalSync.nextMeeting} now={now} />
@@ -460,6 +513,10 @@ export function DashboardOverview() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
+  const [isSyncingEmail, setIsSyncingEmail] = useState(false);
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+  const [syncActionMessage, setSyncActionMessage] = useState<string | null>(null);
+  const [syncActionError, setSyncActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -532,6 +589,91 @@ export function DashboardOverview() {
     };
   }, [token]);
 
+  async function refreshExternalSyncOverview() {
+  if (!token) {
+    return;
+  }
+
+  const externalSync = await getDashboardExternalSync(token);
+
+  setData((currentData) => {
+    if (!currentData) {
+      return currentData;
+    }
+
+    return {
+      ...currentData,
+      externalSync,
+    };
+  });
+}
+
+function getSyncErrorMessage(error: unknown) {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Sync failed.';
+}
+
+async function handleSyncEmailMessages() {
+  if (!token) {
+    setSyncActionError('Missing access token.');
+    return;
+  }
+
+  try {
+    setIsSyncingEmail(true);
+    setSyncActionMessage(null);
+    setSyncActionError(null);
+
+    const result = await syncDashboardGmailMessages(token);
+
+    await refreshExternalSyncOverview();
+
+    setSyncActionMessage(
+  `Gmail sync completed. ${result.messagesStored ?? 0} messages stored, ${
+    result.messagesDeletedAsStale ?? 0
+  } stale or trashed messages removed.`,
+  );
+  } catch (error) {
+    setSyncActionError(getSyncErrorMessage(error));
+  } finally {
+    setIsSyncingEmail(false);
+  }
+}
+
+async function handleSyncCalendarEvents() {
+  if (!token) {
+    setSyncActionError('Missing access token.');
+    return;
+  }
+
+  try {
+    setIsSyncingCalendar(true);
+    setSyncActionMessage(null);
+    setSyncActionError(null);
+
+    const result = await syncDashboardCalendarEvents(token);
+
+    await refreshExternalSyncOverview();
+
+    setSyncActionMessage(
+  `Calendar sync completed. ${result.eventsStored ?? 0} events stored, ${
+    result.eventsDeletedAsStale ?? 0
+  } stale events removed.`,
+  );
+  } catch (error) {
+    setSyncActionError(getSyncErrorMessage(error));
+  } finally {
+    setIsSyncingCalendar(false);
+  }
+}
+
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -572,7 +714,16 @@ export function DashboardOverview() {
   return (
     <div className="space-y-8">
 
-      <ExternalSyncOverviewSection externalSync={data.externalSync} now={now} />
+      <ExternalSyncOverviewSection
+        externalSync={data.externalSync}
+        now={now}
+        isSyncingEmail={isSyncingEmail}
+        isSyncingCalendar={isSyncingCalendar}
+        syncActionMessage={syncActionMessage}
+        syncActionError={syncActionError}
+        onSyncEmail={handleSyncEmailMessages}
+        onSyncCalendar={handleSyncCalendarEvents}
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard

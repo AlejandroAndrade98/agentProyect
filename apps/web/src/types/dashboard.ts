@@ -280,3 +280,19 @@ export type DashboardExternalSyncOverview = {
   };
   generatedAt: string;
 };
+
+export type DashboardManualExternalSyncResult = {
+  messagesDeletedAsStale?: number;
+  eventsDeletedAsStale?: number;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  email: string;
+  syncedAt: string;
+  bodyStored: boolean;
+  aiAnalysisRun: boolean;
+  crmRecordsCreated: boolean;
+  messagesFetched?: number;
+  messagesStored?: number;
+  eventsFetched?: number;
+  eventsStored?: number;
+};

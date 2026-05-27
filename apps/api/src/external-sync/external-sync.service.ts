@@ -208,7 +208,16 @@ export class ExternalSyncService {
         });
 
         storedCount += 1;
-      }
+      }   
+
+      const staleDeleteResult =
+        await this.markDeletedOrTrashedRecentGmailMessages({
+          organizationId: currentUser.organizationId,
+          connectedAccountId: account.id,
+          accessToken,
+          deletedAt: syncedAt,
+        });
+
 
       await this.prisma.connectedAccountSyncState.updateMany({
         where: {
@@ -235,6 +244,7 @@ export class ExternalSyncService {
         email: account.email,
         messagesFetched: messageRefs.length,
         messagesStored: storedCount,
+        messagesDeletedAsStale: staleDeleteResult.count,
         nextPageToken: listResponse.nextPageToken ?? null,
         resultSizeEstimate: listResponse.resultSizeEstimate ?? null,
         syncedAt,
@@ -332,6 +342,10 @@ export class ExternalSyncService {
 
     let storedCount = 0;
 
+    const externalEventIds = events
+      .filter((event) => Boolean(event.id))
+      .map((event) => event.id as string);
+
     for (const event of events) {
       if (!event.id) {
         continue;
@@ -347,6 +361,23 @@ export class ExternalSyncService {
       });
 
       storedCount += 1;
+    }
+
+    let staleDeletedCount = 0;
+
+    if (!listResponse.nextPageToken) {
+      const staleDeleteResult =
+        await this.markMissingGoogleCalendarEventsAsDeleted({
+          organizationId: currentUser.organizationId,
+          connectedAccountId: account.id,
+          externalCalendarId: GOOGLE_CALENDAR_PRIMARY_ID,
+          externalEventIds,
+          timeMin,
+          timeMax,
+          deletedAt: syncedAt,
+        });
+
+      staleDeletedCount = staleDeleteResult.count;
     }
 
     await this.prisma.connectedAccountSyncState.updateMany({
@@ -375,6 +406,7 @@ export class ExternalSyncService {
       externalCalendarId: GOOGLE_CALENDAR_PRIMARY_ID,
       eventsFetched: events.length,
       eventsStored: storedCount,
+      eventsDeletedAsStale: staleDeletedCount,
       nextPageToken: listResponse.nextPageToken ?? null,
       nextSyncToken: listResponse.nextSyncToken ?? null,
       timeMin,
@@ -528,6 +560,7 @@ export class ExternalSyncService {
     ]);
 
     return {
+      
       data,
       meta: {
         page,
@@ -536,6 +569,7 @@ export class ExternalSyncService {
         pageCount: Math.ceil(total / pageSize),
       },
     };
+    
   }
 
   async findCalendarEvents(
@@ -664,6 +698,91 @@ export class ExternalSyncService {
     };
   }
 
+private async fetchGmailMessageMetadataIfExists(
+  accessToken: string,
+  messageId: string,
+): Promise<GmailMessageMetadataResponse | null> {
+  const url = new URL(`${GMAIL_MESSAGES_LIST_URL}/${messageId}`);
+
+  url.searchParams.set('format', 'metadata');
+
+  for (const header of GMAIL_METADATA_HEADERS) {
+    url.searchParams.append('metadataHeaders', header);
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  const data = (await response.json()) as GmailMessageMetadataResponse;
+
+  if (!response.ok) {
+    throw new Error('Gmail message metadata endpoint returned an error');
+  }
+
+  return data;
+}
+
+private async markDeletedOrTrashedRecentGmailMessages(params: {
+  organizationId: string;
+  connectedAccountId: string;
+  accessToken: string;
+  deletedAt: Date;
+}) {
+  const recentLocalMessages = await this.prisma.externalEmailMessage.findMany({
+    where: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      deletedAt: null,
+    },
+    orderBy: [{ internalDate: 'desc' }, { createdAt: 'desc' }],
+    take: 25,
+    select: {
+      id: true,
+      externalMessageId: true,
+    },
+  });
+
+  let count = 0;
+
+  for (const localMessage of recentLocalMessages) {
+    const gmailMessage = await this.fetchGmailMessageMetadataIfExists(
+      params.accessToken,
+      localMessage.externalMessageId,
+    );
+
+    const isMissing = !gmailMessage;
+    const isTrashedOrSpam =
+      gmailMessage?.labelIds?.includes('TRASH') ||
+      gmailMessage?.labelIds?.includes('SPAM');
+
+    if (!isMissing && !isTrashedOrSpam) {
+      continue;
+    }
+
+    await this.prisma.externalEmailMessage.update({
+      where: {
+        id: localMessage.id,
+      },
+      data: {
+        deletedAt: params.deletedAt,
+        syncedAt: params.deletedAt,
+      },
+    });
+
+    count += 1;
+  }
+
+  return { count };
+}
+
   private async getValidGoogleAccessToken(account: {
     id: string;
     encryptedAccessToken: string | null;
@@ -764,7 +883,7 @@ export class ExternalSyncService {
     const url = new URL(GMAIL_MESSAGES_LIST_URL);
 
     url.searchParams.set('maxResults', String(GMAIL_SYNC_MAX_RESULTS));
-    url.searchParams.set('q', 'newer_than:30d');
+    url.searchParams.set('q', 'newer_than:30d -in:trash -in:spam');
 
     const response = await fetch(url, {
       method: 'GET',
@@ -845,6 +964,40 @@ export class ExternalSyncService {
   }
 
   return data;
+}
+
+private async markMissingGoogleCalendarEventsAsDeleted(params: {
+  organizationId: string;
+  connectedAccountId: string;
+  externalCalendarId: string;
+  externalEventIds: string[];
+  timeMin: Date;
+  timeMax: Date;
+  deletedAt: Date;
+}) {
+  return this.prisma.externalCalendarEvent.updateMany({
+    where: {
+      organizationId: params.organizationId,
+      connectedAccountId: params.connectedAccountId,
+      externalCalendarId: params.externalCalendarId,
+      deletedAt: null,
+      startAt: {
+        gte: params.timeMin,
+        lte: params.timeMax,
+      },
+      ...(params.externalEventIds.length > 0
+        ? {
+            externalEventId: {
+              notIn: params.externalEventIds,
+            },
+          }
+        : {}),
+    },
+    data: {
+      deletedAt: params.deletedAt,
+      syncedAt: params.deletedAt,
+    },
+  });
 }
 
 private async upsertExternalCalendarEvent(params: {
