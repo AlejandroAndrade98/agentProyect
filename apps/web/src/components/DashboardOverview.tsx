@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import {
   ApiClientError,
+  getDashboardExternalSync,
   getDashboardLeads,
   getDashboardRecentActivity,
   getDashboardSummary,
@@ -13,6 +14,10 @@ import { useAuth } from '@/hooks/useAuth';
 import type {
   ActivityEventType,
   DashboardActivityEvent,
+  DashboardExternalCalendarEvent,
+  DashboardExternalEmailMessage,
+  DashboardExternalSyncOverview,
+  DashboardExternalSyncState,
   DashboardLeadsOverview,
   DashboardRecentActivity,
   DashboardSummary,
@@ -27,6 +32,7 @@ type DashboardData = {
   leads: DashboardLeadsOverview;
   tasks: DashboardTasksOverview;
   recentActivity: DashboardRecentActivity;
+  externalSync: DashboardExternalSyncOverview;
 };
 
 function formatEnumLabel(value: string) {
@@ -42,11 +48,86 @@ function formatDate(value: string | null) {
     return 'No date';
   }
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
   return new Intl.DateTimeFormat('en', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(date);
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return 'No date';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function getMeetingCountdown(value: string | null, now: Date) {
+  if (!value) {
+    return 'No upcoming meeting';
+  }
+
+  const meetingDate = new Date(value);
+  const diffMs = meetingDate.getTime() - now.getTime();
+
+  if (Number.isNaN(meetingDate.getTime())) {
+    return 'Invalid meeting date';
+  }
+
+  if (diffMs <= 0) {
+    return 'Starting now';
+  }
+
+  const totalMinutes = Math.ceil(diffMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m`;
+}
+
+function getSyncStatusClasses(status: string | null | undefined) {
+  if (status === 'ACTIVE') {
+    return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+  }
+
+  if (status === 'ERROR') {
+    return 'bg-red-50 text-red-700 ring-red-200';
+  }
+
+  if (status === 'INITIAL_SYNC_RUNNING') {
+    return 'bg-blue-50 text-blue-700 ring-blue-200';
+  }
+
+  if (status === 'INITIAL_SYNC_PENDING') {
+    return 'bg-amber-50 text-amber-700 ring-amber-200';
+  }
+
+  return 'bg-slate-100 text-slate-600 ring-slate-200';
 }
 
 function getLeadStatusClasses(status: LeadStatus) {
@@ -159,14 +240,216 @@ function ActivityItem({ event }: { event: DashboardActivityEvent }) {
             {getActivityLabel(event.type)}
           </p>
         </div>
+
         <span className="shrink-0 text-xs text-slate-400">
           {formatDate(event.occurredAt)}
         </span>
       </div>
+
       {event.actor ? (
         <p className="mt-2 text-xs text-slate-500">By {event.actor.name}</p>
       ) : null}
     </div>
+  );
+}
+
+function SyncStatusBadge({
+  label,
+  syncState,
+}: {
+  label: string;
+  syncState: DashboardExternalSyncState | null;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <Badge className={getSyncStatusClasses(syncState?.status)}>
+        {syncState?.status ? formatEnumLabel(syncState.status) : 'Not synced'}
+      </Badge>
+    </div>
+  );
+}
+
+function NextMeetingCard({
+  meeting,
+  now,
+}: {
+  meeting: DashboardExternalCalendarEvent | null;
+  now: Date;
+}) {
+  if (!meeting) {
+    return (
+      <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-6 shadow-sm">
+        <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-blue-100/60 blur-2xl" />
+
+        <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
+          Next meeting
+        </p>
+
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          No upcoming meetings
+        </h2>
+
+        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+          Great time to follow up on recent emails, review your open leads, or
+          prepare your next outreach.
+        </p>
+      </div>
+    );
+  }
+
+  const countdown = getMeetingCountdown(meeting.startAt, now);
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 p-5 text-white shadow-sm">
+      <div className="absolute right-6 top-6 h-28 w-28 rounded-full bg-blue-400/20 blur-2xl" />
+
+      <div className="relative">
+        <p className="text-sm font-medium uppercase tracking-wide text-blue-200">
+          Next meeting in
+        </p>
+
+        <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-5xl font-semibold tracking-tight">
+              {countdown}
+            </p>
+
+            <h2 className="mt-4 text-xl font-semibold">
+              {meeting.summary ?? 'Untitled meeting'}
+            </h2>
+          </div>
+
+          <Badge className="bg-white/10 text-white ring-white/20">
+            Calendar
+          </Badge>
+        </div>
+
+        <div className="mt-5 grid gap-3 text-sm text-blue-100 md:grid-cols-2">
+          <p>{formatDateTime(meeting.startAt)}</p>
+          <p>{meeting.location || 'No location set'}</p>
+        </div>
+
+        {meeting.htmlLink ? (
+          <a
+            href={meeting.htmlLink}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 inline-flex rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-950 hover:bg-blue-50"
+          >
+            Open in Google Calendar
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function RecentEmailItem({
+  email,
+}: {
+  email: DashboardExternalEmailMessage;
+}) {
+  return (
+    <div className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="line-clamp-1 text-sm font-medium text-slate-950">
+            {email.subject || 'No subject'}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {email.fromName || email.fromEmail || 'Unknown sender'}
+          </p>
+        </div>
+
+        <span className="shrink-0 text-xs text-slate-400">
+          {formatDate(email.internalDate)}
+        </span>
+      </div>
+
+      {email.snippet ? (
+        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+          {email.snippet}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ExternalSyncOverviewSection({
+  externalSync,
+  now,
+}: {
+  externalSync: DashboardExternalSyncOverview;
+  now: Date;
+}) {
+  return (
+    <section className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
+      <div className="grid gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">
+                Sync status
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Gmail and Calendar connection health.
+              </p>
+            </div>
+
+            {externalSync.connectedAccount ? (
+              <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                Connected
+              </Badge>
+            ) : (
+              <Badge className="bg-slate-100 text-slate-600 ring-slate-200">
+                Not connected
+              </Badge>
+            )}
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <SyncStatusBadge
+              label="Gmail"
+              syncState={externalSync.syncStates.email}
+            />
+
+            <SyncStatusBadge
+              label="Calendar"
+              syncState={externalSync.syncStates.calendar}
+            />
+          </div>
+        </div>
+
+        <NextMeetingCard meeting={externalSync.nextMeeting} now={now} />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold text-slate-950">
+            Recent synced emails
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Latest Gmail metadata synced to the CRM.
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {externalSync.recentEmailMessages.length > 0 ? (
+            externalSync.recentEmailMessages.map((email) => (
+              <RecentEmailItem key={email.id} email={email} />
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">
+              No synced emails yet. Run Gmail sync to see recent messages.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -176,6 +459,17 @@ export function DashboardOverview() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -190,14 +484,16 @@ export function DashboardOverview() {
       setErrorMessage(null);
 
       try {
-        const [summary, leads, tasks, recentActivity] = await Promise.all([
-          getDashboardSummary(token),
-          getDashboardLeads(token),
-          getDashboardTasks(token),
-          getDashboardRecentActivity(token, {
-            limit: 8,
-          }),
-        ]);
+        const [summary, leads, tasks, recentActivity, externalSync] =
+          await Promise.all([
+            getDashboardSummary(token),
+            getDashboardLeads(token),
+            getDashboardTasks(token),
+            getDashboardRecentActivity(token, {
+              limit: 8,
+            }),
+            getDashboardExternalSync(token),
+          ]);
 
         if (!isMounted) {
           return;
@@ -208,6 +504,7 @@ export function DashboardOverview() {
           leads,
           tasks,
           recentActivity,
+          externalSync,
         });
       } catch (error) {
         if (!isMounted) {
@@ -274,6 +571,9 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-8">
+
+      <ExternalSyncOverviewSection externalSync={data.externalSync} now={now} />
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Companies"
@@ -300,12 +600,14 @@ export function DashboardOverview() {
         />
       </section>
 
+
       <section className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-950">
               Leads by status
             </h2>
+
             <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
               {data.summary.leads.total} total
             </Badge>
@@ -330,6 +632,7 @@ export function DashboardOverview() {
             <h2 className="text-base font-semibold text-slate-950">
               Leads by priority
             </h2>
+
             <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
               Pipeline
             </Badge>
@@ -360,6 +663,7 @@ export function DashboardOverview() {
             <h2 className="text-base font-semibold text-slate-950">
               Tasks by status
             </h2>
+
             <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
               Workload
             </Badge>
@@ -387,6 +691,7 @@ export function DashboardOverview() {
               <h2 className="text-base font-semibold text-slate-950">
                 Recent leads
               </h2>
+
               <p className="mt-1 text-sm text-slate-500">
                 Latest commercial opportunities.
               </p>
@@ -403,6 +708,7 @@ export function DashboardOverview() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-slate-950">{lead.title}</p>
+
                       <p className="mt-1 text-sm text-slate-500">
                         {lead.company?.name ?? 'No company'} ·{' '}
                         {lead.contact
@@ -415,6 +721,7 @@ export function DashboardOverview() {
                       <Badge className={getLeadStatusClasses(lead.status)}>
                         {formatEnumLabel(lead.status)}
                       </Badge>
+
                       <Badge className={getPriorityClasses(lead.priority)}>
                         {formatEnumLabel(lead.priority)}
                       </Badge>
@@ -439,6 +746,7 @@ export function DashboardOverview() {
             <h2 className="text-base font-semibold text-slate-950">
               Recent activity
             </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Latest CRM timeline events.
             </p>
@@ -461,6 +769,7 @@ export function DashboardOverview() {
           <h2 className="text-base font-semibold text-slate-950">
             Pending tasks
           </h2>
+
           <p className="mt-1 text-sm text-slate-500">
             {data.tasks.pendingTasks.length} shown
           </p>
@@ -470,6 +779,7 @@ export function DashboardOverview() {
           <h2 className="text-base font-semibold text-slate-950">
             Overdue tasks
           </h2>
+
           <p className="mt-1 text-sm text-slate-500">
             {data.tasks.overdueTasks.length} shown
           </p>
@@ -479,6 +789,7 @@ export function DashboardOverview() {
           <h2 className="text-base font-semibold text-slate-950">
             Recently completed
           </h2>
+
           <p className="mt-1 text-sm text-slate-500">
             {data.tasks.recentlyCompletedTasks.length} shown
           </p>

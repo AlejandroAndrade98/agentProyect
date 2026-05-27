@@ -184,3 +184,99 @@ export type DashboardRecentActivityQuery = {
   limit?: number;
   type?: ActivityEventType;
 };
+
+export type ConnectedAccountCapability = 'EMAIL' | 'CALENDAR';
+
+export type ConnectedAccountStatus =
+  | 'PENDING'
+  | 'CONNECTED'
+  | 'DISCONNECT_REQUESTED'
+  | 'DISCONNECTED'
+  | 'REVOKED'
+  | 'ERROR';
+
+export type ConnectedAccountProvider = 'GOOGLE' | 'MICROSOFT';
+
+export type ConnectedAccountSyncStatus =
+  | 'NOT_STARTED'
+  | 'INITIAL_SYNC_PENDING'
+  | 'INITIAL_SYNC_RUNNING'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'ERROR';
+
+export type DashboardExternalConnectedAccount = {
+  id: string;
+  provider: ConnectedAccountProvider;
+  email: string;
+  displayName: string | null;
+  status: ConnectedAccountStatus;
+  capabilities: ConnectedAccountCapability[];
+  connectedAt: string | null;
+  disconnectRequestedAt: string | null;
+  disconnectedAt: string | null;
+  lastError: string | null;
+  updatedAt: string;
+};
+
+export type DashboardExternalSyncState = {
+  id: string;
+  connectedAccountId: string;
+  capability: ConnectedAccountCapability;
+  status: ConnectedAccountSyncStatus;
+  syncFrom: string | null;
+  syncCursor: string | null;
+  initialSyncCompletedAt: string | null;
+  lastSyncAttemptAt: string | null;
+  lastSuccessfulSyncAt: string | null;
+  lastError: string | null;
+  updatedAt: string;
+};
+
+export type DashboardExternalCalendarEvent = {
+  id: string;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  externalCalendarId: string;
+  externalEventId: string;
+  status: string | null;
+  summary: string | null;
+  location: string | null;
+  startAt: string | null;
+  endAt: string | null;
+  isAllDay: boolean;
+  organizerEmail: string | null;
+  organizerName: string | null;
+  attendeesJson: unknown;
+  htmlLink: string | null;
+  metadataJson: unknown;
+  syncedAt: string;
+};
+
+export type DashboardExternalEmailMessage = {
+  id: string;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  externalMessageId: string;
+  externalThreadId: string | null;
+  subject: string | null;
+  snippet: string | null;
+  fromEmail: string | null;
+  fromName: string | null;
+  internalDate: string | null;
+  labelIdsJson: unknown;
+  metadataJson: unknown;
+  syncedAt: string;
+};
+
+export type DashboardExternalSyncOverview = {
+  connectedAccount: DashboardExternalConnectedAccount | null;
+  nextMeeting: DashboardExternalCalendarEvent | null;
+  upcomingCalendarEvents: DashboardExternalCalendarEvent[];
+  recentEmailMessages: DashboardExternalEmailMessage[];
+  syncStates: {
+    email: DashboardExternalSyncState | null;
+    calendar: DashboardExternalSyncState | null;
+  };
+  generatedAt: string;
+};

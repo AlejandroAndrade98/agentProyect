@@ -3050,3 +3050,44 @@ Important notes:
 - It does not run AI analysis.
 - It does not create CRM records.
 - Frontend dashboard widgets are pending.
+
+## Phase 16D.2, Frontend Dashboard External Sync Widgets
+
+Status: completed, validated in build/runtime, pending local commit.
+
+This phase added dashboard widgets for external Gmail and Google Calendar sync data.
+
+Frontend files updated:
+
+- `apps/web/src/types/dashboard.ts`
+- `apps/web/src/lib/api/dashboard.ts`
+- `apps/web/src/components/DashboardOverview.tsx`
+
+Behavior implemented:
+
+- Dashboard now calls `GET /api/dashboard/external-sync`.
+- Dashboard data includes external sync overview.
+- Added external sync dashboard widgets.
+- Added next meeting countdown card.
+- Added Google Calendar link when available.
+- Added Gmail and Calendar sync status.
+- Added recent synced emails card.
+- Added empty state for no upcoming meetings.
+- Countdown updates every minute.
+- Layout was adjusted so the next meeting card does not stretch vertically against recent email content.
+- Dashboard continues to show CRM summary, leads, tasks and recent activity.
+
+Validation completed:
+
+- Dashboard rendered correctly in browser.
+- Next meeting card displayed the synced Google Calendar event.
+- Gmail and Calendar sync states displayed as `ACTIVE`.
+- Recent synced emails displayed from synced Gmail metadata.
+- `pnpm build` passed with 3 successful tasks.
+
+Important notes:
+
+- Dashboard widgets display already-synced metadata only.
+- They do not trigger Gmail or Calendar sync automatically.
+- They do not run AI analysis.
+- They do not create CRM records.

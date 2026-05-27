@@ -5,6 +5,7 @@ import type {
   DashboardRecentActivityQuery,
   DashboardSummary,
   DashboardTasksOverview,
+  DashboardExternalSyncOverview,
 } from '@/types/dashboard';
 
 export function getDashboardSummary(token: string) {
@@ -33,4 +34,13 @@ export function getDashboardRecentActivity(
     token,
     query,
   });
+}
+
+export function getDashboardExternalSync(token: string) {
+  return apiRequest<DashboardExternalSyncOverview>(
+    '/dashboard/external-sync',
+    {
+      token,
+    },
+  );
 }
