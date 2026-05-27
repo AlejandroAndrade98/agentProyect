@@ -7,7 +7,14 @@ export type AiSuggestionStatus =
   | 'REJECTED'
   | 'EXPIRED';
 
-export type AiSuggestionType = 'SUGGEST_NEXT_STEPS';
+export type AiSuggestionType =
+  | 'ANALYZE_MESSAGE'
+  | 'GENERATE_REPLY'
+  | 'EXTRACT_IMPORTANT_DATA'
+  | 'SUMMARIZE_LEAD'
+  | 'SUGGEST_NEXT_STEPS'
+  | 'ANALYZE_EXTERNAL_EMAIL'
+  | 'ANALYZE_EXTERNAL_CALENDAR_EVENT';
 
 export type AiSuggestionEntityType =
   | 'COMPANY'
@@ -15,9 +22,9 @@ export type AiSuggestionEntityType =
   | 'LEAD'
   | 'TASK'
   | 'NOTE'
-  | 'PRODUCT'
-  | 'USER'
-  | 'ORGANIZATION';
+  | 'CONNECTED_ACCOUNT'
+  | 'EXTERNAL_EMAIL_MESSAGE'
+  | 'EXTERNAL_CALENDAR_EVENT';
 
 export type AiSuggestionUser = {
   id: string;
@@ -46,6 +53,65 @@ export type LeadNextStepsSuggestionOutput = {
   humanApprovalRequired: true;
 };
 
+export type ExternalEmailAnalysisOutput = {
+  summary: string;
+  importanceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  suggestedReviewAction:
+    | 'IGNORE'
+    | 'FOLLOW_UP'
+    | 'CREATE_CONTACT_CANDIDATE'
+    | 'CREATE_LEAD_CANDIDATE'
+    | 'LINK_TO_EXISTING_RECORD'
+    | 'CREATE_NOTE_CANDIDATE';
+  detectedSignals: string[];
+  suggestedTasks: Array<{
+    title: string;
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    dueInDays: number;
+  }>;
+  suggestedNote: string;
+  reasoningSummary: string;
+  confidenceScore: number;
+  humanApprovalRequired: true;
+  noAutomaticCrmChanges: true;
+  noAutomaticEmailSending: true;
+};
+
+export type AiSuggestionOutput =
+  | LeadNextStepsSuggestionOutput
+  | ExternalEmailAnalysisOutput;
+
+export type AiSuggestionExternalEmailMessage = {
+  id: string;
+  provider: string;
+  externalMessageId: string;
+  externalThreadId: string | null;
+  subject: string | null;
+  snippet: string | null;
+  fromEmail: string | null;
+  fromName: string | null;
+  toEmailsJson: unknown;
+  ccEmailsJson: unknown;
+  labelIdsJson: unknown;
+  internalDate: string | null;
+  syncedAt: string;
+};
+
+export type AiSuggestionExternalCalendarEvent = {
+  id: string;
+  provider: string;
+  externalCalendarId: string;
+  externalEventId: string;
+  summary: string | null;
+  description: string | null;
+  location: string | null;
+  startAt: string | null;
+  endAt: string | null;
+  htmlLink: string | null;
+  syncedAt: string;
+};
+
 export type AiSuggestion = {
   id: string;
   organizationId: string;
@@ -62,18 +128,34 @@ export type AiSuggestion = {
   leadId: string | null;
   taskId: string | null;
   noteId: string | null;
+  externalEmailMessageId: string | null;
+  externalCalendarEventId: string | null;
+  externalEmailMessage?: AiSuggestionExternalEmailMessage | null;
+  externalCalendarEvent?: AiSuggestionExternalCalendarEvent | null;
 
   inputText: string;
   inputHash: string;
-  outputJson: LeadNextStepsSuggestionOutput | null;
+  outputJson: AiSuggestionOutput | null;
   outputText: string | null;
   confidenceScore: number | null;
   metadataJson: {
     model?: string;
     generatedFor?: string;
+    source?: string;
     humanApprovalRequired?: boolean;
     canApplyAutomatically?: boolean;
     canSendEmailAutomatically?: boolean;
+    bodyStored?: boolean;
+    aiAnalysisScope?: string;
+    crmRecordsCreated?: boolean;
+    emailSentAutomatically?: boolean;
+    connectedAccountId?: string;
+    externalEmailMessageId?: string;
+    externalCalendarEventId?: string;
+    externalMessageId?: string;
+    externalThreadId?: string;
+    review?: unknown;
+    appliedActions?: unknown;
     [key: string]: unknown;
   } | null;
 

@@ -19,7 +19,12 @@ import {
   rejectAiSuggestion,
 } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
-import type { AiSuggestion, AiSuggestionStatus } from '@/types/ai-suggestions';
+import type {
+  AiSuggestion,
+  AiSuggestionStatus,
+  ExternalEmailAnalysisOutput,
+  LeadNextStepsSuggestionOutput,
+} from '@/types/ai-suggestions';
 import { canUpdateCrm } from '@/lib/permissions';
 
 function getStatusClasses(status: AiSuggestionStatus) {
@@ -40,6 +45,40 @@ function formatConfidence(value: number | null) {
   }
 
   return `${Math.round(value * 100)}%`;
+}
+
+function isLeadNextStepsOutput(
+  output: AiSuggestion['outputJson'],
+): output is LeadNextStepsSuggestionOutput {
+  return Boolean(
+    output &&
+      'recommendedNextStep' in output &&
+      'riskLevel' in output &&
+      'suggestedTasks' in output,
+  );
+}
+
+function isExternalEmailAnalysisOutput(
+  output: AiSuggestion['outputJson'],
+): output is ExternalEmailAnalysisOutput {
+  return Boolean(
+    output &&
+      'suggestedReviewAction' in output &&
+      'importanceLevel' in output &&
+      'detectedSignals' in output,
+  );
+}
+
+function formatBooleanFlag(value: unknown) {
+  if (value === true) {
+    return 'Yes';
+  }
+
+  if (value === false) {
+    return 'No';
+  }
+
+  return 'Not set';
 }
 
 export default function AiSuggestionDetailPage() {
@@ -83,25 +122,45 @@ export default function AiSuggestionDetailPage() {
   }, [loadSuggestion]);
 
   useEffect(() => {
-  if (!suggestion?.outputJson) {
-    return;
-  }
+    if (!suggestion?.outputJson) {
+      return;
+    }
 
-  setNextStepDraft(suggestion.outputJson.recommendedNextStep ?? '');
+    if (isLeadNextStepsOutput(suggestion.outputJson)) {
+      setNextStepDraft(suggestion.outputJson.recommendedNextStep ?? '');
 
-  const firstTask = suggestion.outputJson.suggestedTasks[0];
+      const firstTask = suggestion.outputJson.suggestedTasks[0];
 
-  if (firstTask) {
-    setTaskTitleDraft(firstTask.title ?? '');
-    setTaskDescriptionDraft(firstTask.description ?? '');
-    setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
-  }
+      if (firstTask) {
+        setTaskTitleDraft(firstTask.title ?? '');
+        setTaskDescriptionDraft(firstTask.description ?? '');
+        setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
+      }
 
-  setNoteTitleDraft(
-    suggestion.leadId ? `AI suggested note` : 'AI suggested note',
-  );
-  setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
-}, [suggestion]);
+      setNoteTitleDraft('AI suggested note');
+      setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
+      return;
+    }
+
+    if (isExternalEmailAnalysisOutput(suggestion.outputJson)) {
+      setNextStepDraft('');
+
+      const firstTask = suggestion.outputJson.suggestedTasks[0];
+
+      if (firstTask) {
+        setTaskTitleDraft(firstTask.title ?? '');
+        setTaskDescriptionDraft(firstTask.description ?? '');
+        setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
+      } else {
+        setTaskTitleDraft('');
+        setTaskDescriptionDraft('');
+        setTaskPriorityDraft('MEDIUM');
+      }
+
+      setNoteTitleDraft('AI suggested email review note');
+      setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
+    }
+  }, [suggestion]);
 
     async function handleReview(action: 'accept' | 'reject') {
     if (!token || !suggestion || suggestion.status !== 'PENDING_REVIEW') {
@@ -274,7 +333,11 @@ function hasAppliedAction(
   });
 }
 
+const isLeadNextStepsSuggestion = suggestion?.type === 'SUGGEST_NEXT_STEPS';
+const isExternalEmailSuggestion = suggestion?.type === 'ANALYZE_EXTERNAL_EMAIL';
+
 const canApplySuggestion =
+  Boolean(isLeadNextStepsSuggestion) &&
   suggestion &&
   (suggestion.status === 'ACCEPTED' ||
     suggestion.status === 'EDITED_AND_ACCEPTED') &&
@@ -341,71 +404,283 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
               </p>
             </article>
 
-            {suggestion.outputJson ? (
-              <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-950">
-                  Structured recommendation
-                </h2>
+              {suggestion.outputJson && isLeadNextStepsOutput(suggestion.outputJson) ? (
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-950">
+                    Structured recommendation
+                  </h2>
 
-                <div className="mt-5 space-y-5 text-sm text-slate-700">
-                  <div>
-                    <p className="font-medium text-slate-950">Summary</p>
-                    <p className="mt-1 leading-6">
-                      {suggestion.outputJson.summary}
-                    </p>
+                  <div className="mt-5 space-y-5 text-sm text-slate-700">
+                    <div>
+                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Recommended next step</p>
+                      <p className="mt-1 leading-6">
+                        {suggestion.outputJson.recommendedNextStep}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested tasks</p>
+
+                      <div className="mt-2 space-y-3">
+                        {suggestion.outputJson.suggestedTasks.map((task) => (
+                          <div
+                            key={`${task.title}-${task.dueInDays}`}
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                          >
+                            <p className="font-medium text-slate-950">{task.title}</p>
+                            <p className="mt-1 leading-6">{task.description}</p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              Priority: {formatEnumLabel(task.priority)} · Due in{' '}
+                              {task.dueInDays} day(s)
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="mt-1 leading-6">
+                        {suggestion.outputJson.reasoningSummary}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
+{isExternalEmailSuggestion ? (
+  <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 className="text-lg font-semibold text-slate-950">
+      External email metadata
+    </h2>
+
+    <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
+      {suggestion.externalEmailMessage ? (
+        <>
+          <div>
+            <p className="font-medium text-slate-950">Subject</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalEmailMessage.subject ?? 'No subject'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">From</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalEmailMessage.fromName ||
+                suggestion.externalEmailMessage.fromEmail ||
+                'Unknown sender'}
+            </p>
+            {suggestion.externalEmailMessage.fromEmail ? (
+              <p className="mt-1 break-all text-xs text-slate-500">
+                {suggestion.externalEmailMessage.fromEmail}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="md:col-span-2">
+            <p className="font-medium text-slate-950">Snippet</p>
+            <p className="mt-1 leading-6 text-slate-600">
+              {suggestion.externalEmailMessage.snippet ??
+                'No snippet available'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">Internal date</p>
+            <p className="mt-1 text-slate-600">
+              {suggestion.externalEmailMessage.internalDate
+                ? formatDateTime(suggestion.externalEmailMessage.internalDate)
+                : 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-950">Synced at</p>
+            <p className="mt-1 text-slate-600">
+              {formatDateTime(suggestion.externalEmailMessage.syncedAt)}
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500">
+          Email metadata relation was not loaded.
+        </div>
+      )}
+
+      <div>
+        <p className="font-medium text-slate-950">External email message ID</p>
+        <p className="mt-1 break-all text-slate-600">
+          {suggestion.externalEmailMessageId ?? 'Not linked'}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">
+          External provider message ID
+        </p>
+        <p className="mt-1 break-all text-slate-600">
+          {String(suggestion.metadataJson?.externalMessageId ?? 'Not set')}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">External thread ID</p>
+        <p className="mt-1 break-all text-slate-600">
+          {String(suggestion.metadataJson?.externalThreadId ?? 'Not set')}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">Connected account ID</p>
+        <p className="mt-1 break-all text-slate-600">
+          {String(suggestion.metadataJson?.connectedAccountId ?? 'Not set')}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">Analysis scope</p>
+        <p className="mt-1 text-slate-600">
+          {String(suggestion.metadataJson?.aiAnalysisScope ?? 'metadata_only')}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">Body stored</p>
+        <p className="mt-1 text-slate-600">
+          {formatBooleanFlag(suggestion.metadataJson?.bodyStored)}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">CRM records created</p>
+        <p className="mt-1 text-slate-600">
+          {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated)}
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-slate-950">Email sent automatically</p>
+        <p className="mt-1 text-slate-600">
+          {formatBooleanFlag(suggestion.metadataJson?.emailSentAutomatically)}
+        </p>
+      </div>
+    </div>
+  </article>
+) : null}
+
+              {suggestion.outputJson && isExternalEmailAnalysisOutput(suggestion.outputJson) ? (
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">
+                        External email review
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                        Synced email metadata analysis
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        This recommendation was generated from synced email metadata/snippet
+                        only. It does not create CRM records or send emails automatically.
+                      </p>
+                    </div>
+
+                    <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
+                      {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
+                    </Badge>
                   </div>
 
-                  <div>
-                    <p className="font-medium text-slate-950">
-                      Recommended next step
-                    </p>
-                    <p className="mt-1 leading-6">
-                      {suggestion.outputJson.recommendedNextStep}
-                    </p>
-                  </div>
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">Importance</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {formatEnumLabel(suggestion.outputJson.importanceLevel)}
+                      </p>
+                    </div>
 
-                  <div>
-                    <p className="font-medium text-slate-950">Suggested note</p>
-                    <p className="mt-1 leading-6">
-                      {suggestion.outputJson.suggestedNote}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="font-medium text-slate-950">
-                      Suggested tasks
-                    </p>
-
-                    <div className="mt-2 space-y-3">
-                      {suggestion.outputJson.suggestedTasks.map((task) => (
-                        <div
-                          key={`${task.title}-${task.dueInDays}`}
-                          className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                        >
-                          <p className="font-medium text-slate-950">
-                            {task.title}
-                          </p>
-                          <p className="mt-1 leading-6">{task.description}</p>
-                          <p className="mt-2 text-xs text-slate-500">
-                            Priority: {formatEnumLabel(task.priority)} · Due in{' '}
-                            {task.dueInDays} day(s)
-                          </p>
-                        </div>
-                      ))}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">Suggested action</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
+                      </p>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="font-medium text-slate-950">
-                      Reasoning summary
-                    </p>
-                    <p className="mt-1 leading-6">
-                      {suggestion.outputJson.reasoningSummary}
-                    </p>
+                  <div className="mt-6 space-y-5 text-sm text-slate-700">
+                    <div>
+                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Detected signals</p>
+
+                      {suggestion.outputJson.detectedSignals.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {suggestion.outputJson.detectedSignals.map((signal) => (
+                            <Badge
+                              key={signal}
+                              className="bg-slate-100 text-slate-700 ring-slate-200"
+                            >
+                              {formatEnumLabel(signal)}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 leading-6 text-slate-500">No signals detected.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Suggested tasks</p>
+
+                      {suggestion.outputJson.suggestedTasks.length > 0 ? (
+                        <div className="mt-2 space-y-3">
+                          {suggestion.outputJson.suggestedTasks.map((task) => (
+                            <div
+                              key={`${task.title}-${task.dueInDays}`}
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                            >
+                              <p className="font-medium text-slate-950">{task.title}</p>
+                              <p className="mt-1 leading-6">{task.description}</p>
+                              <p className="mt-2 text-xs text-slate-500">
+                                Priority: {formatEnumLabel(task.priority)} · Due in{' '}
+                                {task.dueInDays} day(s)
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 leading-6 text-slate-500">
+                          No task candidate suggested.
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="mt-1 leading-6">
+                        {suggestion.outputJson.reasoningSummary}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ) : null}
+                </article>
+              ) : null}
 
             {reviewMessage ? (
               <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800">
@@ -438,8 +713,9 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
         </article>
       ) : null}
 
-      {suggestion.status === 'ACCEPTED' ||
-      suggestion.status === 'EDITED_AND_ACCEPTED' ? (
+        {isLeadNextStepsSuggestion &&
+        (suggestion.status === 'ACCEPTED' ||
+        suggestion.status === 'EDITED_AND_ACCEPTED') ? (
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">Apply to CRM</p>
@@ -667,8 +943,8 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
                 <div className="mt-4 space-y-4">
                   <p className="text-sm leading-6 text-slate-600">
                     Accepting or rejecting this suggestion only records a human
-                    review decision. It does not update the lead, create tasks,
-                    create notes, or send emails.
+                    review decision. It does not update CRM records, create tasks,
+                    create notes, create leads, or send emails.
                   </p>
 
                   <label className="block space-y-2">

@@ -3183,3 +3183,55 @@ Validation completed:
 - ActivityEvent `AI_SUGGESTION_CREATED` was created.
 - Duplicate pending suggestion returns 409.
 - Endpoint without token returns 401.
+
+## Phase 17A.2, Frontend AI Review Queue for External Email Suggestions
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase updated the AI Suggestions frontend so the review queue supports external email metadata suggestions.
+
+Frontend behavior implemented:
+
+- Updated AI suggestion types to support:
+  - `ANALYZE_EXTERNAL_EMAIL`
+  - `ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `EXTERNAL_EMAIL_MESSAGE`
+  - `EXTERNAL_CALENDAR_EVENT`
+  - external email/calendar relation metadata
+
+- Updated `/dashboard/ai-suggestions`:
+  - type filter now includes external email/calendar suggestions
+  - external email suggestions show synced email metadata context
+  - list cards show subject, sender, snippet/internal date when available
+  - external email suggestions are labeled as synced email metadata
+
+- Updated `/dashboard/ai-suggestions/:id`:
+  - renders lead next-step suggestions and external email suggestions separately
+  - shows external email metadata such as subject, sender, snippet, internal date and synced date
+  - shows external email analysis output:
+    - suggested review action
+    - importance
+    - detected signals
+    - suggested note
+    - suggested tasks
+    - reasoning summary
+  - keeps safety flags visible
+  - prevents Apply to CRM actions from showing for external email suggestions
+
+Safety rules preserved:
+
+- Reviewing external email suggestions does not create CRM records.
+- Reviewing external email suggestions does not send emails.
+- External email analysis remains metadata/snippet only.
+- Human review is required.
+- Apply-to-CRM actions remain restricted to lead next-step suggestions.
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- AI Suggestions list loads correctly.
+- External email suggestions appear in the review queue.
+- External email suggestion detail loads correctly.
+- External email metadata is visible in the detail page.
+- External email analysis output is visible.
+- Apply to CRM actions are not shown for external email suggestions.

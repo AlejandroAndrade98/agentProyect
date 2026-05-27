@@ -144,6 +144,24 @@ export class AiSuggestionsService {
         skip,
         take,
         include: {
+          externalEmailMessage: {
+            select: {
+              id: true,
+              subject: true,
+              fromEmail: true,
+              fromName: true,
+              internalDate: true,
+            },
+          },
+          externalCalendarEvent: {
+            select: {
+              id: true,
+              summary: true,
+              startAt: true,
+              endAt: true,
+            },
+          },
+          
           user: {
             select: {
               id: true,
@@ -185,6 +203,38 @@ export class AiSuggestionsService {
         organizationId: currentUser.organizationId,
       },
       include: {
+        externalEmailMessage: {
+            select: {
+              id: true,
+              provider: true,
+              externalMessageId: true,
+              externalThreadId: true,
+              subject: true,
+              snippet: true,
+              fromEmail: true,
+              fromName: true,
+              toEmailsJson: true,
+              ccEmailsJson: true,
+              labelIdsJson: true,
+              internalDate: true,
+              syncedAt: true,
+            },
+          },
+          externalCalendarEvent: {
+            select: {
+              id: true,
+              provider: true,
+              externalCalendarId: true,
+              externalEventId: true,
+              summary: true,
+              description: true,
+              location: true,
+              startAt: true,
+              endAt: true,
+              htmlLink: true,
+              syncedAt: true,
+            },
+          },
         user: {
           select: {
             id: true,

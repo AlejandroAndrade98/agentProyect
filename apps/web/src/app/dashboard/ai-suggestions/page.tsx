@@ -26,7 +26,12 @@ const statusOptions: Array<AiSuggestionStatus | ''> = [
   'EXPIRED',
 ];
 
-const typeOptions: Array<AiSuggestionType | ''> = ['', 'SUGGEST_NEXT_STEPS'];
+const typeOptions: Array<AiSuggestionType | ''> = [
+  '',
+  'SUGGEST_NEXT_STEPS',
+  'ANALYZE_EXTERNAL_EMAIL',
+  'ANALYZE_EXTERNAL_CALENDAR_EVENT',
+];
 
 function getStatusClasses(status: AiSuggestionStatus) {
   const classes: Record<AiSuggestionStatus, string> = {
@@ -46,6 +51,22 @@ function getConfidenceLabel(suggestion: AiSuggestion) {
   }
 
   return `${Math.round(suggestion.confidenceScore * 100)}%`;
+}
+
+function getSuggestionContextLabel(suggestion: AiSuggestion) {
+  if (suggestion.type === 'ANALYZE_EXTERNAL_EMAIL') {
+    return 'Synced email metadata';
+  }
+
+  if (suggestion.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT') {
+    return 'Synced calendar metadata';
+  }
+
+  if (suggestion.leadId) {
+    return 'Lead recommendation';
+  }
+
+  return 'AI suggestion';
 }
 
 export default function AiSuggestionsPage() {
@@ -170,7 +191,7 @@ export default function AiSuggestionsPage() {
       {!isLoading && !errorMessage && suggestions.length === 0 ? (
         <EmptyState
           title="No AI suggestions found"
-          description="Generate suggestions from a lead to start reviewing AI-assisted CRM recommendations."
+          description="Generate suggestions from leads or synced external metadata to start reviewing AI-assisted recommendations."
         />
       ) : null}
 
@@ -195,6 +216,9 @@ export default function AiSuggestionsPage() {
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
                       Confidence: {getConfidenceLabel(suggestion)}
                     </Badge>
+                    <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
+                      {getSuggestionContextLabel(suggestion)}
+                    </Badge>
                   </div>
 
                   <div>
@@ -216,10 +240,67 @@ export default function AiSuggestionsPage() {
 
                   <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                     <span>Provider: {suggestion.provider}</span>
+
                     {suggestion.entityType && suggestion.entityId ? (
                       <span>
-                        Entity: {suggestion.entityType} / {suggestion.entityId}
+                        Entity: {formatEnumLabel(suggestion.entityType)} / {suggestion.entityId}
                       </span>
+                    ) : null}
+
+                    {suggestion.externalEmailMessage ? (
+                        <>
+                          <div>
+                            <p className="font-medium text-slate-950">Subject</p>
+                            <p className="mt-1 text-slate-600">
+                              {suggestion.externalEmailMessage.subject ?? 'No subject'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="font-medium text-slate-950">From</p>
+                            <p className="mt-1 text-slate-600">
+                              {suggestion.externalEmailMessage.fromName ||
+                                suggestion.externalEmailMessage.fromEmail ||
+                                'Unknown sender'}
+                            </p>
+                            {suggestion.externalEmailMessage.fromEmail ? (
+                              <p className="mt-1 break-all text-xs text-slate-500">
+                                {suggestion.externalEmailMessage.fromEmail}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <p className="font-medium text-slate-950">Snippet</p>
+                            <p className="mt-1 leading-6 text-slate-600">
+                              {suggestion.externalEmailMessage.snippet ?? 'No snippet available'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="font-medium text-slate-950">Internal date</p>
+                            <p className="mt-1 text-slate-600">
+                              {suggestion.externalEmailMessage.internalDate
+                                ? formatDateTime(suggestion.externalEmailMessage.internalDate)
+                                : 'Not set'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="font-medium text-slate-950">Synced at</p>
+                            <p className="mt-1 text-slate-600">
+                              {formatDateTime(suggestion.externalEmailMessage.syncedAt)}
+                            </p>
+                          </div>
+                        </>
+                      ) : null}
+
+                    {suggestion.externalEmailMessageId ? (
+                      <span>Email message: {suggestion.externalEmailMessageId}</span>
+                    ) : null}
+
+                    {suggestion.externalCalendarEventId ? (
+                      <span>Calendar event: {suggestion.externalCalendarEventId}</span>
                     ) : null}
                   </div>
                 </div>
