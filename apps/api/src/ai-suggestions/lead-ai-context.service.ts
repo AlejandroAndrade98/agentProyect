@@ -3,6 +3,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
 
+const MAX_AI_CONTEXT_ACTIVITY_EVENTS = 5;
+const MAX_AI_CONTEXT_NOTES = 5;
+const MAX_AI_CONTEXT_TASKS = 10;
+
 export type LeadNextStepsContext = {
   lead: {
     id: string;
@@ -121,7 +125,7 @@ export class LeadAiContextService {
               createdAt: 'desc',
             },
           ],
-          take: 10,
+          take: MAX_AI_CONTEXT_TASKS,
         },
         linkedNotes: {
           where: {
@@ -130,7 +134,7 @@ export class LeadAiContextService {
           orderBy: {
             createdAt: 'desc',
           },
-          take: 10,
+          take: MAX_AI_CONTEXT_NOTES,
         },
       },
     });
@@ -147,7 +151,7 @@ export class LeadAiContextService {
       orderBy: {
         occurredAt: 'desc',
       },
-      take: 20,
+      take: MAX_AI_CONTEXT_ACTIVITY_EVENTS,
     });
 
     return {

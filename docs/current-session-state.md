@@ -3487,3 +3487,47 @@ Safety rules preserved:
 - OpenAI does not create notes automatically.
 - OpenAI does not send emails.
 - Suggestions remain human-in-the-loop through `PENDING_REVIEW`.
+
+## Phase 17B.6, Lead AI Context Optimization
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase optimized the context size used by OpenAI lead next-step suggestions.
+
+Implemented:
+
+- Added explicit lead AI context limits:
+  - latest 5 activity events
+  - latest 5 notes
+  - latest 10 tasks
+
+- Reduced prompt/input size while preserving key CRM context:
+  - lead status, priority, nextStep and core fields
+  - company basics
+  - contact basics
+  - latest tasks
+  - latest notes
+  - latest activity events
+
+Runtime validation completed:
+
+- Generated a real OpenAI lead next-step suggestion after optimization.
+- Suggestion remained:
+  - `provider = openai`
+  - `model = gpt-4o-mini`
+  - `type = SUGGEST_NEXT_STEPS`
+  - `status = PENDING_REVIEW`
+
+- Input tokens decreased from 5267 to 2272.
+- Only 5 activity events were included in the prompt context.
+- Usage record was created successfully.
+- Activity event was created successfully.
+
+Safety rules preserved:
+
+- Output shape unchanged.
+- OpenAI does not update CRM records automatically.
+- OpenAI does not create tasks automatically.
+- OpenAI does not create notes automatically.
+- OpenAI does not send emails.
+- Suggestions remain human-in-the-loop.
