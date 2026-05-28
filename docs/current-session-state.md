@@ -3435,3 +3435,55 @@ Safety rules preserved:
 - OpenAI does not create CRM records automatically.
 - OpenAI does not send emails.
 - Suggestions remain human-in-the-loop through `PENDING_REVIEW`.
+
+
+## Phase 17B.5, OpenAI External Calendar Metadata Analysis
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase connected real OpenAI generation for external calendar metadata analysis.
+
+Implemented:
+
+- `AiSuggestionProviderService.generateExternalCalendarEventAnalysis` now supports:
+  - `AI_PROVIDER=mock` for the existing mock behavior
+  - `AI_PROVIDER=openai` for real OpenAI structured output generation
+
+- Added structured output validation for external calendar event analysis.
+- OpenAI generation currently applies to:
+  - `AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS`
+
+Runtime validation completed:
+
+- Generated a real OpenAI suggestion for a synced external calendar event.
+- Suggestion was created with:
+  - `provider = openai`
+  - `model = gpt-4o-mini`
+  - `type = ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `status = PENDING_REVIEW`
+  - `humanApprovalRequired = true`
+  - `noAutomaticCrmChanges = true`
+  - `noAutomaticEmailSending = true`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+
+- Usage record was created:
+  - feature `EXTERNAL_CALENDAR_ANALYSIS`
+  - status `SUCCESS`
+  - provider `openai`
+  - model `gpt-4o-mini`
+  - input/output tokens recorded
+
+- Activity event was created:
+  - `AI_SUGGESTION_CREATED`
+  - `entityType = EXTERNAL_CALENDAR_EVENT`
+
+Safety rules preserved:
+
+- Calendar analysis uses synced metadata only.
+- OpenAI does not create CRM records automatically.
+- OpenAI does not create tasks automatically.
+- OpenAI does not create notes automatically.
+- OpenAI does not send emails.
+- Suggestions remain human-in-the-loop through `PENDING_REVIEW`.

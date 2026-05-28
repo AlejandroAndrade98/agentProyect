@@ -609,7 +609,7 @@ export class AiSuggestionsService {
     });
 
     const generated =
-      this.aiSuggestionProviderService.generateExternalCalendarEventAnalysis(
+      await this.aiSuggestionProviderService.generateExternalCalendarEventAnalysis(
         {
           id: calendarEvent.id,
           connectedAccountId: calendarEvent.connectedAccountId,
