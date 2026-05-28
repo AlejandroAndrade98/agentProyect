@@ -3750,3 +3750,309 @@ Safety rules preserved:
 - No CRM records were created automatically.
 - No background job was added.
 - Human review is required.
+
+## Phase 17D.1C, Frontend AI Email Reply Draft Review UI
+
+Status: completed, validated in build/runtime.
+
+This phase added frontend read-only review support for AI-generated email reply draft suggestions.
+
+Frontend behavior implemented:
+
+- Updated AI suggestion frontend types to support:
+  - `GENERATE_EMAIL_REPLY_DRAFT`
+  - email reply draft metadata
+  - suggested subject
+  - tone
+  - confidence
+  - reasoning
+  - Gmail draft safety flags
+
+- Updated AI Suggestions list:
+  - `GENERATE_EMAIL_REPLY_DRAFT` suggestions are visible in the type filter.
+  - Email reply draft suggestions show synced email context.
+  - Suggestions display status, confidence and preview information.
+
+- Updated AI Suggestion detail page:
+  - Added specialized rendering for `GENERATE_EMAIL_REPLY_DRAFT`.
+  - Shows original synced email metadata:
+    - subject
+    - sender
+    - snippet
+    - internal date
+    - synced date
+  - Shows generated reply draft content:
+    - suggested subject
+    - reply body
+    - tone
+    - confidence
+    - reasoning
+  - Shows provider/model and token usage when available.
+  - Shows safety messages:
+    - human review required
+    - metadata-only analysis
+    - no email sent automatically
+    - no Gmail draft created automatically
+    - no CRM records created automatically
+
+Review behavior:
+
+- Existing Accept/Reject actions work for email reply draft suggestions.
+- Accepting a suggestion only changes the suggestion status to `ACCEPTED`.
+- Accepting a suggestion does not create a Gmail draft.
+- Accepting a suggestion does not send an email.
+- Rejecting a suggestion does not create a Gmail draft.
+- Rejecting a suggestion does not send an email.
+
+Safety rules preserved:
+
+- No Gmail draft is created automatically.
+- No email is sent automatically.
+- No CRM records are created automatically.
+- Human review remains required.
+- AI output remains metadata/snippet-based.
+
+Validation completed:
+
+- `pnpm build` passed with 3 successful tasks.
+- AI Suggestions list rendered `GENERATE_EMAIL_REPLY_DRAFT` suggestions.
+- AI Suggestion detail page rendered email reply draft suggestions correctly.
+- Accept flow worked.
+- Reject flow worked.
+- No Apply-to-CRM actions were shown for email reply draft suggestions.
+- No Send Email action was shown.
+
+## Phase 17D.2, Backend Gmail Draft Creation from Accepted AI Suggestion
+
+Status: completed, validated in build/runtime.
+
+This phase added backend support to create a real Gmail draft from an accepted AI email reply draft suggestion.
+
+Endpoint added:
+
+- `POST /api/ai-suggestions/:id/create-gmail-draft`
+
+Behavior implemented:
+
+- Requires auth and CRM write roles.
+- Only works for suggestions with:
+  - `type = GENERATE_EMAIL_REPLY_DRAFT`
+  - `status = ACCEPTED` or `EDITED_AND_ACCEPTED`
+- Requires the suggestion to be linked to an external email message.
+- Requires the current user to have a connected Google account.
+- Uses Gmail API to create a draft.
+- Uses the AI-generated reply body from `outputText`.
+- Uses the suggested subject from metadata when available.
+- Uses the synced external email thread ID when available.
+- Creates a Gmail draft only after explicit human action.
+- Does not send the email.
+- Does not create CRM records.
+- Does not run background jobs.
+
+Metadata behavior:
+
+- After successful Gmail draft creation, `AiSuggestion.metadataJson` stores:
+  - `gmailDraftId`
+  - `gmailThreadId`
+  - `gmailDraftCreatedAt`
+  - `gmailDraftCreatedByUserId`
+  - applied action `CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION`
+  - `emailSentAutomatically = false`
+  - `draftCreatedAutomatically = false`
+
+Activity Events:
+
+- Creates `AI_SUGGESTION_APPLIED`.
+- Activity metadata includes:
+  - `aiSuggestionId`
+  - `aiSuggestionType`
+  - `appliedAction = CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION`
+  - `emailSentAutomatically = false`
+  - `crmRecordsCreated = false`
+
+Google OAuth scope update:
+
+- Gmail draft creation requires Gmail compose scope.
+- Existing Google connected accounts created before this phase may not have the required scope.
+- Reconnecting Google with the updated scope is required when Gmail draft creation returns an insufficient-scope error.
+
+Runtime validation completed:
+
+- Accepted `GENERATE_EMAIL_REPLY_DRAFT` suggestion created a real Gmail draft.
+- Gmail draft appeared in Gmail Drafts.
+- Gmail draft ID was returned.
+- Gmail thread ID was returned.
+- Duplicate draft creation attempt returned `409`.
+- No email was sent.
+- No CRM records were created.
+- No AI usage credits were consumed for draft creation itself.
+- `pnpm build` passed with 3 successful tasks.
+
+Safety rules preserved:
+
+- Draft creation requires explicit human action.
+- No email is sent automatically.
+- No Gmail send button exists.
+- No CRM records are created automatically.
+- Human-in-the-loop workflow remains mandatory.
+
+## Phase 17D.3, Frontend Gmail Draft Creation Action
+
+Status: completed, validated in build/runtime.
+
+This phase added the frontend action to create a real Gmail draft from an accepted AI email reply draft suggestion.
+
+Frontend files updated:
+
+- `apps/web/src/types/ai-suggestions.ts`
+- `apps/web/src/lib/api/ai-suggestions.ts`
+- `apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx`
+
+Frontend behavior implemented:
+
+- Added frontend response type for Gmail draft creation.
+- Added API helper:
+  - `createGmailDraftFromAiSuggestion`
+
+- AI Suggestion detail page now supports creating Gmail drafts for accepted email reply draft suggestions.
+
+Create Gmail draft button behavior:
+
+- Shows `Create Gmail draft` only when:
+  - suggestion type is `GENERATE_EMAIL_REPLY_DRAFT`
+  - suggestion status is `ACCEPTED` or `EDITED_AND_ACCEPTED`
+  - `metadataJson.gmailDraftId` does not exist
+  - applied action `CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION` does not exist
+
+- Hides the button when:
+  - Gmail draft already exists
+  - applied action already exists
+  - suggestion is still pending
+  - suggestion is rejected
+  - suggestion is another AI suggestion type
+
+UI behavior:
+
+- Shows clear safety message:
+  - “A Gmail draft will be created, but no email will be sent automatically.”
+
+- After successful draft creation:
+  - updates local suggestion state
+  - hides the create draft button
+  - shows Gmail draft created state
+  - shows Gmail draft ID
+  - shows Gmail thread ID
+  - confirms email was not sent automatically
+
+Error handling:
+
+- Duplicate draft creation returns a friendly message:
+  - “A Gmail draft has already been created for this suggestion.”
+
+- Scope/reconnect errors show a friendly message asking the user to reconnect Google.
+
+Read-only draft UI:
+
+- Shows suggested subject.
+- Shows reply body.
+- Shows tone.
+- Shows confidence.
+- Shows reasoning.
+- Shows no email sent warning.
+- Shows no Gmail draft created automatically warning.
+
+Runtime validation completed:
+
+- AI Suggestions list showed `GENERATE_EMAIL_REPLY_DRAFT` suggestions.
+- Detail page rendered reply draft suggestion correctly.
+- Accepted suggestion showed the Create Gmail draft button.
+- Clicking Create Gmail draft created a real Gmail draft from the frontend.
+- UI displayed:
+  - “Gmail draft created”
+  - Gmail draft ID
+  - Gmail thread ID
+  - “Email not sent automatically”
+- Button disappeared after successful draft creation.
+- Gmail draft appeared in Gmail Drafts.
+- No Send email button was added.
+- No CRM record was created automatically.
+- `git diff --check` passed.
+- `corepack pnpm build` passed with 3 successful tasks.
+
+Safety rules preserved:
+
+- No email is sent automatically.
+- No Gmail send action exists.
+- No CRM records are created automatically.
+- Draft creation requires explicit human action.
+- Human-in-the-loop flow remains enforced.
+
+## Phase 17D.4, Gmail Draft Review UX Polish
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase polished the frontend review experience for AI-generated Gmail reply draft suggestions.
+
+Frontend files updated:
+
+- `apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/page.tsx`
+
+Frontend behavior implemented:
+
+- Polished `GENERATE_EMAIL_REPLY_DRAFT` detail UI into an email-style draft preview.
+- The detail page now shows:
+  - To
+  - Suggested subject
+  - Reply body
+  - Tone
+  - Confidence
+  - Reasoning
+
+- Added grouped safety cards for:
+  - human review required
+  - metadata-only analysis
+  - no automatic email sending
+  - no automatic CRM changes
+  - explicit Gmail draft creation action required
+
+- Improved Gmail draft created state:
+  - shows Gmail draft ID
+  - shows Gmail thread ID when available
+  - shows created metadata when available
+  - clearly states that the email was not sent automatically
+
+- Added safe `Open Gmail Drafts` action:
+  - opens `https://mail.google.com/mail/u/0/#drafts`
+  - opens in a new tab
+  - does not send emails
+
+- Improved Create Gmail draft UX:
+  - loading state
+  - success state
+  - friendly error state
+  - duplicate draft message
+  - reconnect/scope required message
+
+- Improved AI Suggestions list cards for reply draft suggestions:
+  - email subject
+  - sender
+  - draft preview
+  - status
+  - Gmail draft-created indicator
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Initial Windows EPERM issue on `.next/trace` was resolved by rerunning elevated.
+- Manual UI validation confirmed the polished draft review experience.
+
+Safety rules preserved:
+
+- No email is sent automatically.
+- No Gmail send button was added.
+- No CRM records are created automatically.
+- No background jobs were added.
+- Gmail draft creation still requires explicit human action.
+- Human-in-the-loop workflow remains enforced.

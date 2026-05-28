@@ -75,6 +75,63 @@ function getSuggestionContextLabel(suggestion: AiSuggestion) {
   return 'AI suggestion';
 }
 
+function getMetadataString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function hasAppliedAction(suggestion: AiSuggestion, action: string) {
+  const actions = suggestion.metadataJson?.appliedActions;
+
+  if (!Array.isArray(actions)) {
+    return false;
+  }
+
+  return actions.some((appliedAction) => {
+    if (
+      !appliedAction ||
+      typeof appliedAction !== 'object' ||
+      Array.isArray(appliedAction)
+    ) {
+      return false;
+    }
+
+    return (appliedAction as Record<string, unknown>).action === action;
+  });
+}
+
+function hasGmailDraftCreated(suggestion: AiSuggestion) {
+  return (
+    Boolean(getMetadataString(suggestion.metadataJson?.gmailDraftId)) ||
+    hasAppliedAction(
+      suggestion,
+      'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+    )
+  );
+}
+
+function getReplyDraftSubject(suggestion: AiSuggestion) {
+  return (
+    suggestion.externalEmailMessage?.subject ??
+    getMetadataString(suggestion.metadataJson?.suggestedSubject) ??
+    'No subject'
+  );
+}
+
+function getReplyDraftSender(suggestion: AiSuggestion) {
+  const senderName = getMetadataString(
+    suggestion.externalEmailMessage?.fromName,
+  );
+  const senderEmail = getMetadataString(
+    suggestion.externalEmailMessage?.fromEmail,
+  );
+
+  if (senderName && senderEmail) {
+    return `${senderName} <${senderEmail}>`;
+  }
+
+  return senderEmail ?? senderName ?? 'Unknown sender';
+}
+
 export default function AiSuggestionsPage() {
   const { token } = useAuth();
 
@@ -240,9 +297,52 @@ export default function AiSuggestionsPage() {
                     </p>
                   </div>
 
-                  <p className="line-clamp-3 max-w-4xl whitespace-pre-line text-sm leading-6 text-slate-600">
-                    {suggestion.outputText ?? 'No output text available.'}
-                  </p>
+                  {suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT' ? (
+                    <div className="max-w-4xl rounded-xl border border-blue-100 bg-blue-50 p-4">
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        <Badge className="bg-white text-blue-700 ring-blue-200">
+                          Email reply draft
+                        </Badge>
+                        <Badge
+                          className={
+                            hasGmailDraftCreated(suggestion)
+                              ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                              : 'bg-amber-50 text-amber-700 ring-amber-200'
+                          }
+                        >
+                          {hasGmailDraftCreated(suggestion)
+                            ? 'Gmail draft created'
+                            : 'No Gmail draft yet'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-3 text-sm md:grid-cols-2">
+                        <div>
+                          <p className="font-medium text-slate-950">
+                            Email subject
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-slate-600">
+                            {getReplyDraftSubject(suggestion)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-slate-950">Sender</p>
+                          <p className="mt-1 break-words text-slate-600">
+                            {getReplyDraftSender(suggestion)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 line-clamp-3 whitespace-pre-line text-sm leading-6 text-slate-700">
+                        {suggestion.outputText ?? 'No draft preview available.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="line-clamp-3 max-w-4xl whitespace-pre-line text-sm leading-6 text-slate-600">
+                      {suggestion.outputText ?? 'No output text available.'}
+                    </p>
+                  )}
 
                   <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                     <span>Provider: {suggestion.provider}</span>

@@ -22,6 +22,7 @@ import {
   applyAiSuggestionLeadNextStep,
   applyAiSuggestionNote,
   applyAiSuggestionTask,
+  createGmailDraftFromAiSuggestion,
   getAiSuggestion,
   rejectAiSuggestion,
 } from '@/lib/api-client';
@@ -120,6 +121,22 @@ function formatBooleanFlag(value: unknown) {
 
   return 'Not set';
 }
+
+function getMetadataString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+type AppliedActionName =
+  | 'UPDATE_LEAD_NEXT_STEP'
+  | 'CREATE_TASK'
+  | 'CREATE_NOTE'
+  | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
 
 export default function AiSuggestionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -564,6 +581,55 @@ async function handleCreateExternalCalendarLead() {
   }
 }
 
+async function handleCreateGmailDraft() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('gmail-draft');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await createGmailDraftFromAiSuggestion(
+      token,
+      suggestion.id,
+    );
+
+    setSuggestion(response.suggestion);
+    setApplyMessage(
+      `Gmail draft created. Draft ID: ${response.gmailDraftId}. Email not sent automatically.`,
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      const lowerMessage = error.message.toLowerCase();
+
+      if (error.status === 409) {
+        setErrorMessage(
+          'A Gmail draft has already been created for this suggestion.',
+        );
+      } else if (
+        lowerMessage.includes('reconnect') ||
+        lowerMessage.includes('not authorized') ||
+        lowerMessage.includes('draft permissions') ||
+        lowerMessage.includes('scope')
+      ) {
+        setErrorMessage(
+          'Google needs to be reconnected with Gmail draft permissions before creating this draft.',
+        );
+      } else {
+        setErrorMessage(error.message);
+      }
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create Gmail draft from suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
@@ -587,16 +653,7 @@ async function handleCreateExternalCalendarLead() {
 
 function hasAppliedAction(
   suggestion: AiSuggestion | null,
-  action:
-    | 'UPDATE_LEAD_NEXT_STEP'
-    | 'CREATE_TASK'
-    | 'CREATE_NOTE'
-    | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
-    | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
-    | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
-    | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
-    | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
-    | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+  action: AppliedActionName,
 ) {
   return getAppliedActions(suggestion).some((appliedAction) => {
     if (
@@ -611,12 +668,65 @@ function hasAppliedAction(
   });
 }
 
+function getAppliedActionRecord(
+  suggestion: AiSuggestion | null,
+  action: AppliedActionName,
+) {
+  const appliedAction = getAppliedActions(suggestion).find((candidate) => {
+    if (
+      !candidate ||
+      typeof candidate !== 'object' ||
+      Array.isArray(candidate)
+    ) {
+      return false;
+    }
+
+    return (candidate as Record<string, unknown>).action === action;
+  });
+
+  return appliedAction &&
+    typeof appliedAction === 'object' &&
+    !Array.isArray(appliedAction)
+    ? (appliedAction as Record<string, unknown>)
+    : null;
+}
+
 const isLeadNextStepsSuggestion = suggestion?.type === 'SUGGEST_NEXT_STEPS';
 const isExternalEmailSuggestion = suggestion?.type === 'ANALYZE_EXTERNAL_EMAIL';
 const isExternalEmailReplyDraftSuggestion =
   suggestion?.type === 'GENERATE_EMAIL_REPLY_DRAFT';
 const isExternalCalendarSuggestion =
   suggestion?.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT';
+const replyDraftOutput =
+  suggestion?.outputJson && isExternalEmailReplyDraftOutput(suggestion.outputJson)
+    ? suggestion.outputJson
+    : null;
+const replyDraftSubject =
+  replyDraftOutput?.suggestedSubject ??
+  getMetadataString(suggestion?.metadataJson?.suggestedSubject) ??
+  'Not set';
+const replyDraftTone =
+  replyDraftOutput?.tone ?? getMetadataString(suggestion?.metadataJson?.tone);
+const replyDraftConfidence = replyDraftOutput
+  ? formatConfidence(replyDraftOutput.confidence)
+  : formatMetadataConfidence(
+      suggestion?.metadataJson?.confidence,
+      suggestion?.confidenceScore ?? null,
+    );
+const replyDraftReasoning =
+  replyDraftOutput?.reasoning ??
+  getMetadataString(suggestion?.metadataJson?.reasoning) ??
+  'No reasoning available.';
+const replyDraftRecipientName = getMetadataString(
+  suggestion?.externalEmailMessage?.fromName,
+);
+const replyDraftRecipientEmail = getMetadataString(
+  suggestion?.externalEmailMessage?.fromEmail,
+);
+const replyDraftRecipient =
+  replyDraftRecipientName && replyDraftRecipientEmail
+    ? `${replyDraftRecipientName} <${replyDraftRecipientEmail}>`
+    : replyDraftRecipientEmail ?? replyDraftRecipientName ?? 'Unknown recipient';
 
 const canApplySuggestion =
   Boolean(isLeadNextStepsSuggestion) &&
@@ -670,6 +780,31 @@ const externalCalendarLeadApplied = hasAppliedAction(
   suggestion,
   'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
 );
+const gmailDraftAction = getAppliedActionRecord(
+  suggestion,
+  'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+);
+const gmailDraftId =
+  getMetadataString(suggestion?.metadataJson?.gmailDraftId) ??
+  getMetadataString(gmailDraftAction?.gmailDraftId);
+const gmailThreadId =
+  getMetadataString(suggestion?.metadataJson?.gmailThreadId) ??
+  getMetadataString(gmailDraftAction?.gmailThreadId);
+const gmailDraftCreatedAt =
+  getMetadataString(suggestion?.metadataJson?.gmailDraftCreatedAt) ??
+  getMetadataString(gmailDraftAction?.createdAt);
+const gmailDraftCreatedByUserId =
+  getMetadataString(suggestion?.metadataJson?.gmailDraftCreatedByUserId) ??
+  getMetadataString(gmailDraftAction?.createdByUserId);
+const gmailDraftApplied =
+  Boolean(gmailDraftId) || Boolean(gmailDraftAction);
+const canCreateGmailDraft =
+  Boolean(isExternalEmailReplyDraftSuggestion) &&
+  suggestion &&
+  (suggestion.status === 'ACCEPTED' ||
+    suggestion.status === 'EDITED_AND_ACCEPTED') &&
+  !gmailDraftApplied &&
+  canUpdateCrm(user);
 
   return (
     <div className="space-y-8">
@@ -908,47 +1043,58 @@ const externalCalendarLeadApplied = hasAppliedAction(
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
                       <p className="text-sm font-medium text-blue-700">
-                        Email reply draft review
+                        Email draft preview
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        Suggested reply draft
+                        Review suggested reply
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        This draft was generated from synced email metadata and snippet
-                        only. Human review is required before any draft or email action.
+                        Review the suggested reply before creating anything in Gmail.
+                        Creating a Gmail draft requires your explicit action, and no
+                        email is sent automatically.
                       </p>
                     </div>
 
-                    <Badge className="bg-amber-50 text-amber-700 ring-amber-200">
-                      Review only
+                    <Badge
+                      className={
+                        gmailDraftApplied
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                          : 'bg-amber-50 text-amber-700 ring-amber-200'
+                      }
+                    >
+                      {gmailDraftApplied ? 'Gmail draft created' : 'Review only'}
                     </Badge>
                   </div>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">
-                        Suggested reply subject
-                      </p>
-                      <p className="mt-1 break-words text-sm text-slate-600">
-                        {suggestion.outputJson &&
-                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
-                          ? suggestion.outputJson.suggestedSubject
-                          : String(
-                              suggestion.metadataJson?.suggestedSubject ??
-                                'Not set',
-                            )}
-                      </p>
+                  <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
+                    <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-4 text-sm">
+                      <div className="grid gap-1 md:grid-cols-[96px_1fr]">
+                        <p className="font-medium text-slate-500">To</p>
+                        <p className="break-words font-medium text-slate-950">
+                          {replyDraftRecipient}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-1 md:grid-cols-[96px_1fr]">
+                        <p className="font-medium text-slate-500">Subject</p>
+                        <p className="break-words font-medium text-slate-950">
+                          {replyDraftSubject}
+                        </p>
+                      </div>
                     </div>
 
+                    <div className="bg-white p-5">
+                      <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                        {suggestion.outputText ?? 'No reply draft available.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-medium text-slate-950">Tone</p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {suggestion.outputJson &&
-                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
-                          ? formatEnumLabel(suggestion.outputJson.tone)
-                          : formatEnumLabel(
-                              String(suggestion.metadataJson?.tone ?? 'Not set'),
-                            )}
+                        {replyDraftTone ? formatEnumLabel(replyDraftTone) : 'Not set'}
                       </p>
                     </div>
 
@@ -957,13 +1103,7 @@ const externalCalendarLeadApplied = hasAppliedAction(
                         Confidence
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {suggestion.outputJson &&
-                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
-                          ? formatConfidence(suggestion.outputJson.confidence)
-                          : formatMetadataConfidence(
-                              suggestion.metadataJson?.confidence,
-                              suggestion.confidenceScore,
-                            )}
+                        {replyDraftConfidence}
                       </p>
                     </div>
 
@@ -980,50 +1120,106 @@ const externalCalendarLeadApplied = hasAppliedAction(
                     </div>
                   </div>
 
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-medium text-slate-950">Reasoning</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {replyDraftReasoning}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    {[
+                      'Human review required',
+                      'Metadata-only analysis',
+                      'No automatic email sending',
+                      'No automatic CRM changes',
+                      'Gmail draft creation requires explicit user action',
+                    ].map((label) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-medium text-blue-900"
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="mt-6 space-y-5 text-sm text-slate-700">
-                    <div>
-                      <p className="font-medium text-slate-950">
-                        Suggested reply body
-                      </p>
-                      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="whitespace-pre-line leading-7">
-                          {suggestion.outputText ?? 'No reply draft available.'}
+                    {gmailDraftApplied ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
+                        <p className="font-semibold">Gmail draft created</p>
+                        <p className="mt-2 leading-6">
+                          A Gmail draft was created. The email was NOT sent automatically.
                         </p>
-                      </div>
-                    </div>
 
-                    <div>
-                      <p className="font-medium text-slate-950">Reasoning</p>
-                      <p className="mt-1 leading-6">
-                        {suggestion.outputJson &&
-                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
-                          ? suggestion.outputJson.reasoning
-                          : String(
-                              suggestion.metadataJson?.reasoning ??
-                                'No reasoning available.',
-                            )}
-                      </p>
-                    </div>
+                        <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                          <div>
+                            <p className="font-medium">Gmail draft ID</p>
+                            <p className="mt-1 break-all text-emerald-800">
+                              {gmailDraftId ?? 'Created'}
+                            </p>
+                          </div>
 
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                        Human review is required. This suggestion does not create or
-                        send anything automatically.
-                      </div>
+                          {gmailThreadId ? (
+                            <div>
+                              <p className="font-medium">Gmail thread ID</p>
+                              <p className="mt-1 break-all text-emerald-800">
+                                {gmailThreadId}
+                              </p>
+                            </div>
+                          ) : null}
 
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
-                        Metadata-only: the full email body and attachments were not
-                        used for this reply draft.
-                      </div>
+                          {gmailDraftCreatedAt ? (
+                            <div>
+                              <p className="font-medium">Created at</p>
+                              <p className="mt-1 text-emerald-800">
+                                {formatDateTime(gmailDraftCreatedAt)}
+                              </p>
+                            </div>
+                          ) : null}
 
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
-                        No Gmail draft was created automatically.
-                      </div>
+                          {gmailDraftCreatedByUserId ? (
+                            <div>
+                              <p className="font-medium">Created by user ID</p>
+                              <p className="mt-1 break-all text-emerald-800">
+                                {gmailDraftCreatedByUserId}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
-                        No email was sent automatically.
+                        <a
+                          href="https://mail.google.com/mail/u/0/#drafts"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800"
+                        >
+                          Open Gmail Drafts
+                        </a>
                       </div>
-                    </div>
+                    ) : null}
+
+                    {canCreateGmailDraft ? (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                        <p className="text-sm font-semibold text-blue-900">
+                          Create a Gmail draft
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-blue-800">
+                          A Gmail draft will be created, but no email will be sent automatically.
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={handleCreateGmailDraft}
+                          disabled={isApplying !== null}
+                          className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isApplying === 'gmail-draft'
+                            ? 'Creating Gmail draft...'
+                            : 'Create Gmail draft'}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               ) : null}

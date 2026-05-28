@@ -155,3 +155,33 @@ Safety rules preserved:
 - No CRM records were created automatically.
 - No background job was added.
 - Human review is required.
+
+## Latest completed phase
+
+Phase 17D.3 Frontend Gmail Draft Creation Action is completed and validated.
+
+Current AI email reply draft flow:
+- Synced Gmail metadata can generate `GENERATE_EMAIL_REPLY_DRAFT` AI suggestions.
+- Suggestions remain `PENDING_REVIEW`.
+- User can accept or reject suggestions.
+- Accepted suggestions can create a real Gmail draft through explicit user action.
+- Gmail draft creation works from the frontend.
+- Gmail draft ID and thread ID are shown after creation.
+- Emails are never sent automatically.
+- No Gmail send button exists.
+- No CRM records are created automatically.
+- Human-in-the-loop workflow remains enforced.
+
+## Latest completed phase
+
+Phase 17D.4 Gmail Draft Review UX Polish is completed and validated.
+
+Current AI email draft workflow:
+- Gmail metadata can generate `GENERATE_EMAIL_REPLY_DRAFT` suggestions.
+- Suggestions require human review.
+- Accepted suggestions can create Gmail drafts through explicit user action.
+- Gmail draft review UI is polished with email-style preview, safety cards and draft-created state.
+- `Open Gmail Drafts` safely opens Gmail drafts.
+- No email is sent automatically.
+- No Gmail send button exists.
+- No CRM records are created automatically.
