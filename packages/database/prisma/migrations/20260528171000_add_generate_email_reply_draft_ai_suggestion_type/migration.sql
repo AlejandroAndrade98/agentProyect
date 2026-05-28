@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AiSuggestionType" ADD VALUE 'GENERATE_EMAIL_REPLY_DRAFT';

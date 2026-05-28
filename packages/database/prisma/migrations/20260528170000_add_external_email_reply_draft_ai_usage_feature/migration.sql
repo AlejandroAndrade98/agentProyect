@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AiUsageFeature" ADD VALUE 'EXTERNAL_EMAIL_REPLY_DRAFT';
