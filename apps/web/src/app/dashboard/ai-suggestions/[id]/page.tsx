@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   acceptAiSuggestion,
   ApiClientError,
+  applyAiSuggestionExternalEmailLead,
   applyAiSuggestionExternalEmailNote,
   applyAiSuggestionExternalEmailTask,
   applyAiSuggestionLeadNextStep,
@@ -411,6 +412,38 @@ async function handleCreateExternalEmailTask() {
   }
 }
 
+async function handleCreateExternalEmailLead() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('external-email-lead');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionExternalEmailLead(
+      token,
+      suggestion.id,
+    );
+
+    setSuggestion(response.suggestion);
+    setApplyMessage(
+      `CRM lead created from external email review. Lead ID: ${response.lead.id}. No email was sent.`,
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create lead from external email suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
@@ -439,7 +472,8 @@ function hasAppliedAction(
     | 'CREATE_TASK'
     | 'CREATE_NOTE'
     | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
-    | 'CREATE_TASK_FROM_EXTERNAL_EMAIL',
+    | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
+    | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
 ) {
   return getAppliedActions(suggestion).some((appliedAction) => {
     if (
@@ -474,6 +508,7 @@ const canApplyExternalEmailNote =
   canUpdateCrm(user);
 
 const canApplyExternalEmailTask = canApplyExternalEmailNote;
+const canApplyExternalEmailLead = canApplyExternalEmailNote;
 
 const nextStepApplied = hasAppliedAction(suggestion, 'UPDATE_LEAD_NEXT_STEP');
 const taskApplied = hasAppliedAction(suggestion, 'CREATE_TASK');
@@ -485,6 +520,10 @@ const externalEmailNoteApplied = hasAppliedAction(
 const externalEmailTaskApplied = hasAppliedAction(
   suggestion,
   'CREATE_TASK_FROM_EXTERNAL_EMAIL',
+);
+const externalEmailLeadApplied = hasAppliedAction(
+  suggestion,
+  'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
 );
 
   return (
@@ -1342,6 +1381,56 @@ const externalEmailTaskApplied = hasAppliedAction(
               </button>
             </section>
           </div>
+        </article>
+      ) : null}
+
+        {canApplyExternalEmailLead && !externalEmailLeadApplied ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-blue-700">
+              External email action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              Create CRM lead from reviewed email
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This creates one official CRM lead from the accepted email review.
+              It requires this explicit human click and does not send an email.
+            </p>
+          </div>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <h3 className="font-semibold text-slate-950">
+                  Create CRM lead
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  The lead will include safe synced email metadata, AI summary,
+                  reasoning, external identifiers, and a human approval notice.
+                  Existing company or contact links are reused only if already
+                  present on the suggestion.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateExternalEmailLead}
+              disabled={
+                !canApplyExternalEmailLead ||
+                externalEmailLeadApplied ||
+                isApplying !== null
+              }
+              className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isApplying === 'external-email-lead'
+                ? 'Creating...'
+                : externalEmailLeadApplied
+                  ? 'CRM lead created'
+                  : 'Create CRM lead'}
+            </button>
+          </section>
         </article>
       ) : null}
 

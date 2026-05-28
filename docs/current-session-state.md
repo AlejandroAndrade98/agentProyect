@@ -3625,3 +3625,59 @@ Safety rules preserved:
 - No Company, Contact, or Lead is created.
 - Applying requires explicit human action.
 - Rejected/pending suggestions are not applicable.
+
+## Phase 17C.3, Apply External Email Suggestion to CRM Lead
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a human-controlled apply action for accepted external email AI suggestions to create CRM leads.
+
+Implemented:
+
+- Added endpoint:
+  - `POST /api/ai-suggestions/:id/apply/external-email-lead`
+
+- The endpoint:
+  - requires auth and CRM write roles
+  - only works for accepted external email suggestions
+  - requires `AiSuggestionType.ANALYZE_EXTERNAL_EMAIL`
+  - requires linked `externalEmailMessageId`
+  - creates a CRM Lead with `source = AI_SUGGESTION`
+  - creates the lead with `status = NEW`
+  - assigns the lead to the current user
+  - safely infers priority and importanceLevel
+  - derives the title from the synced email subject
+  - includes safe synced email metadata in the lead description
+  - links company/contact only if already present on the suggestion
+  - records `AI_SUGGESTION_APPLIED`
+  - records `appliedAction = CREATE_LEAD_FROM_EXTERNAL_EMAIL`
+  - blocks duplicate lead creation with 409
+
+Frontend behavior implemented:
+
+- External email suggestion detail page now shows “Create CRM lead” only after human review acceptance.
+- The action is hidden after it has already been applied.
+- UI makes clear no email is sent automatically.
+
+Runtime validation completed:
+
+- Created a CRM Lead from an accepted external email suggestion.
+- Lead was created with:
+  - `status = NEW`
+  - `source = AI_SUGGESTION`
+  - `priority = LOW`
+  - `importanceLevel = LOW`
+  - `assignedToUserId = currentUser`
+- Suggestion metadata now includes `appliedActions`.
+- Duplicate apply attempt returned 409.
+- ActivityEvent `AI_SUGGESTION_APPLIED` was created with:
+  - `entityType = LEAD`
+  - `appliedAction = CREATE_LEAD_FROM_EXTERNAL_EMAIL`
+  - `emailSentAutomatically = false`
+
+Safety rules preserved:
+
+- No emails are sent automatically.
+- No Company or Contact is created automatically.
+- Applying requires explicit human action.
+- Rejected/pending suggestions are not applicable.

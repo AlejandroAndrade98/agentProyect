@@ -14,6 +14,7 @@ import {
   AiUsageFeature,
   EntityType,
   ImportanceLevel,
+  LeadStatus,
   Prisma,
   Priority,
   Source,
@@ -68,6 +69,7 @@ type LeadNextStepsOutput = {
 
 type ExternalEmailAnalysisApplyOutput = {
   summary?: string;
+  importanceLevel?: ImportanceLevel;
   suggestedNote?: string;
   suggestedTasks?: SuggestedTaskOutput[];
   reasoningSummary?: string;
@@ -78,7 +80,8 @@ type AppliedActionName =
   | 'CREATE_TASK'
   | 'CREATE_NOTE'
   | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
-  | 'CREATE_TASK_FROM_EXTERNAL_EMAIL';
+  | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -1443,6 +1446,148 @@ export class AiSuggestionsService {
     });
   }
 
+  async createLeadFromExternalEmailSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: this.getSuggestionInclude(),
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.ANALYZE_EXTERNAL_EMAIL) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.externalEmailMessageId) {
+      throw new ConflictException(
+        'AI suggestion is not linked to an external email message',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
+      )
+    ) {
+      throw new ConflictException('External email lead was already created');
+    }
+
+    const output = this.parseExternalEmailAnalysisOutput(suggestion.outputJson);
+    const email = suggestion.externalEmailMessage;
+    const title = `Email lead: ${email?.subject?.trim() || 'Synced email'}`;
+    const importanceLevel = this.normalizeImportanceLevel(output.importanceLevel);
+    const priority = this.mapImportanceToPriority(importanceLevel);
+    const appliedAt = new Date();
+    const description = this.buildExternalEmailLeadDescription({
+      output,
+      email,
+      externalEmailMessageId: suggestion.externalEmailMessageId,
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      const pipelinePosition = await this.getNextLeadPipelinePosition(
+        tx,
+        currentUser.organizationId,
+        LeadStatus.NEW,
+      );
+
+      const lead = await tx.lead.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          description,
+          companyId: suggestion.companyId,
+          contactId: suggestion.contactId,
+          assignedToUserId: currentUser.id,
+          status: LeadStatus.NEW,
+          priority,
+          importanceLevel,
+          source: Source.AI_SUGGESTION,
+          pipelinePosition,
+          statusChangedAt: appliedAt,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.LEAD,
+            recordId: lead.id,
+            details: {
+              title,
+              priority,
+              importanceLevel,
+              externalEmailMessageId: suggestion.externalEmailMessageId,
+              externalMessageId: email?.externalMessageId ?? null,
+              externalThreadId: email?.externalThreadId ?? null,
+              emailSentAutomatically: false,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: 'AI suggestion applied: external email lead created',
+          description:
+            'A human created a CRM lead from an accepted external email AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
+            externalEmailMessageId: suggestion.externalEmailMessageId,
+            externalMessageId: email?.externalMessageId ?? null,
+            externalThreadId: email?.externalThreadId ?? null,
+            leadId: lead.id,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        lead,
+      };
+    });
+  }
+
   private async generateWithFailureUsage<TGenerated>(
     currentUser: CurrentUser,
     input: {
@@ -1685,6 +1830,95 @@ export class AiSuggestionsService {
     ]
       .filter((line): line is string => line !== null)
       .join('\n');
+  }
+
+  private buildExternalEmailLeadDescription({
+    output,
+    email,
+    externalEmailMessageId,
+  }: {
+    output: ExternalEmailAnalysisApplyOutput;
+    email?: {
+      subject: string | null;
+      snippet: string | null;
+      fromEmail: string | null;
+      fromName: string | null;
+      externalMessageId: string;
+      externalThreadId: string | null;
+      internalDate: Date | null;
+      syncedAt: Date;
+    } | null;
+    externalEmailMessageId: string;
+  }) {
+    return [
+      'Lead created from an accepted external email AI suggestion.',
+      '',
+      'Synced email metadata:',
+      `Subject: ${email?.subject ?? '(no subject)'}`,
+      `From: ${email?.fromName || email?.fromEmail || '(unknown sender)'}`,
+      `From email: ${email?.fromEmail ?? '(unknown)'}`,
+      `Snippet: ${email?.snippet ?? '(no snippet)'}`,
+      `Internal date: ${email?.internalDate?.toISOString() ?? '(unknown)'}`,
+      `Synced at: ${email?.syncedAt?.toISOString() ?? '(unknown)'}`,
+      `External email message id: ${externalEmailMessageId}`,
+      `External provider message id: ${email?.externalMessageId ?? '(unknown)'}`,
+      `External thread id: ${email?.externalThreadId ?? 'none'}`,
+      '',
+      'AI review context:',
+      output.summary ? `Summary: ${output.summary}` : null,
+      output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
+      '',
+      'Human approval: This lead was created by explicit human action from an accepted AI suggestion. No company or contact was created automatically. No email was sent automatically.',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
+  }
+
+  private normalizeImportanceLevel(importanceLevel?: ImportanceLevel) {
+    switch (importanceLevel) {
+      case ImportanceLevel.LOW:
+        return ImportanceLevel.LOW;
+      case ImportanceLevel.HIGH:
+        return ImportanceLevel.HIGH;
+      case ImportanceLevel.CRITICAL:
+        return ImportanceLevel.CRITICAL;
+      case ImportanceLevel.MEDIUM:
+      default:
+        return ImportanceLevel.MEDIUM;
+    }
+  }
+
+  private mapImportanceToPriority(importanceLevel: ImportanceLevel) {
+    switch (importanceLevel) {
+      case ImportanceLevel.LOW:
+        return Priority.LOW;
+      case ImportanceLevel.HIGH:
+        return Priority.HIGH;
+      case ImportanceLevel.CRITICAL:
+        return Priority.CRITICAL;
+      case ImportanceLevel.MEDIUM:
+      default:
+        return Priority.MEDIUM;
+    }
+  }
+
+  private async getNextLeadPipelinePosition(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    status: LeadStatus,
+  ) {
+    const result = await tx.lead.aggregate({
+      where: {
+        organizationId,
+        deletedAt: null,
+        status,
+      },
+      _max: {
+        pipelinePosition: true,
+      },
+    });
+
+    return (result._max.pipelinePosition ?? 0) + 1000;
   }
 
   private buildDueDateFromDays(days: number) {

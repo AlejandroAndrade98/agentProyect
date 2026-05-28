@@ -287,3 +287,17 @@ export type ApplySuggestedNoteResponse = {
 export type ApplyExternalEmailNoteResponse = ApplySuggestedNoteResponse;
 
 export type ApplyExternalEmailTaskResponse = ApplySuggestedTaskResponse;
+
+export type ApplyExternalEmailLeadResponse = {
+  suggestion: AiSuggestion;
+  lead: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    importanceLevel: string;
+    source: string;
+    companyId: string | null;
+    contactId: string | null;
+  };
+};

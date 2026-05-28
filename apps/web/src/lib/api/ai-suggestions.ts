@@ -1,5 +1,6 @@
 import type {
   AiSuggestion,
+  ApplyExternalEmailLeadResponse,
   ApplyExternalEmailNoteResponse,
   ApplyExternalEmailTaskResponse,
   PaginatedAiSuggestions,
@@ -133,6 +134,16 @@ export function applyAiSuggestionExternalEmailTask(
       method: 'POST',
       token,
       body: input,
+    },
+  );
+}
+
+export function applyAiSuggestionExternalEmailLead(token: string, id: string) {
+  return apiRequest<ApplyExternalEmailLeadResponse>(
+    `/ai-suggestions/${id}/apply/external-email-lead`,
+    {
+      method: 'POST',
+      token,
     },
   );
 }

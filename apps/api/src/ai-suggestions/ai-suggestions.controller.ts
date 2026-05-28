@@ -174,4 +174,16 @@ export class AiSuggestionsController {
       dto,
     );
   }
+
+  @Post(':id/apply/external-email-lead')
+  @Roles(...CRM_WRITE_ROLES)
+  createLeadFromExternalEmailSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.createLeadFromExternalEmailSuggestion(
+      id,
+      currentUser,
+    );
+  }
 }
