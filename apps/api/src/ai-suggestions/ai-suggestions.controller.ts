@@ -186,4 +186,16 @@ export class AiSuggestionsController {
       currentUser,
     );
   }
+
+  @Post(':id/apply/external-calendar-task')
+  @Roles(...CRM_WRITE_ROLES)
+  createTaskFromExternalCalendarSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.createTaskFromExternalCalendarSuggestion(
+      id,
+      currentUser,
+    );
+  }
 }

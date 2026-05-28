@@ -75,13 +75,22 @@ type ExternalEmailAnalysisApplyOutput = {
   reasoningSummary?: string;
 };
 
+type ExternalCalendarEventAnalysisApplyOutput = {
+  summary?: string;
+  importanceLevel?: ImportanceLevel;
+  suggestedNote?: string;
+  suggestedTasks?: SuggestedTaskOutput[];
+  reasoningSummary?: string;
+};
+
 type AppliedActionName =
   | 'UPDATE_LEAD_NEXT_STEP'
   | 'CREATE_TASK'
   | 'CREATE_NOTE'
   | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
   | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
-  | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL';
+  | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -1588,6 +1597,161 @@ export class AiSuggestionsService {
     });
   }
 
+  async createTaskFromExternalCalendarSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: this.getSuggestionInclude(),
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.externalCalendarEventId) {
+      throw new ConflictException(
+        'AI suggestion is not linked to an external calendar event',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+      )
+    ) {
+      throw new ConflictException('External calendar task was already created');
+    }
+
+    const output = this.parseExternalCalendarEventAnalysisOutput(
+      suggestion.outputJson,
+    );
+    const calendarEvent = suggestion.externalCalendarEvent;
+    const suggestedTask = output.suggestedTasks?.[0];
+    const importanceLevel = this.normalizeImportanceLevel(output.importanceLevel);
+    const priority = this.normalizePriority(
+      suggestedTask?.priority,
+      this.mapImportanceToPriority(importanceLevel),
+    );
+    const title =
+      suggestedTask?.title?.trim() ||
+      `Follow up calendar event: ${calendarEvent?.summary?.trim() || 'Synced event'}`;
+    const dueDate =
+      typeof suggestedTask?.dueInDays === 'number' &&
+      suggestedTask.dueInDays >= 0
+        ? this.buildDueDateFromDays(suggestedTask.dueInDays)
+        : this.buildDueDateFromCalendarEvent(calendarEvent);
+    const appliedAt = new Date();
+    const description = this.buildExternalCalendarTaskDescription({
+      taskBody:
+        suggestedTask?.description?.trim() ||
+        output.summary?.trim() ||
+        output.suggestedNote?.trim() ||
+        'Review this accepted external calendar AI suggestion and decide the next CRM action.',
+      output,
+      calendarEvent,
+      externalCalendarEventId: suggestion.externalCalendarEventId,
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          description,
+          status: TaskStatus.TODO,
+          priority,
+          importanceLevel,
+          dueDate,
+          assignedToUserId: currentUser.id,
+          contactId: suggestion.contactId,
+          leadId: suggestion.leadId,
+          boardPosition: 0,
+          statusChangedAt: appliedAt,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.TASK,
+            recordId: task.id,
+            details: {
+              title,
+              priority,
+              dueDate: dueDate?.toISOString() ?? null,
+              externalCalendarEventId: suggestion.externalCalendarEventId,
+              externalEventId: calendarEvent?.externalEventId ?? null,
+              externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+              emailSentAutomatically: false,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: 'AI suggestion applied: external calendar task created',
+          description:
+            'A human created a CRM task from an accepted external calendar AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: suggestion.companyId ?? undefined,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+            externalCalendarEventId: suggestion.externalCalendarEventId,
+            externalEventId: calendarEvent?.externalEventId ?? null,
+            externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+            taskId: task.id,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        task,
+      };
+    });
+  }
+
   private async generateWithFailureUsage<TGenerated>(
     currentUser: CurrentUser,
     input: {
@@ -1744,6 +1908,16 @@ export class AiSuggestionsService {
     return outputJson as ExternalEmailAnalysisApplyOutput;
   }
 
+  private parseExternalCalendarEventAnalysisOutput(
+    outputJson: Prisma.JsonValue | null,
+  ): ExternalCalendarEventAnalysisApplyOutput {
+    if (!outputJson || typeof outputJson !== 'object' || Array.isArray(outputJson)) {
+      throw new ConflictException('AI suggestion output is not structured');
+    }
+
+    return outputJson as ExternalCalendarEventAnalysisApplyOutput;
+  }
+
   private buildExternalEmailNoteContent({
     noteBody,
     output,
@@ -1874,6 +2048,65 @@ export class AiSuggestionsService {
       .join('\n');
   }
 
+  private buildExternalCalendarTaskDescription({
+    taskBody,
+    output,
+    calendarEvent,
+    externalCalendarEventId,
+  }: {
+    taskBody: string;
+    output: ExternalCalendarEventAnalysisApplyOutput;
+    calendarEvent?: {
+      externalCalendarId: string;
+      externalEventId: string;
+      iCalUid: string | null;
+      status: string | null;
+      summary: string | null;
+      description: string | null;
+      location: string | null;
+      startAt: Date | null;
+      endAt: Date | null;
+      isAllDay: boolean;
+      organizerEmail: string | null;
+      organizerName: string | null;
+      htmlLink: string | null;
+      syncedAt: Date;
+    } | null;
+    externalCalendarEventId: string;
+  }) {
+    return [
+      taskBody,
+      '',
+      'Synced calendar metadata:',
+      `Summary: ${calendarEvent?.summary ?? '(no title)'}`,
+      `Status: ${calendarEvent?.status ?? '(unknown)'}`,
+      `Location: ${calendarEvent?.location ?? '(none)'}`,
+      `Description: ${calendarEvent?.description ?? '(none)'}`,
+      `Start: ${calendarEvent?.startAt?.toISOString() ?? '(unknown)'}`,
+      `End: ${calendarEvent?.endAt?.toISOString() ?? '(unknown)'}`,
+      `All day: ${calendarEvent?.isAllDay ? 'yes' : 'no'}`,
+      `Organizer: ${
+        calendarEvent?.organizerName ||
+        calendarEvent?.organizerEmail ||
+        '(unknown)'
+      }`,
+      `Organizer email: ${calendarEvent?.organizerEmail ?? '(unknown)'}`,
+      `Synced at: ${calendarEvent?.syncedAt?.toISOString() ?? '(unknown)'}`,
+      `External calendar event id: ${externalCalendarEventId}`,
+      `External provider event id: ${calendarEvent?.externalEventId ?? '(unknown)'}`,
+      `External calendar id: ${calendarEvent?.externalCalendarId ?? '(unknown)'}`,
+      `iCal UID: ${calendarEvent?.iCalUid ?? '(none)'}`,
+      '',
+      'AI review context:',
+      output.summary ? `Summary: ${output.summary}` : null,
+      output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
+      '',
+      'Human approval: This task was created by explicit human action from an accepted AI suggestion. No company, contact, or lead was created automatically. No email was sent automatically.',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
+  }
+
   private normalizeImportanceLevel(importanceLevel?: ImportanceLevel) {
     switch (importanceLevel) {
       case ImportanceLevel.LOW:
@@ -1885,6 +2118,21 @@ export class AiSuggestionsService {
       case ImportanceLevel.MEDIUM:
       default:
         return ImportanceLevel.MEDIUM;
+    }
+  }
+
+  private normalizePriority(priority: Priority | undefined, fallback: Priority) {
+    switch (priority) {
+      case Priority.LOW:
+        return Priority.LOW;
+      case Priority.HIGH:
+        return Priority.HIGH;
+      case Priority.CRITICAL:
+        return Priority.CRITICAL;
+      case Priority.MEDIUM:
+        return Priority.MEDIUM;
+      default:
+        return fallback;
     }
   }
 
@@ -1919,6 +2167,25 @@ export class AiSuggestionsService {
     });
 
     return (result._max.pipelinePosition ?? 0) + 1000;
+  }
+
+  private buildDueDateFromCalendarEvent(
+    calendarEvent?: {
+      startAt: Date | null;
+      endAt: Date | null;
+    } | null,
+  ) {
+    const now = new Date();
+
+    if (calendarEvent?.startAt && calendarEvent.startAt >= now) {
+      return calendarEvent.startAt;
+    }
+
+    if (calendarEvent?.endAt && calendarEvent.endAt >= now) {
+      return calendarEvent.endAt;
+    }
+
+    return undefined;
   }
 
   private buildDueDateFromDays(days: number) {

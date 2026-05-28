@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   acceptAiSuggestion,
   ApiClientError,
+  applyAiSuggestionExternalCalendarTask,
   applyAiSuggestionExternalEmailLead,
   applyAiSuggestionExternalEmailNote,
   applyAiSuggestionExternalEmailTask,
@@ -444,6 +445,38 @@ async function handleCreateExternalEmailLead() {
   }
 }
 
+async function handleCreateExternalCalendarTask() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('external-calendar-task');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionExternalCalendarTask(
+      token,
+      suggestion.id,
+    );
+
+    setSuggestion(response.suggestion);
+    setApplyMessage(
+      `CRM task created from external calendar review. Task ID: ${response.task.id}. No email was sent.`,
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create task from external calendar suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
@@ -473,7 +506,8 @@ function hasAppliedAction(
     | 'CREATE_NOTE'
     | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
     | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
-    | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
+    | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
+    | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
 ) {
   return getAppliedActions(suggestion).some((appliedAction) => {
     if (
@@ -509,6 +543,12 @@ const canApplyExternalEmailNote =
 
 const canApplyExternalEmailTask = canApplyExternalEmailNote;
 const canApplyExternalEmailLead = canApplyExternalEmailNote;
+const canApplyExternalCalendarTask =
+  Boolean(isExternalCalendarSuggestion) &&
+  suggestion &&
+  (suggestion.status === 'ACCEPTED' ||
+    suggestion.status === 'EDITED_AND_ACCEPTED') &&
+  canUpdateCrm(user);
 
 const nextStepApplied = hasAppliedAction(suggestion, 'UPDATE_LEAD_NEXT_STEP');
 const taskApplied = hasAppliedAction(suggestion, 'CREATE_TASK');
@@ -524,6 +564,10 @@ const externalEmailTaskApplied = hasAppliedAction(
 const externalEmailLeadApplied = hasAppliedAction(
   suggestion,
   'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
+);
+const externalCalendarTaskApplied = hasAppliedAction(
+  suggestion,
+  'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
 );
 
   return (
@@ -1381,6 +1425,56 @@ const externalEmailLeadApplied = hasAppliedAction(
               </button>
             </section>
           </div>
+        </article>
+      ) : null}
+
+        {canApplyExternalCalendarTask && !externalCalendarTaskApplied ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-blue-700">
+              External calendar action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              Create CRM task from reviewed calendar event
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This creates one official CRM task from the accepted calendar
+              review. It requires this explicit human click and does not send an
+              email.
+            </p>
+          </div>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <h3 className="font-semibold text-slate-950">
+                  Create CRM task
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  The task will include safe synced calendar metadata, AI
+                  summary, reasoning, event identifiers, and a human approval
+                  notice. No company, contact, lead, or email will be created.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateExternalCalendarTask}
+              disabled={
+                !canApplyExternalCalendarTask ||
+                externalCalendarTaskApplied ||
+                isApplying !== null
+              }
+              className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isApplying === 'external-calendar-task'
+                ? 'Creating...'
+                : externalCalendarTaskApplied
+                  ? 'CRM task created'
+                  : 'Create CRM task'}
+            </button>
+          </section>
         </article>
       ) : null}
 

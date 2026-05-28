@@ -288,6 +288,8 @@ export type ApplyExternalEmailNoteResponse = ApplySuggestedNoteResponse;
 
 export type ApplyExternalEmailTaskResponse = ApplySuggestedTaskResponse;
 
+export type ApplyExternalCalendarTaskResponse = ApplySuggestedTaskResponse;
+
 export type ApplyExternalEmailLeadResponse = {
   suggestion: AiSuggestion;
   lead: {
