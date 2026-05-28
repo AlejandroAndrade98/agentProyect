@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   acceptAiSuggestion,
   ApiClientError,
+  applyAiSuggestionExternalEmailNote,
   applyAiSuggestionLeadNextStep,
   applyAiSuggestionNote,
   applyAiSuggestionTask,
@@ -332,6 +333,42 @@ async function handleCreateNote() {
   }
 }
 
+async function handleCreateExternalEmailNote() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('external-email-note');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionExternalEmailNote(
+      token,
+      suggestion.id,
+      {
+        title: noteTitleDraft.trim() || undefined,
+        content: noteContentDraft.trim() || undefined,
+      },
+    );
+
+    setSuggestion(response.suggestion);
+    setApplyMessage(
+      `CRM note created from external email review. Note ID: ${response.note.id}. No email was sent.`,
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create note from external email suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
@@ -355,7 +392,11 @@ async function handleCreateNote() {
 
 function hasAppliedAction(
   suggestion: AiSuggestion | null,
-  action: 'UPDATE_LEAD_NEXT_STEP' | 'CREATE_TASK' | 'CREATE_NOTE',
+  action:
+    | 'UPDATE_LEAD_NEXT_STEP'
+    | 'CREATE_TASK'
+    | 'CREATE_NOTE'
+    | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
 ) {
   return getAppliedActions(suggestion).some((appliedAction) => {
     if (
@@ -382,9 +423,20 @@ const canApplySuggestion =
     suggestion.status === 'EDITED_AND_ACCEPTED') &&
   canUpdateCrm(user);
 
+const canApplyExternalEmailNote =
+  Boolean(isExternalEmailSuggestion) &&
+  suggestion &&
+  (suggestion.status === 'ACCEPTED' ||
+    suggestion.status === 'EDITED_AND_ACCEPTED') &&
+  canUpdateCrm(user);
+
 const nextStepApplied = hasAppliedAction(suggestion, 'UPDATE_LEAD_NEXT_STEP');
 const taskApplied = hasAppliedAction(suggestion, 'CREATE_TASK');
 const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
+const externalEmailNoteApplied = hasAppliedAction(
+  suggestion,
+  'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+);
 
   return (
     <div className="space-y-8">
@@ -1241,6 +1293,88 @@ const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
               </button>
             </section>
           </div>
+        </article>
+      ) : null}
+
+        {isExternalEmailSuggestion &&
+        (suggestion.status === 'ACCEPTED' ||
+        suggestion.status === 'EDITED_AND_ACCEPTED') &&
+        !externalEmailNoteApplied ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-blue-700">
+              External email action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              Create CRM note from reviewed email
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This creates one official CRM note from the accepted email review.
+              It requires this explicit human click and does not send an email.
+            </p>
+          </div>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <h3 className="font-semibold text-slate-950">
+                  Create CRM note
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  The note will include safe synced email metadata and the AI
+                  suggested note. No contact, lead, task, or email will be
+                  created.
+                </p>
+              </div>
+
+              {externalEmailNoteApplied ? (
+                <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
+                  Applied
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Title</span>
+                <input
+                  value={noteTitleDraft}
+                  onChange={(event) => setNoteTitleDraft(event.target.value)}
+                  disabled={externalEmailNoteApplied || !canApplyExternalEmailNote}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Content</span>
+                <textarea
+                  value={noteContentDraft}
+                  onChange={(event) => setNoteContentDraft(event.target.value)}
+                  rows={4}
+                  disabled={externalEmailNoteApplied || !canApplyExternalEmailNote}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateExternalEmailNote}
+              disabled={
+                !canApplyExternalEmailNote ||
+                externalEmailNoteApplied ||
+                isApplying !== null ||
+                !noteContentDraft.trim()
+              }
+              className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isApplying === 'external-email-note'
+                ? 'Creating...'
+                : externalEmailNoteApplied
+                  ? 'CRM note created'
+                  : 'Create CRM note'}
+            </button>
+          </section>
         </article>
       ) : null}
 

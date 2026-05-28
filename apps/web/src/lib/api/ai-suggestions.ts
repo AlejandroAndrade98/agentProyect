@@ -1,5 +1,6 @@
 import type {
   AiSuggestion,
+  ApplyExternalEmailNoteResponse,
   PaginatedAiSuggestions,
   QueryAiSuggestionsParams,
   ReviewAiSuggestionInput,
@@ -97,6 +98,21 @@ export function applyAiSuggestionNote(
 ) {
   return apiRequest<ApplySuggestedNoteResponse>(
     `/ai-suggestions/${id}/apply/note`,
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function applyAiSuggestionExternalEmailNote(
+  token: string,
+  id: string,
+  input: ApplySuggestedNoteInput = {},
+) {
+  return apiRequest<ApplyExternalEmailNoteResponse>(
+    `/ai-suggestions/${id}/apply/external-email-note`,
     {
       method: 'POST',
       token,

@@ -66,10 +66,17 @@ type LeadNextStepsOutput = {
   suggestedNote?: string;
 };
 
+type ExternalEmailAnalysisApplyOutput = {
+  summary?: string;
+  suggestedNote?: string;
+  reasoningSummary?: string;
+};
+
 type AppliedActionName =
   | 'UPDATE_LEAD_NEXT_STEP'
   | 'CREATE_TASK'
-  | 'CREATE_NOTE';
+  | 'CREATE_NOTE'
+  | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -1140,6 +1147,149 @@ export class AiSuggestionsService {
     });
   }
 
+  async createNoteFromExternalEmailSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ApplySuggestedNoteDto,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: this.getSuggestionInclude(),
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.ANALYZE_EXTERNAL_EMAIL) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.externalEmailMessageId) {
+      throw new ConflictException(
+        'AI suggestion is not linked to an external email message',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+      )
+    ) {
+      throw new ConflictException('External email note was already created');
+    }
+
+    const output = this.parseExternalEmailAnalysisOutput(suggestion.outputJson);
+    const email = suggestion.externalEmailMessage;
+    const noteBody =
+      dto.content?.trim() ||
+      output.suggestedNote?.trim() ||
+      output.summary?.trim();
+
+    if (!noteBody) {
+      throw new ConflictException('Suggestion does not include a note');
+    }
+
+    const title =
+      dto.title?.trim() ||
+      `AI email review note: ${email?.subject?.trim() || 'Synced email'}`;
+    const content = this.buildExternalEmailNoteContent({
+      noteBody,
+      output,
+      email,
+      externalEmailMessageId: suggestion.externalEmailMessageId,
+    });
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const note = await tx.note.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          content,
+          source: Source.AI_SUGGESTION,
+          importanceLevel: ImportanceLevel.MEDIUM,
+          createdByUserId: currentUser.id,
+          companyId: suggestion.companyId,
+          contactId: suggestion.contactId,
+          leadId: suggestion.leadId,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.NOTE,
+            recordId: note.id,
+            details: {
+              title,
+              externalEmailMessageId: suggestion.externalEmailMessageId,
+              externalMessageId: email?.externalMessageId ?? null,
+              externalThreadId: email?.externalThreadId ?? null,
+              emailSentAutomatically: false,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.NOTE,
+          entityId: note.id,
+          title: 'AI suggestion applied: external email note created',
+          description:
+            'A human created a CRM note from an accepted external email AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: note.companyId ?? undefined,
+          contactId: note.contactId ?? undefined,
+          leadId: note.leadId ?? undefined,
+          noteId: note.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+            externalEmailMessageId: suggestion.externalEmailMessageId,
+            externalMessageId: email?.externalMessageId ?? null,
+            externalThreadId: email?.externalThreadId ?? null,
+            noteId: note.id,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        note,
+      };
+    });
+  }
+
   private async generateWithFailureUsage<TGenerated>(
     currentUser: CurrentUser,
     input: {
@@ -1284,6 +1434,60 @@ export class AiSuggestionsService {
     }
 
     return outputJson as LeadNextStepsOutput;
+  }
+
+  private parseExternalEmailAnalysisOutput(
+    outputJson: Prisma.JsonValue | null,
+  ): ExternalEmailAnalysisApplyOutput {
+    if (!outputJson || typeof outputJson !== 'object' || Array.isArray(outputJson)) {
+      throw new ConflictException('AI suggestion output is not structured');
+    }
+
+    return outputJson as ExternalEmailAnalysisApplyOutput;
+  }
+
+  private buildExternalEmailNoteContent({
+    noteBody,
+    output,
+    email,
+    externalEmailMessageId,
+  }: {
+    noteBody: string;
+    output: ExternalEmailAnalysisApplyOutput;
+    email?: {
+      subject: string | null;
+      snippet: string | null;
+      fromEmail: string | null;
+      fromName: string | null;
+      externalMessageId: string;
+      externalThreadId: string | null;
+      internalDate: Date | null;
+      syncedAt: Date;
+    } | null;
+    externalEmailMessageId: string;
+  }) {
+    return [
+      noteBody,
+      '',
+      'Synced email context:',
+      `Subject: ${email?.subject ?? '(no subject)'}`,
+      `From: ${email?.fromName || email?.fromEmail || '(unknown sender)'}`,
+      `From email: ${email?.fromEmail ?? '(unknown)'}`,
+      `Snippet: ${email?.snippet ?? '(no snippet)'}`,
+      `Internal date: ${email?.internalDate?.toISOString() ?? '(unknown)'}`,
+      `Synced at: ${email?.syncedAt?.toISOString() ?? '(unknown)'}`,
+      `External email message id: ${externalEmailMessageId}`,
+      `External provider message id: ${email?.externalMessageId ?? '(unknown)'}`,
+      `External thread id: ${email?.externalThreadId ?? 'none'}`,
+      '',
+      'AI review context:',
+      output.summary ? `Summary: ${output.summary}` : null,
+      output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
+      '',
+      'Safety: This note was created by explicit human action from an accepted AI suggestion. No email was sent automatically.',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
   }
 
   private buildDueDateFromDays(days: number) {

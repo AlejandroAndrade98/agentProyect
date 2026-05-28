@@ -278,6 +278,10 @@ export type ApplySuggestedNoteResponse = {
     id: string;
     title: string | null;
     source: string;
+    companyId?: string | null;
+    contactId?: string | null;
     leadId: string | null;
   };
 };
+
+export type ApplyExternalEmailNoteResponse = ApplySuggestedNoteResponse;

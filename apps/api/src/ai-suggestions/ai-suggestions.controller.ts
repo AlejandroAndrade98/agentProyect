@@ -146,4 +146,18 @@ export class AiSuggestionsController {
       dto,
     );
   }
+
+  @Post(':id/apply/external-email-note')
+  @Roles(...CRM_WRITE_ROLES)
+  createNoteFromExternalEmailSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ApplySuggestedNoteDto,
+  ) {
+    return this.aiSuggestionsService.createNoteFromExternalEmailSuggestion(
+      id,
+      currentUser,
+      dto,
+    );
+  }
 }
