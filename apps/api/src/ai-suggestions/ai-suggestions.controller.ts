@@ -75,6 +75,18 @@ export class AiSuggestionsController {
     );
   }
 
+  @Post('external-sync/email-messages/:emailMessageId/generate-reply-draft')
+  @Roles(...CRM_WRITE_ROLES)
+  generateExternalEmailReplyDraft(
+    @Param('emailMessageId') emailMessageId: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.generateExternalEmailReplyDraft(
+      emailMessageId,
+      currentUser,
+    );
+  }
+
   @Post('external-sync/calendar-events/:calendarEventId/analyze')
   @Roles(...CRM_WRITE_ROLES)
   analyzeExternalCalendarEvent(

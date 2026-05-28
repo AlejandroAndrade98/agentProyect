@@ -91,6 +91,20 @@ export type ExternalEmailAnalysisOutput = {
   noAutomaticEmailSending: true;
 };
 
+export type ExternalEmailReplyDraftOutput = {
+  suggestedSubject: string;
+  replyText: string;
+  tone: 'PROFESSIONAL' | 'FRIENDLY' | 'CONCISE' | 'FORMAL';
+  confidence: number;
+  reasoning: string;
+  humanApprovalRequired: true;
+  canApplyAutomatically: false;
+  canSendEmailAutomatically: false;
+  emailSentAutomatically: false;
+  draftCreatedAutomatically: false;
+  aiAnalysisScope: 'metadata_only';
+};
+
 export type ExternalCalendarEventMetadataForAi = {
   id: string;
   connectedAccountId: string;
@@ -181,6 +195,20 @@ const ExternalEmailAnalysisSchema = z.object({
   humanApprovalRequired: z.literal(true),
   noAutomaticCrmChanges: z.literal(true),
   noAutomaticEmailSending: z.literal(true),
+});
+
+const ExternalEmailReplyDraftSchema = z.object({
+  suggestedSubject: z.string(),
+  replyText: z.string(),
+  tone: z.enum(['PROFESSIONAL', 'FRIENDLY', 'CONCISE', 'FORMAL']),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  humanApprovalRequired: z.literal(true),
+  canApplyAutomatically: z.literal(false),
+  canSendEmailAutomatically: z.literal(false),
+  emailSentAutomatically: z.literal(false),
+  draftCreatedAutomatically: z.literal(false),
+  aiAnalysisScope: z.literal('metadata_only'),
 });
 
 const ExternalCalendarEventAnalysisSchema = z.object({
@@ -696,6 +724,136 @@ export class AiSuggestionProviderService {
         `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
+      tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
+      tokensOutput: response.usage?.output_tokens ?? 0,
+      estimatedCostUsd: 0,
+    };
+  }
+
+  async generateExternalEmailReplyDraft(
+    email: ExternalEmailMetadataForAi,
+    inputText: string,
+  ): Promise<GeneratedAiSuggestion<ExternalEmailReplyDraftOutput>> {
+    this.assertSupportedProvider();
+    this.assertInputWithinLimit(inputText);
+
+    if (this.aiProvider === 'openai') {
+      return this.generateExternalEmailReplyDraftWithOpenAi(email, inputText);
+    }
+
+    const subject = email.subject?.trim() || '(No subject)';
+    const sender = email.fromName || email.fromEmail || 'there';
+    const suggestedSubject = subject
+      .toLowerCase()
+      .startsWith('re:')
+      ? subject
+      : `Re: ${subject}`;
+
+    const outputJson: ExternalEmailReplyDraftOutput = {
+      suggestedSubject,
+      replyText: [
+        `Hi ${sender},`,
+        '',
+        'Thanks for your message. I received it, and the details should be reviewed before any next steps are confirmed.',
+        '',
+        'Best,',
+      ].join('\n'),
+      tone: 'PROFESSIONAL',
+      confidence: email.snippet ? 0.68 : 0.58,
+      reasoning:
+        'This draft was generated from synced email metadata and snippet only. It avoids unavailable details, commitments, CRM changes, Gmail draft creation, and email sending until a human reviews it.',
+      humanApprovalRequired: true,
+      canApplyAutomatically: false,
+      canSendEmailAutomatically: false,
+      emailSentAutomatically: false,
+      draftCreatedAutomatically: false,
+      aiAnalysisScope: 'metadata_only',
+    };
+
+    return {
+      provider: 'mock-ai-provider',
+      model: 'mock-external-email-reply-draft-v1',
+      title: `AI email reply draft suggestion: ${subject}`,
+      outputJson,
+      outputText: outputJson.replyText,
+      confidenceScore: outputJson.confidence,
+      tokensInput: Math.ceil(inputText.length / 4),
+      tokensOutput: 160,
+      estimatedCostUsd: 0,
+    };
+  }
+
+  private async generateExternalEmailReplyDraftWithOpenAi(
+    email: ExternalEmailMetadataForAi,
+    inputText: string,
+  ): Promise<GeneratedAiSuggestion<ExternalEmailReplyDraftOutput>> {
+    const client = this.getOpenAiClient();
+
+    if (!client) {
+      throw new Error('OpenAI client is not configured');
+    }
+
+    const subject = email.subject?.trim() || '(No subject)';
+
+    const response = await this.parseOpenAiResponse(() =>
+      client.responses.parse({
+        model: this.openAiModel,
+        input: [
+          {
+            role: 'system',
+            content: [
+              'You are an AI assistant for a CRM platform.',
+              'Generate a business-safe plain text email reply draft from synced external email metadata/snippet only.',
+              'Do not use or imply access to full email bodies, attachments, or unavailable information.',
+              'Never hallucinate unavailable information.',
+              'Use a professional tone.',
+              'Never promise actions or commitments.',
+              'Do not claim CRM changes were made.',
+              'Do not create contacts, leads, tasks, notes, or Gmail drafts.',
+              'Do not send emails.',
+              'Do not generate HTML email.',
+              'Human review is required before any draft or email action.',
+              'Set humanApprovalRequired true.',
+              'Set canApplyAutomatically false.',
+              'Set canSendEmailAutomatically false.',
+              'Set emailSentAutomatically false.',
+              'Set draftCreatedAutomatically false.',
+              'Set aiAnalysisScope metadata_only.',
+              'You must return only the structured output requested by the schema.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: inputText,
+          },
+        ],
+        text: {
+          format: zodTextFormat(
+            ExternalEmailReplyDraftSchema,
+            'external_email_reply_draft',
+          ),
+        },
+      }),
+    );
+
+    const parsed = response.output_parsed;
+
+    if (!parsed) {
+      throw new AiProviderError(
+        'AI_PROVIDER_MALFORMED_OUTPUT',
+        'AI provider returned malformed output',
+      );
+    }
+
+    const outputJson = parsed as ExternalEmailReplyDraftOutput;
+
+    return {
+      provider: 'openai',
+      model: this.openAiModel,
+      title: `AI email reply draft suggestion: ${subject}`,
+      outputJson,
+      outputText: outputJson.replyText,
+      confidenceScore: outputJson.confidence,
       tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
       tokensOutput: response.usage?.output_tokens ?? 0,
       estimatedCostUsd: 0,

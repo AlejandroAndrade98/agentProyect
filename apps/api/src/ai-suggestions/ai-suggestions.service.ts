@@ -578,6 +578,240 @@ export class AiSuggestionsService {
     });
   }
 
+  async generateExternalEmailReplyDraft(
+    emailMessageId: string,
+    currentUser: CurrentUser,
+  ) {
+    const emailMessage = await this.prisma.externalEmailMessage.findFirst({
+      where: {
+        id: emailMessageId,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+        connectedAccount: {
+          userId: currentUser.id,
+        },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        connectedAccountId: true,
+        provider: true,
+        externalMessageId: true,
+        externalThreadId: true,
+        subject: true,
+        snippet: true,
+        fromEmail: true,
+        fromName: true,
+        toEmailsJson: true,
+        ccEmailsJson: true,
+        bccEmailsJson: true,
+        labelIdsJson: true,
+        internalDate: true,
+        metadataJson: true,
+        syncedAt: true,
+        connectedAccount: {
+          select: {
+            id: true,
+            provider: true,
+            email: true,
+            displayName: true,
+            status: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!emailMessage) {
+      throw new NotFoundException('External email message not found');
+    }
+
+    const existingPendingSuggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        organizationId: currentUser.organizationId,
+        type: AiSuggestionType.GENERATE_EMAIL_REPLY_DRAFT,
+        status: AiSuggestionStatus.PENDING_REVIEW,
+        externalEmailMessageId: emailMessage.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingPendingSuggestion) {
+      throw new ConflictException(
+        'This email already has a pending AI reply draft suggestion',
+      );
+    }
+
+    const inputText = this.buildExternalEmailMetadataInputText(emailMessage);
+    const inputHash = this.hashInput(inputText);
+
+    const estimatedCreditsRequired =
+      this.aiUsageService.estimateCreditsFromText(inputText, 180);
+
+    await this.aiUsageService.assertCanUseAi(currentUser, {
+      feature: AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT,
+      estimatedCreditsRequired,
+      metadataJson: {
+        externalEmailMessageId: emailMessage.id,
+        connectedAccountId: emailMessage.connectedAccountId,
+        externalMessageId: emailMessage.externalMessageId,
+        externalThreadId: emailMessage.externalThreadId,
+        feature: AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT,
+        estimatedCreditsRequired,
+        bodyStored: false,
+        draftCreatedAutomatically: false,
+        emailSentAutomatically: false,
+        crmRecordsCreated: false,
+      },
+    });
+
+    const generated = await this.generateWithFailureUsage(
+      currentUser,
+      {
+        feature: AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT,
+        inputText,
+        estimatedCreditsRequired,
+        metadataJson: {
+          externalEmailMessageId: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          externalMessageId: emailMessage.externalMessageId,
+          externalThreadId: emailMessage.externalThreadId,
+          feature: AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT,
+          estimatedCreditsRequired,
+          bodyStored: false,
+          draftCreatedAutomatically: false,
+          emailSentAutomatically: false,
+          crmRecordsCreated: false,
+        },
+      },
+      () =>
+        this.aiSuggestionProviderService.generateExternalEmailReplyDraft(
+        {
+          id: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          provider: emailMessage.provider,
+          externalMessageId: emailMessage.externalMessageId,
+          externalThreadId: emailMessage.externalThreadId,
+          subject: emailMessage.subject,
+          snippet: emailMessage.snippet,
+          fromEmail: emailMessage.fromEmail,
+          fromName: emailMessage.fromName,
+          toEmailsJson: emailMessage.toEmailsJson,
+          ccEmailsJson: emailMessage.ccEmailsJson,
+          bccEmailsJson: emailMessage.bccEmailsJson,
+          labelIdsJson: emailMessage.labelIdsJson,
+          internalDate: emailMessage.internalDate,
+          syncedAt: emailMessage.syncedAt,
+        },
+        inputText,
+        ),
+    );
+
+    const output = generated.outputJson;
+
+    return this.prisma.$transaction(async (tx) => {
+      const suggestion = await tx.aiSuggestion.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          userId: currentUser.id,
+          provider: generated.provider,
+          type: AiSuggestionType.GENERATE_EMAIL_REPLY_DRAFT,
+          status: AiSuggestionStatus.PENDING_REVIEW,
+          title: generated.title,
+          entityType: EntityType.EXTERNAL_EMAIL_MESSAGE,
+          entityId: emailMessage.id,
+          externalEmailMessageId: emailMessage.id,
+          inputText,
+          inputHash,
+          outputJson: generated.outputJson as Prisma.InputJsonValue,
+          outputText: generated.outputText,
+          confidenceScore: generated.confidenceScore,
+          metadataJson: {
+            model: generated.model,
+            suggestedSubject: output.suggestedSubject,
+            tone: output.tone,
+            confidence: output.confidence,
+            reasoning: output.reasoning,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+            draftCreatedAutomatically: false,
+            aiAnalysisScope: 'metadata_only',
+            generatedFor: 'external_email_reply_draft',
+            source: 'external_sync',
+            connectedAccountId: emailMessage.connectedAccountId,
+            externalEmailMessageId: emailMessage.id,
+            externalMessageId: emailMessage.externalMessageId,
+            externalThreadId: emailMessage.externalThreadId,
+            bodyStored: false,
+            crmRecordsCreated: false,
+          },
+          tokensInput: generated.tokensInput,
+          tokensOutput: generated.tokensOutput,
+          estimatedCostUsd: generated.estimatedCostUsd,
+          expiresAt: this.getDefaultExpirationDate(),
+        },
+      });
+
+      await this.aiUsageService.recordSuccessfulUsage(tx, currentUser, {
+        feature: AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT,
+        provider: generated.provider,
+        model: generated.model,
+        tokensInput: generated.tokensInput,
+        tokensOutput: generated.tokensOutput,
+        estimatedCostUsd: generated.estimatedCostUsd,
+        aiSuggestionId: suggestion.id,
+        metadataJson: {
+          aiSuggestionId: suggestion.id,
+          aiSuggestionType: suggestion.type,
+          externalEmailMessageId: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          externalMessageId: emailMessage.externalMessageId,
+          externalThreadId: emailMessage.externalThreadId,
+          estimatedCreditsRequired,
+          bodyStored: false,
+          draftCreatedAutomatically: false,
+          emailSentAutomatically: false,
+          crmRecordsCreated: false,
+        },
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_CREATED,
+          entityType: EntityType.EXTERNAL_EMAIL_MESSAGE,
+          entityId: emailMessage.id,
+          title: `AI email reply draft suggestion created`,
+          description:
+            'AI generated a reply draft suggestion from synced email metadata. Human review is required before creating a draft or sending any email.',
+          source: Source.AI_SUGGESTION,
+          occurredAt: suggestion.createdAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            aiSuggestionStatus: suggestion.status,
+            externalEmailMessageId: emailMessage.id,
+            connectedAccountId: emailMessage.connectedAccountId,
+            externalMessageId: emailMessage.externalMessageId,
+            externalThreadId: emailMessage.externalThreadId,
+            humanApprovalRequired: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            draftCreatedAutomatically: false,
+            emailSentAutomatically: false,
+            bodyStored: false,
+            crmRecordsCreated: false,
+          },
+        }),
+      });
+
+      return suggestion;
+    });
+  }
+
   async analyzeExternalCalendarEvent(
     calendarEventId: string,
     currentUser: CurrentUser,
