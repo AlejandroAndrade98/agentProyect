@@ -57,6 +57,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/ai-suggestions',
       enabled: true,
     },
+    {
+      label: 'Synced Emails',
+      href: '/dashboard/external-sync/email-messages',
+      enabled: true,
+    },
     ...(user?.role === 'SUPER_ADMIN'
       ? [
           {

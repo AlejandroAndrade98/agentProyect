@@ -4056,3 +4056,76 @@ Safety rules preserved:
 - No background jobs were added.
 - Gmail draft creation still requires explicit human action.
 - Human-in-the-loop workflow remains enforced.
+
+## Phase 17E.1, Synced Emails AI Actions UI
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a frontend Synced Emails / AI Inbox page so users can view synced Gmail metadata and trigger AI actions without using PowerShell.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/external-sync/email-messages/page.tsx`
+- `apps/web/src/types/external-sync.ts`
+- `apps/web/src/lib/api/external-sync.ts`
+- `apps/web/src/lib/api-client.ts`
+- `apps/web/src/components/DashboardLayout.tsx`
+
+Frontend behavior implemented:
+
+- Added route:
+  - `/dashboard/external-sync/email-messages`
+
+- Added sidebar navigation link:
+  - `Synced Emails`
+
+- Added typed frontend helpers for:
+  - `GET /api/external-sync/email-messages`
+  - `POST /api/external-sync/email-messages/sync`
+  - `POST /api/ai-suggestions/external-sync/email-messages/:emailMessageId/analyze`
+  - `POST /api/ai-suggestions/external-sync/email-messages/:emailMessageId/generate-reply-draft`
+
+- Added synced email frontend types and pagination metadata for the backend response shape.
+
+Synced Emails page behavior:
+
+- Shows synced Gmail metadata.
+- Supports search.
+- Supports pagination.
+- Shows manual `Sync Gmail` action.
+- Refreshes email list after sync.
+- Shows per-email AI actions:
+  - `Analyze email`
+  - `Generate reply draft`
+
+- Successful AI actions show links to the created AI Suggestions review page.
+
+Error handling:
+
+- Duplicate pending suggestions show a friendly message.
+- Missing Google connection shows a reconnect/connect message.
+- Insufficient scope errors show a reconnect Google message.
+- General failures show a retry-friendly error.
+
+Safety rules preserved:
+
+- AI uses synced email metadata/snippet only.
+- No email is sent automatically.
+- No Gmail draft is created automatically from this page.
+- No CRM records are created automatically.
+- Generated suggestions must be reviewed by a human.
+- No background jobs were added.
+- No backend or Prisma changes were made.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Synced Emails page loads.
+- Gmail sync action refreshes the list.
+- Analyze email creates an AI suggestion.
+- Generate reply draft creates an AI reply draft suggestion.
+- Created suggestion links open the AI Suggestion review page.
+- No Send email button exists.
+- No automatic Gmail draft creation exists from this page.
+- No automatic CRM record creation exists from this page.

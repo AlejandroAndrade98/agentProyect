@@ -185,3 +185,19 @@ Current AI email draft workflow:
 - No email is sent automatically.
 - No Gmail send button exists.
 - No CRM records are created automatically.
+
+## Latest completed phase
+
+Phase 17E.1 Synced Emails AI Actions UI is completed and validated.
+
+Current AI Inbox flow:
+- Users can open `/dashboard/external-sync/email-messages`.
+- Users can view synced Gmail metadata.
+- Users can manually sync Gmail from the frontend.
+- Users can generate external email analysis suggestions.
+- Users can generate AI email reply draft suggestions.
+- Created suggestions link to the AI Suggestions review page.
+- No email is sent automatically.
+- No Gmail draft is created automatically from the Synced Emails page.
+- No CRM records are created automatically.
+- Human review remains required.
