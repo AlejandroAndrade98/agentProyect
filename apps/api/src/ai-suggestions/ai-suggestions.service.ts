@@ -69,6 +69,7 @@ type LeadNextStepsOutput = {
 type ExternalEmailAnalysisApplyOutput = {
   summary?: string;
   suggestedNote?: string;
+  suggestedTasks?: SuggestedTaskOutput[];
   reasoningSummary?: string;
 };
 
@@ -76,7 +77,8 @@ type AppliedActionName =
   | 'UPDATE_LEAD_NEXT_STEP'
   | 'CREATE_TASK'
   | 'CREATE_NOTE'
-  | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL';
+  | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_EMAIL';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -1290,6 +1292,157 @@ export class AiSuggestionsService {
     });
   }
 
+  async createTaskFromExternalEmailSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+    dto: ApplySuggestedTaskDto,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: this.getSuggestionInclude(),
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.ANALYZE_EXTERNAL_EMAIL) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.externalEmailMessageId) {
+      throw new ConflictException(
+        'AI suggestion is not linked to an external email message',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_TASK_FROM_EXTERNAL_EMAIL',
+      )
+    ) {
+      throw new ConflictException('External email task was already created');
+    }
+
+    const output = this.parseExternalEmailAnalysisOutput(suggestion.outputJson);
+    const email = suggestion.externalEmailMessage;
+    const suggestedTask = output.suggestedTasks?.[dto.taskIndex ?? 0];
+    const title =
+      dto.title?.trim() ||
+      suggestedTask?.title?.trim() ||
+      `Review email: ${email?.subject?.trim() || 'Synced email'}`;
+    const description = this.buildExternalEmailTaskDescription({
+      taskBody:
+        dto.description?.trim() ||
+        suggestedTask?.description?.trim() ||
+        output.summary?.trim() ||
+        output.suggestedNote?.trim() ||
+        'Review this accepted external email AI suggestion and decide the next CRM action.',
+      output,
+      email,
+      externalEmailMessageId: suggestion.externalEmailMessageId,
+    });
+    const dueDate = dto.dueDate
+      ? new Date(dto.dueDate)
+      : typeof suggestedTask?.dueInDays === 'number'
+        ? this.buildDueDateFromDays(suggestedTask.dueInDays)
+        : undefined;
+    const priority = dto.priority ?? suggestedTask?.priority ?? Priority.MEDIUM;
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          description,
+          status: TaskStatus.TODO,
+          priority,
+          importanceLevel: ImportanceLevel.MEDIUM,
+          dueDate,
+          assignedToUserId: currentUser.id,
+          contactId: suggestion.contactId,
+          leadId: suggestion.leadId,
+          boardPosition: 0,
+          statusChangedAt: appliedAt,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_TASK_FROM_EXTERNAL_EMAIL',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.TASK,
+            recordId: task.id,
+            details: {
+              title,
+              priority,
+              dueDate: dueDate?.toISOString() ?? null,
+              externalEmailMessageId: suggestion.externalEmailMessageId,
+              externalMessageId: email?.externalMessageId ?? null,
+              externalThreadId: email?.externalThreadId ?? null,
+              emailSentAutomatically: false,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.TASK,
+          entityId: task.id,
+          title: 'AI suggestion applied: external email task created',
+          description:
+            'A human created a CRM task from an accepted external email AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          contactId: task.contactId ?? undefined,
+          leadId: task.leadId ?? undefined,
+          taskId: task.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_TASK_FROM_EXTERNAL_EMAIL',
+            externalEmailMessageId: suggestion.externalEmailMessageId,
+            externalMessageId: email?.externalMessageId ?? null,
+            externalThreadId: email?.externalThreadId ?? null,
+            taskId: task.id,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        task,
+      };
+    });
+  }
+
   private async generateWithFailureUsage<TGenerated>(
     currentUser: CurrentUser,
     input: {
@@ -1485,6 +1638,50 @@ export class AiSuggestionsService {
       output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
       '',
       'Safety: This note was created by explicit human action from an accepted AI suggestion. No email was sent automatically.',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
+  }
+
+  private buildExternalEmailTaskDescription({
+    taskBody,
+    output,
+    email,
+    externalEmailMessageId,
+  }: {
+    taskBody: string;
+    output: ExternalEmailAnalysisApplyOutput;
+    email?: {
+      subject: string | null;
+      snippet: string | null;
+      fromEmail: string | null;
+      fromName: string | null;
+      externalMessageId: string;
+      externalThreadId: string | null;
+      internalDate: Date | null;
+      syncedAt: Date;
+    } | null;
+    externalEmailMessageId: string;
+  }) {
+    return [
+      taskBody,
+      '',
+      'Synced email metadata:',
+      `Subject: ${email?.subject ?? '(no subject)'}`,
+      `From: ${email?.fromName || email?.fromEmail || '(unknown sender)'}`,
+      `From email: ${email?.fromEmail ?? '(unknown)'}`,
+      `Snippet: ${email?.snippet ?? '(no snippet)'}`,
+      `Internal date: ${email?.internalDate?.toISOString() ?? '(unknown)'}`,
+      `Synced at: ${email?.syncedAt?.toISOString() ?? '(unknown)'}`,
+      `External email message id: ${externalEmailMessageId}`,
+      `External provider message id: ${email?.externalMessageId ?? '(unknown)'}`,
+      `External thread id: ${email?.externalThreadId ?? 'none'}`,
+      '',
+      'AI review context:',
+      output.summary ? `Summary: ${output.summary}` : null,
+      output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
+      '',
+      'Human approval: This task was created by explicit human action from an accepted AI suggestion. No email was sent automatically.',
     ]
       .filter((line): line is string => line !== null)
       .join('\n');

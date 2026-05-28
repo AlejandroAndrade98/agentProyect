@@ -160,4 +160,18 @@ export class AiSuggestionsController {
       dto,
     );
   }
+
+  @Post(':id/apply/external-email-task')
+  @Roles(...CRM_WRITE_ROLES)
+  createTaskFromExternalEmailSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+    @Body() dto: ApplySuggestedTaskDto,
+  ) {
+    return this.aiSuggestionsService.createTaskFromExternalEmailSuggestion(
+      id,
+      currentUser,
+      dto,
+    );
+  }
 }

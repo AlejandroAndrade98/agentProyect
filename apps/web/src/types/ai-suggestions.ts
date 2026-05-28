@@ -285,3 +285,5 @@ export type ApplySuggestedNoteResponse = {
 };
 
 export type ApplyExternalEmailNoteResponse = ApplySuggestedNoteResponse;
+
+export type ApplyExternalEmailTaskResponse = ApplySuggestedTaskResponse;

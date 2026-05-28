@@ -3572,3 +3572,56 @@ Safety rules preserved:
 - No emails are sent.
 - Secrets/API keys are not exposed.
 - Successful output shapes remain unchanged.
+
+## Phase 17C.2, Apply External Email Suggestion to CRM Task
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a human-controlled apply action for accepted external email AI suggestions to create CRM tasks.
+
+Implemented:
+
+- Added endpoint:
+  - `POST /api/ai-suggestions/:id/apply/external-email-task`
+
+- The endpoint:
+  - requires auth and CRM write roles
+  - only works for accepted external email suggestions
+  - requires `AiSuggestionType.ANALYZE_EXTERNAL_EMAIL`
+  - requires linked `externalEmailMessageId`
+  - creates a CRM Task with `status = TODO`
+  - assigns the task to the current user
+  - uses AI suggestion priority/due date when available
+  - includes safe synced email metadata in task description
+  - links contact/lead only if already present on the suggestion
+  - records `AI_SUGGESTION_APPLIED`
+  - records `appliedAction = CREATE_TASK_FROM_EXTERNAL_EMAIL`
+  - blocks duplicate task creation with 409
+
+Frontend behavior implemented:
+
+- External email suggestion detail page now shows “Create CRM task” only after human review acceptance.
+- Pending/rejected suggestions cannot be applied.
+- The action is hidden after it has already been applied.
+- UI makes clear no email is sent automatically.
+
+Runtime validation completed:
+
+- Created a CRM Task from an accepted external email suggestion.
+- Task was created with:
+  - `status = TODO`
+  - `priority = MEDIUM`
+  - `assignedToUserId = currentUser`
+- Suggestion metadata now includes `appliedActions`.
+- Duplicate apply attempt returned 409.
+- ActivityEvent `AI_SUGGESTION_APPLIED` was created with:
+  - `entityType = TASK`
+  - `appliedAction = CREATE_TASK_FROM_EXTERNAL_EMAIL`
+  - `emailSentAutomatically = false`
+
+Safety rules preserved:
+
+- No emails are sent automatically.
+- No Company, Contact, or Lead is created.
+- Applying requires explicit human action.
+- Rejected/pending suggestions are not applicable.

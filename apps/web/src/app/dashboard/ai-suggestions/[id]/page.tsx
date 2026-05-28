@@ -14,6 +14,7 @@ import {
   acceptAiSuggestion,
   ApiClientError,
   applyAiSuggestionExternalEmailNote,
+  applyAiSuggestionExternalEmailTask,
   applyAiSuggestionLeadNextStep,
   applyAiSuggestionNote,
   applyAiSuggestionTask,
@@ -369,6 +370,47 @@ async function handleCreateExternalEmailNote() {
   }
 }
 
+async function handleCreateExternalEmailTask() {
+  if (!token || !suggestion) {
+    return;
+  }
+
+  setIsApplying('external-email-task');
+  setErrorMessage(null);
+  setApplyMessage(null);
+
+  try {
+    const response = await applyAiSuggestionExternalEmailTask(
+      token,
+      suggestion.id,
+      {
+        taskIndex: 0,
+        title: taskTitleDraft.trim() || undefined,
+        description: taskDescriptionDraft.trim() || undefined,
+        priority: taskPriorityDraft,
+        dueDate: taskDueDateDraft
+          ? new Date(taskDueDateDraft).toISOString()
+          : undefined,
+      },
+    );
+
+    setSuggestion(response.suggestion);
+    setApplyMessage(
+      `CRM task created from external email review. Task ID: ${response.task.id}. No email was sent.`,
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      setErrorMessage(error.message);
+    } else if (error instanceof Error) {
+      setErrorMessage(error.message);
+    } else {
+      setErrorMessage('Could not create task from external email suggestion.');
+    }
+  } finally {
+    setIsApplying(null);
+  }
+}
+
   const canReviewSuggestion =
   suggestion?.status === 'PENDING_REVIEW' && canUpdateCrm(user);
 
@@ -396,7 +438,8 @@ function hasAppliedAction(
     | 'UPDATE_LEAD_NEXT_STEP'
     | 'CREATE_TASK'
     | 'CREATE_NOTE'
-    | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+    | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
+    | 'CREATE_TASK_FROM_EXTERNAL_EMAIL',
 ) {
   return getAppliedActions(suggestion).some((appliedAction) => {
     if (
@@ -430,12 +473,18 @@ const canApplyExternalEmailNote =
     suggestion.status === 'EDITED_AND_ACCEPTED') &&
   canUpdateCrm(user);
 
+const canApplyExternalEmailTask = canApplyExternalEmailNote;
+
 const nextStepApplied = hasAppliedAction(suggestion, 'UPDATE_LEAD_NEXT_STEP');
 const taskApplied = hasAppliedAction(suggestion, 'CREATE_TASK');
 const noteApplied = hasAppliedAction(suggestion, 'CREATE_NOTE');
 const externalEmailNoteApplied = hasAppliedAction(
   suggestion,
   'CREATE_NOTE_FROM_EXTERNAL_EMAIL',
+);
+const externalEmailTaskApplied = hasAppliedAction(
+  suggestion,
+  'CREATE_TASK_FROM_EXTERNAL_EMAIL',
 );
 
   return (
@@ -1293,6 +1342,118 @@ const externalEmailNoteApplied = hasAppliedAction(
               </button>
             </section>
           </div>
+        </article>
+      ) : null}
+
+        {canApplyExternalEmailTask && !externalEmailTaskApplied ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-blue-700">
+              External email action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              Create CRM task from reviewed email
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This creates one official CRM task from the accepted email review.
+              It requires this explicit human click and does not send an email.
+            </p>
+          </div>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <h3 className="font-semibold text-slate-950">
+                  Create CRM task
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  The task will include safe synced email metadata, AI summary,
+                  reasoning, and a human approval notice. No contact, lead, or
+                  email will be created.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-slate-700">Title</span>
+                <input
+                  value={taskTitleDraft}
+                  onChange={(event) => setTaskTitleDraft(event.target.value)}
+                  disabled={externalEmailTaskApplied || !canApplyExternalEmailTask}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Description
+                </span>
+                <textarea
+                  value={taskDescriptionDraft}
+                  onChange={(event) => setTaskDescriptionDraft(event.target.value)}
+                  rows={3}
+                  disabled={externalEmailTaskApplied || !canApplyExternalEmailTask}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Priority
+                </span>
+                <select
+                  value={taskPriorityDraft}
+                  onChange={(event) =>
+                    setTaskPriorityDraft(
+                      event.target.value as
+                        | 'LOW'
+                        | 'MEDIUM'
+                        | 'HIGH'
+                        | 'CRITICAL',
+                    )
+                  }
+                  disabled={externalEmailTaskApplied || !canApplyExternalEmailTask}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="CRITICAL">Critical</option>
+                </select>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Due date optional
+                </span>
+                <input
+                  type="datetime-local"
+                  value={taskDueDateDraft}
+                  onChange={(event) => setTaskDueDateDraft(event.target.value)}
+                  disabled={externalEmailTaskApplied || !canApplyExternalEmailTask}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateExternalEmailTask}
+              disabled={
+                !canApplyExternalEmailTask ||
+                externalEmailTaskApplied ||
+                isApplying !== null
+              }
+              className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isApplying === 'external-email-task'
+                ? 'Creating...'
+                : externalEmailTaskApplied
+                  ? 'CRM task created'
+                  : 'Create CRM task'}
+            </button>
+          </section>
         </article>
       ) : null}
 
