@@ -198,4 +198,16 @@ export class AiSuggestionsController {
       currentUser,
     );
   }
+
+  @Post(':id/apply/external-calendar-note')
+  @Roles(...CRM_WRITE_ROLES)
+  createNoteFromExternalCalendarSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.createNoteFromExternalCalendarSuggestion(
+      id,
+      currentUser,
+    );
+  }
 }

@@ -1,5 +1,6 @@
 import type {
   AiSuggestion,
+  ApplyExternalCalendarNoteResponse,
   ApplyExternalCalendarTaskResponse,
   ApplyExternalEmailLeadResponse,
   ApplyExternalEmailNoteResponse,
@@ -155,6 +156,19 @@ export function applyAiSuggestionExternalCalendarTask(
 ) {
   return apiRequest<ApplyExternalCalendarTaskResponse>(
     `/ai-suggestions/${id}/apply/external-calendar-task`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
+}
+
+export function applyAiSuggestionExternalCalendarNote(
+  token: string,
+  id: string,
+) {
+  return apiRequest<ApplyExternalCalendarNoteResponse>(
+    `/ai-suggestions/${id}/apply/external-calendar-note`,
     {
       method: 'POST',
       token,
