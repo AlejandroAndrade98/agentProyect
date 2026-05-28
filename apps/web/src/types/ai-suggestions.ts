@@ -203,6 +203,10 @@ export type AiSuggestion = {
     crmRecordsCreated?: boolean;
     emailSentAutomatically?: boolean;
     draftCreatedAutomatically?: boolean;
+    gmailDraftId?: string;
+    gmailThreadId?: string | null;
+    gmailDraftCreatedAt?: string;
+    gmailDraftCreatedByUserId?: string;
     connectedAccountId?: string;
     externalEmailMessageId?: string;
     externalCalendarEventId?: string;
@@ -328,3 +332,27 @@ export type ApplyExternalEmailLeadResponse = {
 };
 
 export type ApplyExternalCalendarLeadResponse = ApplyExternalEmailLeadResponse;
+
+export type CreateGmailDraftFromAiSuggestionResponse = {
+  suggestion: AiSuggestion;
+  gmailDraftId: string;
+  gmailThreadId?: string | null;
+  gmailDraftMetadata: {
+    connectedAccountId: string;
+    externalEmailMessageId: string;
+    externalMessageId: string;
+    externalThreadId: string | null;
+    messageId: string | null;
+    labelIds: string[];
+    recipientEmail: string;
+    suggestedSubject: string;
+    createdAt: string;
+  };
+  confirmation: {
+    humanApprovalRequired: true;
+    draftCreatedAutomatically: false;
+    canSendEmailAutomatically: false;
+    emailSentAutomatically: false;
+    crmRecordsCreated: false;
+  };
+};

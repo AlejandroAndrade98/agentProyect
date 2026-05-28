@@ -6,6 +6,7 @@ import type {
   ApplyExternalEmailLeadResponse,
   ApplyExternalEmailNoteResponse,
   ApplyExternalEmailTaskResponse,
+  CreateGmailDraftFromAiSuggestionResponse,
   PaginatedAiSuggestions,
   QueryAiSuggestionsParams,
   ReviewAiSuggestionInput,
@@ -183,6 +184,16 @@ export function applyAiSuggestionExternalCalendarLead(
 ) {
   return apiRequest<ApplyExternalCalendarLeadResponse>(
     `/ai-suggestions/${id}/apply/external-calendar-lead`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
+}
+
+export function createGmailDraftFromAiSuggestion(token: string, id: string) {
+  return apiRequest<CreateGmailDraftFromAiSuggestionResponse>(
+    `/ai-suggestions/${id}/create-gmail-draft`,
     {
       method: 'POST',
       token,
