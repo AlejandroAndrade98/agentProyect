@@ -3681,3 +3681,72 @@ Safety rules preserved:
 - No Company or Contact is created automatically.
 - Applying requires explicit human action.
 - Rejected/pending suggestions are not applicable.
+
+## Phase 17D.1B, Backend AI Email Reply Draft Suggestions
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+Implemented backend-only generation of AI email reply draft suggestions from synced external email metadata.
+
+Endpoint added:
+
+- `POST /api/ai-suggestions/external-sync/email-messages/:emailMessageId/generate-reply-draft`
+
+Behavior:
+
+- Requires auth and CRM write roles.
+- Uses only synced email metadata/snippet.
+- Creates `AiSuggestion` with:
+  - `type = GENERATE_EMAIL_REPLY_DRAFT`
+  - `status = PENDING_REVIEW`
+  - `entityType = EXTERNAL_EMAIL_MESSAGE`
+  - linked `externalEmailMessageId`
+  - draft body in `outputText`
+- Supports:
+  - `AI_PROVIDER=mock`
+  - `AI_PROVIDER=openai`
+- Uses `AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT`.
+- Creates `AiUsageRecord`.
+- Creates `AI_SUGGESTION_CREATED` ActivityEvent.
+- Blocks duplicate pending draft suggestions for the same email with 409.
+
+Runtime validation completed:
+
+- OpenAI real generation created a pending email reply draft suggestion.
+- Suggestion was created with:
+  - `provider = openai`
+  - `model = gpt-4o-mini`
+  - `type = GENERATE_EMAIL_REPLY_DRAFT`
+  - `status = PENDING_REVIEW`
+  - `tokensInput = 592`
+  - `tokensOutput = 142`
+- Output text contained the suggested reply draft.
+- Metadata included:
+  - `suggestedSubject`
+  - `tone`
+  - `confidence`
+  - `reasoning`
+  - `aiAnalysisScope = metadata_only`
+  - `humanApprovalRequired = true`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+  - `emailSentAutomatically = false`
+  - `draftCreatedAutomatically = false`
+- Duplicate pending draft request returned 409.
+- Usage record was created with:
+  - `feature = EXTERNAL_EMAIL_REPLY_DRAFT`
+  - `status = SUCCESS`
+  - `provider = openai`
+- ActivityEvent was created with:
+  - `type = AI_SUGGESTION_CREATED`
+  - `entityType = EXTERNAL_EMAIL_MESSAGE`
+  - `draftCreatedAutomatically = false`
+  - `emailSentAutomatically = false`
+
+Safety rules preserved:
+
+- No Gmail draft was created.
+- No email was sent.
+- No CRM records were created automatically.
+- No background job was added.
+- Human review is required.

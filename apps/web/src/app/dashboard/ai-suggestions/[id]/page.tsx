@@ -31,6 +31,7 @@ import type {
   AiSuggestionStatus,
   ExternalCalendarEventAnalysisOutput,
   ExternalEmailAnalysisOutput,
+  ExternalEmailReplyDraftOutput,
   LeadNextStepsSuggestionOutput,
 } from '@/types/ai-suggestions';
 import { canUpdateCrm } from '@/lib/permissions';
@@ -55,6 +56,14 @@ function formatConfidence(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatMetadataConfidence(value: unknown, fallback: number | null) {
+  if (typeof value === 'number') {
+    return formatConfidence(value);
+  }
+
+  return formatConfidence(fallback);
+}
+
 function isLeadNextStepsOutput(
   output: AiSuggestion['outputJson'],
 ): output is LeadNextStepsSuggestionOutput {
@@ -74,6 +83,18 @@ function isExternalEmailAnalysisOutput(
       'suggestedReviewAction' in output &&
       'importanceLevel' in output &&
       'detectedSignals' in output,
+  );
+}
+
+function isExternalEmailReplyDraftOutput(
+  output: AiSuggestion['outputJson'],
+): output is ExternalEmailReplyDraftOutput {
+  return Boolean(
+    output &&
+      'suggestedSubject' in output &&
+      'replyText' in output &&
+      'tone' in output &&
+      'reasoning' in output,
   );
 }
 
@@ -592,6 +613,8 @@ function hasAppliedAction(
 
 const isLeadNextStepsSuggestion = suggestion?.type === 'SUGGEST_NEXT_STEPS';
 const isExternalEmailSuggestion = suggestion?.type === 'ANALYZE_EXTERNAL_EMAIL';
+const isExternalEmailReplyDraftSuggestion =
+  suggestion?.type === 'GENERATE_EMAIL_REPLY_DRAFT';
 const isExternalCalendarSuggestion =
   suggestion?.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT';
 
@@ -759,7 +782,7 @@ const externalCalendarLeadApplied = hasAppliedAction(
                 </article>
               ) : null}
 
-              {isExternalEmailSuggestion ? (
+              {isExternalEmailSuggestion || isExternalEmailReplyDraftSuggestion ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-950">
                     External email metadata
@@ -875,6 +898,131 @@ const externalCalendarLeadApplied = hasAppliedAction(
                       <p className="mt-1 text-slate-600">
                         {formatBooleanFlag(suggestion.metadataJson?.emailSentAutomatically)}
                       </p>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
+              {isExternalEmailReplyDraftSuggestion ? (
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">
+                        Email reply draft review
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                        Suggested reply draft
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        This draft was generated from synced email metadata and snippet
+                        only. Human review is required before any draft or email action.
+                      </p>
+                    </div>
+
+                    <Badge className="bg-amber-50 text-amber-700 ring-amber-200">
+                      Review only
+                    </Badge>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">
+                        Suggested reply subject
+                      </p>
+                      <p className="mt-1 break-words text-sm text-slate-600">
+                        {suggestion.outputJson &&
+                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
+                          ? suggestion.outputJson.suggestedSubject
+                          : String(
+                              suggestion.metadataJson?.suggestedSubject ??
+                                'Not set',
+                            )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">Tone</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {suggestion.outputJson &&
+                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
+                          ? formatEnumLabel(suggestion.outputJson.tone)
+                          : formatEnumLabel(
+                              String(suggestion.metadataJson?.tone ?? 'Not set'),
+                            )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">
+                        Confidence
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {suggestion.outputJson &&
+                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
+                          ? formatConfidence(suggestion.outputJson.confidence)
+                          : formatMetadataConfidence(
+                              suggestion.metadataJson?.confidence,
+                              suggestion.confidenceScore,
+                            )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-950">
+                        Analysis scope
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {String(
+                          suggestion.metadataJson?.aiAnalysisScope ??
+                            'metadata_only',
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-5 text-sm text-slate-700">
+                    <div>
+                      <p className="font-medium text-slate-950">
+                        Suggested reply body
+                      </p>
+                      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="whitespace-pre-line leading-7">
+                          {suggestion.outputText ?? 'No reply draft available.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-slate-950">Reasoning</p>
+                      <p className="mt-1 leading-6">
+                        {suggestion.outputJson &&
+                        isExternalEmailReplyDraftOutput(suggestion.outputJson)
+                          ? suggestion.outputJson.reasoning
+                          : String(
+                              suggestion.metadataJson?.reasoning ??
+                                'No reasoning available.',
+                            )}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                        Human review is required. This suggestion does not create or
+                        send anything automatically.
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
+                        Metadata-only: the full email body and attachments were not
+                        used for this reply draft.
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
+                        No Gmail draft was created automatically.
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
+                        No email was sent automatically.
+                      </div>
                     </div>
                   </div>
                 </article>

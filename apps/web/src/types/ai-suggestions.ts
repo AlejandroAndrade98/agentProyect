@@ -14,6 +14,7 @@ export type AiSuggestionType =
   | 'EXTRACT_IMPORTANT_DATA'
   | 'SUMMARIZE_LEAD'
   | 'SUGGEST_NEXT_STEPS'
+  | 'GENERATE_EMAIL_REPLY_DRAFT'
   | 'ANALYZE_EXTERNAL_EMAIL'
   | 'ANALYZE_EXTERNAL_CALENDAR_EVENT';
 
@@ -79,6 +80,20 @@ export type ExternalEmailAnalysisOutput = {
   noAutomaticEmailSending: true;
 };
 
+export type ExternalEmailReplyDraftOutput = {
+  suggestedSubject: string;
+  replyText: string;
+  tone: 'PROFESSIONAL' | 'FRIENDLY' | 'CONCISE' | 'FORMAL';
+  confidence: number;
+  reasoning: string;
+  humanApprovalRequired: true;
+  canApplyAutomatically: false;
+  canSendEmailAutomatically: false;
+  emailSentAutomatically: false;
+  draftCreatedAutomatically: false;
+  aiAnalysisScope: 'metadata_only';
+};
+
 export type ExternalCalendarEventAnalysisOutput = {
   summary: string;
   importanceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -107,6 +122,7 @@ export type ExternalCalendarEventAnalysisOutput = {
 export type AiSuggestionOutput =
   | LeadNextStepsSuggestionOutput
   | ExternalEmailAnalysisOutput
+  | ExternalEmailReplyDraftOutput
   | ExternalCalendarEventAnalysisOutput;
 
 export type AiSuggestionExternalEmailMessage = {
@@ -175,6 +191,10 @@ export type AiSuggestion = {
     model?: string;
     generatedFor?: string;
     source?: string;
+    suggestedSubject?: string;
+    tone?: string;
+    confidence?: number;
+    reasoning?: string;
     humanApprovalRequired?: boolean;
     canApplyAutomatically?: boolean;
     canSendEmailAutomatically?: boolean;
@@ -182,6 +202,7 @@ export type AiSuggestion = {
     aiAnalysisScope?: string;
     crmRecordsCreated?: boolean;
     emailSentAutomatically?: boolean;
+    draftCreatedAutomatically?: boolean;
     connectedAccountId?: string;
     externalEmailMessageId?: string;
     externalCalendarEventId?: string;

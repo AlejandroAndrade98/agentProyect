@@ -30,6 +30,7 @@ const statusOptions: Array<AiSuggestionStatus | ''> = [
 const typeOptions: Array<AiSuggestionType | ''> = [
   '',
   'SUGGEST_NEXT_STEPS',
+  'GENERATE_EMAIL_REPLY_DRAFT',
   'ANALYZE_EXTERNAL_EMAIL',
   'ANALYZE_EXTERNAL_CALENDAR_EVENT',
 ];
@@ -57,6 +58,10 @@ function getConfidenceLabel(suggestion: AiSuggestion) {
 function getSuggestionContextLabel(suggestion: AiSuggestion) {
   if (suggestion.type === 'ANALYZE_EXTERNAL_EMAIL') {
     return 'Synced email metadata';
+  }
+
+  if (suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT') {
+    return 'Email reply draft review';
   }
 
   if (suggestion.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT') {
