@@ -1,7 +1,7 @@
 // FILE: apps/api/src/ai-suggestions/ai-suggestion-provider.service.ts
 
 import OpenAI from 'openai';
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 
 
 import { LeadNextStepsContext } from './lead-ai-context.service';
@@ -36,6 +36,17 @@ export type GeneratedAiSuggestion<TOutput = unknown> = {
   tokensOutput: number;
   estimatedCostUsd: number;
 };
+
+export class AiProviderError extends Error {
+  constructor(
+    readonly errorCode: string,
+    message: string,
+    readonly statusCode = HttpStatus.SERVICE_UNAVAILABLE,
+  ) {
+    super(message);
+    this.name = 'AiProviderError';
+  }
+}
 
 export type ExternalEmailMetadataForAi = {
   id: string;
@@ -216,8 +227,10 @@ export class AiSuggestionProviderService {
     }
 
     if (!this.openAiApiKey) {
-      throw new Error(
-        'OPENAI_API_KEY is required when AI_PROVIDER is set to openai',
+      throw new AiProviderError(
+        'AI_PROVIDER_MISSING_API_KEY',
+        'AI provider API key is not configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
 
@@ -234,10 +247,97 @@ export class AiSuggestionProviderService {
     }
   }
 
+  private assertSupportedProvider() {
+    if (this.aiProvider !== 'mock' && this.aiProvider !== 'openai') {
+      throw new AiProviderError(
+        'AI_PROVIDER_INVALID_CONFIG',
+        'AI provider configuration is invalid',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  private normalizeOpenAiError(error: unknown): AiProviderError {
+    if (error instanceof AiProviderError) {
+      return error;
+    }
+
+    const errorRecord =
+      error && typeof error === 'object'
+        ? (error as Record<string, unknown>)
+        : {};
+    const status =
+      typeof errorRecord.status === 'number' ? errorRecord.status : undefined;
+    const code =
+      typeof errorRecord.code === 'string' ? errorRecord.code : undefined;
+    const name =
+      typeof errorRecord.name === 'string' ? errorRecord.name : undefined;
+
+    if (name === 'ZodError' || name === 'SyntaxError') {
+      return new AiProviderError(
+        'AI_PROVIDER_MALFORMED_OUTPUT',
+        'AI provider returned malformed output',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    if (code === 'model_not_found') {
+      return new AiProviderError(
+        'AI_PROVIDER_INVALID_CONFIG',
+        'AI provider configuration is invalid',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    if (status === 401 || status === 403) {
+      return new AiProviderError(
+        'AI_PROVIDER_AUTH_FAILED',
+        'AI provider authentication failed',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    if (status === 429 || code === 'rate_limit_exceeded') {
+      return new AiProviderError(
+        'AI_PROVIDER_RATE_LIMITED',
+        'AI provider rate limit reached',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    if (
+      status === 408 ||
+      code === 'ETIMEDOUT' ||
+      code === 'ECONNRESET' ||
+      name === 'APIConnectionTimeoutError'
+    ) {
+      return new AiProviderError(
+        'AI_PROVIDER_TIMEOUT',
+        'AI provider request timed out',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    if (status && status >= 500) {
+      return new AiProviderError(
+        'AI_PROVIDER_UNAVAILABLE',
+        'AI provider is temporarily unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    return new AiProviderError(
+      'AI_PROVIDER_REQUEST_FAILED',
+      'AI provider request failed',
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
+
   async generateLeadNextSteps(
     context: LeadNextStepsContext,
     inputText: string,
   ): Promise<GeneratedAiSuggestion<LeadNextStepsSuggestionOutput>> {
+    this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
@@ -321,39 +421,44 @@ export class AiSuggestionProviderService {
       throw new Error('OpenAI client is not configured');
     }
 
-    const response = await client.responses.parse({
-      model: this.openAiModel,
-      input: [
-        {
-          role: 'system',
-          content: [
-            'You are an AI assistant for a CRM platform.',
-            'Generate a safe, concise, structured next-step recommendation for a sales lead.',
-            'You must return only the structured output requested by the schema.',
-            'Do not claim that CRM records were updated.',
-            'Do not create tasks, notes, leads, contacts, companies, or emails.',
-            'Do not send emails.',
-            'Every recommendation must require human review.',
-            'Set humanApprovalRequired to true.',
-          ].join('\n'),
+    const response = await this.parseOpenAiResponse(() =>
+      client.responses.parse({
+        model: this.openAiModel,
+        input: [
+          {
+            role: 'system',
+            content: [
+              'You are an AI assistant for a CRM platform.',
+              'Generate a safe, concise, structured next-step recommendation for a sales lead.',
+              'You must return only the structured output requested by the schema.',
+              'Do not claim that CRM records were updated.',
+              'Do not create tasks, notes, leads, contacts, companies, or emails.',
+              'Do not send emails.',
+              'Every recommendation must require human review.',
+              'Set humanApprovalRequired to true.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: inputText,
+          },
+        ],
+        text: {
+          format: zodTextFormat(
+            LeadNextStepsSuggestionSchema,
+            'lead_next_steps_suggestion',
+          ),
         },
-        {
-          role: 'user',
-          content: inputText,
-        },
-      ],
-      text: {
-        format: zodTextFormat(
-          LeadNextStepsSuggestionSchema,
-          'lead_next_steps_suggestion',
-        ),
-      },
-    });
+      }),
+    );
 
     const parsed = response.output_parsed;
 
     if (!parsed) {
-      throw new Error('OpenAI did not return a parsed lead next steps suggestion');
+      throw new AiProviderError(
+        'AI_PROVIDER_MALFORMED_OUTPUT',
+        'AI provider returned malformed output',
+      );
     }
 
     const outputJson = parsed as LeadNextStepsSuggestionOutput;
@@ -383,6 +488,7 @@ export class AiSuggestionProviderService {
     email: ExternalEmailMetadataForAi,
     inputText: string,
   ): Promise<GeneratedAiSuggestion<ExternalEmailAnalysisOutput>> {
+    this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
@@ -524,42 +630,47 @@ export class AiSuggestionProviderService {
 
     const subject = email.subject?.trim() || '(No subject)';
 
-    const response = await client.responses.parse({
-      model: this.openAiModel,
-      input: [
-        {
-          role: 'system',
-          content: [
-            'You are an AI assistant for a CRM platform.',
-            'Analyze email metadata/snippet only.',
-            'Generate a safe, concise, structured review suggestion for synced external email metadata.',
-            'You must return only the structured output requested by the schema.',
-            'Do not claim CRM changes were made.',
-            'Do not create contacts/leads/tasks/notes.',
-            'Do not send emails.',
-            'Human review is required.',
-            'Set humanApprovalRequired true.',
-            'Set noAutomaticCrmChanges true.',
-            'Set noAutomaticEmailSending true.',
-          ].join('\n'),
+    const response = await this.parseOpenAiResponse(() =>
+      client.responses.parse({
+        model: this.openAiModel,
+        input: [
+          {
+            role: 'system',
+            content: [
+              'You are an AI assistant for a CRM platform.',
+              'Analyze email metadata/snippet only.',
+              'Generate a safe, concise, structured review suggestion for synced external email metadata.',
+              'You must return only the structured output requested by the schema.',
+              'Do not claim CRM changes were made.',
+              'Do not create contacts/leads/tasks/notes.',
+              'Do not send emails.',
+              'Human review is required.',
+              'Set humanApprovalRequired true.',
+              'Set noAutomaticCrmChanges true.',
+              'Set noAutomaticEmailSending true.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: inputText,
+          },
+        ],
+        text: {
+          format: zodTextFormat(
+            ExternalEmailAnalysisSchema,
+            'external_email_analysis',
+          ),
         },
-        {
-          role: 'user',
-          content: inputText,
-        },
-      ],
-      text: {
-        format: zodTextFormat(
-          ExternalEmailAnalysisSchema,
-          'external_email_analysis',
-        ),
-      },
-    });
+      }),
+    );
 
     const parsed = response.output_parsed;
 
     if (!parsed) {
-      throw new Error('OpenAI did not return a parsed external email analysis');
+      throw new AiProviderError(
+        'AI_PROVIDER_MALFORMED_OUTPUT',
+        'AI provider returned malformed output',
+      );
     }
 
     const outputJson = parsed as ExternalEmailAnalysisOutput;
@@ -595,6 +706,7 @@ export class AiSuggestionProviderService {
     event: ExternalCalendarEventMetadataForAi,
     inputText: string,
   ): Promise<GeneratedAiSuggestion<ExternalCalendarEventAnalysisOutput>> {
+    this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
@@ -746,43 +858,46 @@ export class AiSuggestionProviderService {
 
     const eventSummary = event.summary?.trim() || '(No title)';
 
-    const response = await client.responses.parse({
-      model: this.openAiModel,
-      input: [
-        {
-          role: 'system',
-          content: [
-            'You are an AI assistant for a CRM platform.',
-            'Analyze synced calendar metadata only.',
-            'Generate a safe, concise, structured review suggestion for synced external calendar metadata.',
-            'You must return only the structured output requested by the schema.',
-            'Do not claim CRM changes were made.',
-            'Do not create contacts/leads/tasks/notes.',
-            'Do not send emails.',
-            'Human review is required.',
-            'Set humanApprovalRequired true.',
-            'Set noAutomaticCrmChanges true.',
-            'Set noAutomaticEmailSending true.',
-          ].join('\n'),
+    const response = await this.parseOpenAiResponse(() =>
+      client.responses.parse({
+        model: this.openAiModel,
+        input: [
+          {
+            role: 'system',
+            content: [
+              'You are an AI assistant for a CRM platform.',
+              'Analyze synced calendar metadata only.',
+              'Generate a safe, concise, structured review suggestion for synced external calendar metadata.',
+              'You must return only the structured output requested by the schema.',
+              'Do not claim CRM changes were made.',
+              'Do not create contacts/leads/tasks/notes.',
+              'Do not send emails.',
+              'Human review is required.',
+              'Set humanApprovalRequired true.',
+              'Set noAutomaticCrmChanges true.',
+              'Set noAutomaticEmailSending true.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: inputText,
+          },
+        ],
+        text: {
+          format: zodTextFormat(
+            ExternalCalendarEventAnalysisSchema,
+            'external_calendar_event_analysis',
+          ),
         },
-        {
-          role: 'user',
-          content: inputText,
-        },
-      ],
-      text: {
-        format: zodTextFormat(
-          ExternalCalendarEventAnalysisSchema,
-          'external_calendar_event_analysis',
-        ),
-      },
-    });
+      }),
+    );
 
     const parsed = response.output_parsed;
 
     if (!parsed) {
-      throw new Error(
-        'OpenAI did not return a parsed external calendar event analysis',
+      throw new AiProviderError(
+        'AI_PROVIDER_MALFORMED_OUTPUT',
+        'AI provider returned malformed output',
       );
     }
 
@@ -813,6 +928,16 @@ export class AiSuggestionProviderService {
       tokensOutput: response.usage?.output_tokens ?? 0,
       estimatedCostUsd: 0,
     };
+  }
+
+  private async parseOpenAiResponse<TResponse>(
+    request: () => Promise<TResponse>,
+  ): Promise<TResponse> {
+    try {
+      return await request();
+    } catch (error) {
+      throw this.normalizeOpenAiError(error);
+    }
   }
 }
 

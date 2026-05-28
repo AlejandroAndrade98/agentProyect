@@ -41,6 +41,18 @@ type RecordSuccessfulUsageInput = {
   metadataJson?: Prisma.InputJsonValue;
 };
 
+type RecordFailedUsageInput = {
+  feature: AiUsageFeature;
+  provider?: string;
+  model?: string;
+  tokensInput?: number;
+  tokensOutput?: number;
+  estimatedCostUsd?: number;
+  errorCode: string;
+  errorMessage: string;
+  metadataJson?: Prisma.InputJsonValue;
+};
+
 @Injectable()
 export class AiUsageService {
   constructor(private readonly prisma: PrismaService) {}
@@ -296,6 +308,33 @@ export class AiUsageService {
     });
 
     return usageRecord;
+  }
+
+  async recordFailedUsage(
+    currentUser: CurrentUser,
+    input: RecordFailedUsageInput,
+  ) {
+    const tokensInput = input.tokensInput ?? 0;
+    const tokensOutput = input.tokensOutput ?? 0;
+
+    return this.prisma.aiUsageRecord.create({
+      data: {
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        feature: input.feature,
+        status: AiUsageStatus.FAILED,
+        provider: input.provider,
+        model: input.model,
+        tokensInput,
+        tokensOutput,
+        totalTokens: tokensInput + tokensOutput,
+        creditsUsed: 0,
+        estimatedCostUsd: input.estimatedCostUsd ?? 0,
+        errorCode: input.errorCode,
+        errorMessage: input.errorMessage,
+        metadataJson: input.metadataJson ?? undefined,
+      },
+    });
   }
 
     async getMyUsage(currentUser: CurrentUser) {

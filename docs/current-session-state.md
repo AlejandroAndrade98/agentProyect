@@ -3531,3 +3531,44 @@ Safety rules preserved:
 - OpenAI does not create notes automatically.
 - OpenAI does not send emails.
 - Suggestions remain human-in-the-loop.
+
+## Phase 17B.7, AI Provider Error Handling & Safe Failure States
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added safer AI provider failure handling for real OpenAI generation paths.
+
+Implemented:
+
+- Added controlled AI provider errors for provider failures.
+- Added safe error normalization for OpenAI/provider failures.
+- Added failed AI usage recording with:
+  - `status = FAILED`
+  - provider/model when available
+  - safe errorCode/errorMessage
+  - `creditsUsed = 0`
+  - metadata showing no suggestion/CRM/email side effects
+
+Runtime validation completed:
+
+- Successful OpenAI lead next-step generation still works.
+- Invalid model failure was tested with `OPENAI_MODEL=bad-model-name`.
+- Failure returned controlled HTTP 503.
+- Failure created `AiUsageRecord` with:
+  - `status = FAILED`
+  - `provider = openai`
+  - `model = bad-model-name`
+  - `errorCode = AI_PROVIDER_INVALID_CONFIG`
+  - `creditsUsed = 0`
+  - `suggestionCreated = false`
+  - `crmRecordsCreated = false`
+  - `emailSentAutomatically = false`
+
+Safety rules preserved:
+
+- No AI suggestion is created on provider failure.
+- No CRM records are created on provider failure.
+- No tasks or notes are created automatically.
+- No emails are sent.
+- Secrets/API keys are not exposed.
+- Successful output shapes remain unchanged.

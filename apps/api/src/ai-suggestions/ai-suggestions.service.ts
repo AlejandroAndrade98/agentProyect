@@ -1,6 +1,12 @@
 // FILE: apps/api/src/ai-suggestions/ai-suggestions.service.ts
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   ActivityEventType,
   AiSuggestionStatus,
@@ -24,7 +30,10 @@ import {
 } from '../common/utils/pagination.util';
 import { ActivityEventsService } from '../activity-events/activity-events.service';
 
-import { AiSuggestionProviderService } from './ai-suggestion-provider.service';
+import {
+  AiProviderError,
+  AiSuggestionProviderService,
+} from './ai-suggestion-provider.service';
 import { LeadAiContextService } from './lead-ai-context.service';
 import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
 import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
@@ -237,11 +246,24 @@ export class AiSuggestionsService {
     },
   });
 
-    const generated =
-      await this.aiSuggestionProviderService.generateLeadNextSteps(
-        context,
+    const generated = await this.generateWithFailureUsage(
+      currentUser,
+      {
+        feature: AiUsageFeature.LEAD_NEXT_STEPS,
         inputText,
-      );
+        estimatedCreditsRequired,
+        metadataJson: {
+          leadId: context.lead.id,
+          feature: AiUsageFeature.LEAD_NEXT_STEPS,
+          estimatedCreditsRequired,
+        },
+      },
+      () =>
+        this.aiSuggestionProviderService.generateLeadNextSteps(
+          context,
+          inputText,
+        ),
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const suggestion = await tx.aiSuggestion.create({
@@ -405,8 +427,23 @@ export class AiSuggestionsService {
       },
     });
 
-    const generated =
-      await this.aiSuggestionProviderService.generateExternalEmailAnalysis(
+    const generated = await this.generateWithFailureUsage(
+      currentUser,
+      {
+        feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
+        inputText,
+        estimatedCreditsRequired,
+        metadataJson: {
+          externalEmailMessageId: emailMessage.id,
+          connectedAccountId: emailMessage.connectedAccountId,
+          externalMessageId: emailMessage.externalMessageId,
+          feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
+          estimatedCreditsRequired,
+          bodyStored: false,
+        },
+      },
+      () =>
+        this.aiSuggestionProviderService.generateExternalEmailAnalysis(
         {
           id: emailMessage.id,
           connectedAccountId: emailMessage.connectedAccountId,
@@ -425,7 +462,8 @@ export class AiSuggestionsService {
           syncedAt: emailMessage.syncedAt,
         },
         inputText,
-      );
+        ),
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const suggestion = await tx.aiSuggestion.create({
@@ -608,8 +646,25 @@ export class AiSuggestionsService {
       },
     });
 
-    const generated =
-      await this.aiSuggestionProviderService.generateExternalCalendarEventAnalysis(
+    const generated = await this.generateWithFailureUsage(
+      currentUser,
+      {
+        feature: AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS,
+        inputText,
+        estimatedCreditsRequired,
+        metadataJson: {
+          externalCalendarEventId: calendarEvent.id,
+          connectedAccountId: calendarEvent.connectedAccountId,
+          externalCalendarId: calendarEvent.externalCalendarId,
+          externalEventId: calendarEvent.externalEventId,
+          feature: AiUsageFeature.EXTERNAL_CALENDAR_ANALYSIS,
+          estimatedCreditsRequired,
+          crmRecordsCreated: false,
+          emailSentAutomatically: false,
+        },
+      },
+      () =>
+        this.aiSuggestionProviderService.generateExternalCalendarEventAnalysis(
         {
           id: calendarEvent.id,
           connectedAccountId: calendarEvent.connectedAccountId,
@@ -631,7 +686,8 @@ export class AiSuggestionsService {
           syncedAt: calendarEvent.syncedAt,
         },
         inputText,
-      );
+        ),
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const suggestion = await tx.aiSuggestion.create({
@@ -1082,6 +1138,92 @@ export class AiSuggestionsService {
         note,
       };
     });
+  }
+
+  private async generateWithFailureUsage<TGenerated>(
+    currentUser: CurrentUser,
+    input: {
+      feature: AiUsageFeature;
+      inputText: string;
+      estimatedCreditsRequired: number;
+      metadataJson: Prisma.InputJsonValue;
+    },
+    generate: () => Promise<TGenerated>,
+  ) {
+    try {
+      return await generate();
+    } catch (error) {
+      const failure = this.toSafeAiProviderFailure(error);
+
+      await this.aiUsageService.recordFailedUsage(currentUser, {
+        feature: input.feature,
+        provider: this.getConfiguredAiProvider(),
+        model: this.getConfiguredAiModel(),
+        tokensInput: Math.ceil(input.inputText.length / 4),
+        tokensOutput: 0,
+        estimatedCostUsd: 0,
+        errorCode: failure.errorCode,
+        errorMessage: failure.errorMessage,
+        metadataJson: this.buildAiFailureMetadata({
+          metadataJson: input.metadataJson,
+          estimatedCreditsRequired: input.estimatedCreditsRequired,
+          errorCode: failure.errorCode,
+        }),
+      });
+
+      throw new HttpException(failure.errorMessage, failure.statusCode);
+    }
+  }
+
+  private toSafeAiProviderFailure(error: unknown) {
+    if (error instanceof AiProviderError) {
+      return {
+        errorCode: error.errorCode,
+        errorMessage: error.message,
+        statusCode: error.statusCode,
+      };
+    }
+
+    return {
+      errorCode: 'AI_PROVIDER_GENERATION_FAILED',
+      errorMessage: 'AI generation failed. Please try again later.',
+      statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+    };
+  }
+
+  private buildAiFailureMetadata({
+    metadataJson,
+    estimatedCreditsRequired,
+    errorCode,
+  }: {
+    metadataJson: Prisma.InputJsonValue;
+    estimatedCreditsRequired: number;
+    errorCode: string;
+  }): Prisma.InputJsonValue {
+    const metadata =
+      metadataJson &&
+      typeof metadataJson === 'object' &&
+      !Array.isArray(metadataJson)
+        ? (metadataJson as Record<string, unknown>)
+        : {};
+
+    return {
+      ...metadata,
+      estimatedCreditsRequired,
+      providerFailure: true,
+      errorCode,
+      suggestionCreated: false,
+      crmRecordsCreated: false,
+      emailSentAutomatically: false,
+    };
+  }
+
+  private getConfiguredAiProvider() {
+    return process.env.AI_PROVIDER || 'mock';
+  }
+
+  private getConfiguredAiModel() {
+    return process.env.OPENAI_MODEL || 'gpt-5.5';
   }
 
     private async getApplicableSuggestion(id: string, currentUser: CurrentUser) {
