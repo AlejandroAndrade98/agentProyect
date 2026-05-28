@@ -1,3 +1,5 @@
+// FILE: apps/api/src/ai-suggestions/ai-suggestions.service.ts
+
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ActivityEventType,
@@ -236,7 +238,7 @@ export class AiSuggestionsService {
   });
 
     const generated =
-      this.aiSuggestionProviderService.generateLeadNextSteps(
+      await this.aiSuggestionProviderService.generateLeadNextSteps(
         context,
         inputText,
       );

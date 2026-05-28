@@ -3,7 +3,11 @@
 import OpenAI from 'openai';
 import { Injectable } from '@nestjs/common';
 
+
 import { LeadNextStepsContext } from './lead-ai-context.service';
+
+import { z } from 'zod';
+import { zodTextFormat } from 'openai/helpers/zod';
 
 export type LeadNextStepsSuggestionOutput = {
   summary: string;
@@ -122,6 +126,24 @@ export type ExternalCalendarEventAnalysisOutput = {
   noAutomaticEmailSending: true;
 };
 
+const LeadNextStepsSuggestionSchema = z.object({
+    summary: z.string(),
+    riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+    recommendedNextStep: z.string(),
+    suggestedTasks: z.array(
+      z.object({
+        title: z.string(),
+        description: z.string(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+        dueInDays: z.number().int().min(0).max(30),
+      }),
+    ),
+    suggestedNote: z.string(),
+    reasoningSummary: z.string(),
+    confidenceScore: z.number().min(0).max(1),
+    humanApprovalRequired: z.literal(true),
+  });
+
 @Injectable()
 export class AiSuggestionProviderService {
 
@@ -156,11 +178,16 @@ export class AiSuggestionProviderService {
     }
   }
 
-  generateLeadNextSteps(
+  async generateLeadNextSteps(
     context: LeadNextStepsContext,
     inputText: string,
-  ): GeneratedAiSuggestion {
+  ): Promise<GeneratedAiSuggestion<LeadNextStepsSuggestionOutput>> {
     this.assertInputWithinLimit(inputText);
+
+    if (this.aiProvider === 'openai') {
+    return this.generateLeadNextStepsWithOpenAi(context, inputText);
+    }
+
     const hasNextStep = Boolean(context.lead.nextStep);
     const hasPendingTasks = context.tasks.some(
       (task) => task.status !== 'COMPLETED' && task.status !== 'CANCELLED',
@@ -228,11 +255,80 @@ export class AiSuggestionProviderService {
     };
   }
 
+    private async generateLeadNextStepsWithOpenAi(
+    context: LeadNextStepsContext,
+    inputText: string,
+  ): Promise<GeneratedAiSuggestion<LeadNextStepsSuggestionOutput>> {
+    const client = this.getOpenAiClient();
+
+    if (!client) {
+      throw new Error('OpenAI client is not configured');
+    }
+
+    const response = await client.responses.parse({
+      model: this.openAiModel,
+      input: [
+        {
+          role: 'system',
+          content: [
+            'You are an AI assistant for a CRM platform.',
+            'Generate a safe, concise, structured next-step recommendation for a sales lead.',
+            'You must return only the structured output requested by the schema.',
+            'Do not claim that CRM records were updated.',
+            'Do not create tasks, notes, leads, contacts, companies, or emails.',
+            'Do not send emails.',
+            'Every recommendation must require human review.',
+            'Set humanApprovalRequired to true.',
+          ].join('\n'),
+        },
+        {
+          role: 'user',
+          content: inputText,
+        },
+      ],
+      text: {
+        format: zodTextFormat(
+          LeadNextStepsSuggestionSchema,
+          'lead_next_steps_suggestion',
+        ),
+      },
+    });
+
+    const parsed = response.output_parsed;
+
+    if (!parsed) {
+      throw new Error('OpenAI did not return a parsed lead next steps suggestion');
+    }
+
+    const outputJson = parsed as LeadNextStepsSuggestionOutput;
+
+    return {
+      provider: 'openai',
+      model: this.openAiModel,
+      title: `AI next steps suggestion: ${context.lead.title}`,
+      outputJson,
+      outputText: [
+        outputJson.summary,
+        '',
+        `Recommended next step: ${outputJson.recommendedNextStep}`,
+        '',
+        `Risk level: ${outputJson.riskLevel}`,
+        '',
+        `Reasoning: ${outputJson.reasoningSummary}`,
+      ].join('\n'),
+      confidenceScore: outputJson.confidenceScore,
+      tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
+      tokensOutput: response.usage?.output_tokens ?? 0,
+      estimatedCostUsd: 0,
+    };
+  }
+
   generateExternalEmailAnalysis(
     email: ExternalEmailMetadataForAi,
     inputText: string,
   ): GeneratedAiSuggestion<ExternalEmailAnalysisOutput> {
     this.assertInputWithinLimit(inputText);
+    
     const subject = email.subject?.trim() || '(No subject)';
     const snippet = email.snippet?.trim() || '';
     const sender = email.fromName || email.fromEmail || 'Unknown sender';

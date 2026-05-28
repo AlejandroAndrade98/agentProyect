@@ -3332,3 +3332,56 @@ Safety rules preserved:
 Validation completed:
 
 - `pnpm build` passed with 3 successful tasks.
+
+## Phase 17B.3, OpenAI Lead Next Steps Generation
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase connected the first real OpenAI generation path for lead next-step suggestions.
+
+Implemented:
+
+- `AiSuggestionProviderService.generateLeadNextSteps` now supports:
+  - `AI_PROVIDER=mock` for the existing mock behavior
+  - `AI_PROVIDER=openai` for real OpenAI generation
+
+- Added structured output validation for lead next-step suggestions.
+- OpenAI generation currently applies only to:
+  - `AiSuggestionType.SUGGEST_NEXT_STEPS`
+  - `AiUsageFeature.LEAD_NEXT_STEPS`
+
+Runtime validation completed:
+
+- Generated a real OpenAI suggestion for a demo lead.
+- Suggestion was created with:
+  - `provider = openai`
+  - `model = gpt-4o-mini`
+  - `type = SUGGEST_NEXT_STEPS`
+  - `status = PENDING_REVIEW`
+  - `humanApprovalRequired = true`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+
+- Usage record was created:
+  - feature `LEAD_NEXT_STEPS`
+  - status `SUCCESS`
+  - provider `openai`
+  - model `gpt-4o-mini`
+  - input/output tokens recorded
+
+- Activity event was created:
+  - `AI_SUGGESTION_CREATED`
+  - `entityType = LEAD`
+
+Safety rules preserved:
+
+- OpenAI does not update CRM records automatically.
+- OpenAI does not create tasks automatically.
+- OpenAI does not create notes automatically.
+- OpenAI does not send emails.
+- Suggestions remain human-in-the-loop through `PENDING_REVIEW`.
+
+Notes:
+
+- The first real OpenAI request used a large lead context with many activity events.
+- Future optimization should reduce prompt/input size by limiting historical activity and sending only the most relevant context.
