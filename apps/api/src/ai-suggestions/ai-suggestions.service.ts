@@ -1,6 +1,7 @@
 // FILE: apps/api/src/ai-suggestions/ai-suggestions.service.ts
 
 import {
+  BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
@@ -12,6 +13,9 @@ import {
   AiSuggestionStatus,
   AiSuggestionType,
   AiUsageFeature,
+  ConnectedAccountCapability,
+  ConnectedAccountProvider,
+  ConnectedAccountStatus,
   EntityType,
   ImportanceLevel,
   LeadStatus,
@@ -20,6 +24,7 @@ import {
   Source,
   TaskStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
@@ -43,6 +48,37 @@ import { ApplyLeadNextStepDto } from './dto/apply-lead-next-step.dto';
 import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
 import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { ConnectedAccountTokenEncryptionService } from '../connected-accounts/connected-account-token-encryption.service';
+
+const GMAIL_DRAFTS_URL =
+  'https://gmail.googleapis.com/gmail/v1/users/me/drafts';
+
+const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+const GMAIL_COMPOSE_SCOPE =
+  'https://www.googleapis.com/auth/gmail.compose';
+
+type GoogleRefreshTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GmailDraftCreateResponse = {
+  id?: string;
+  message?: {
+    id?: string;
+    threadId?: string;
+    labelIds?: string[];
+  };
+  error?: {
+    message?: string;
+    status?: string;
+  };
+};
 
 type AiSuggestionReviewStatus = Extract<
   AiSuggestionStatus,
@@ -92,7 +128,8 @@ type AppliedActionName =
   | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
-  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR';
+  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -102,6 +139,8 @@ export class AiSuggestionsService {
     private readonly leadAiContextService: LeadAiContextService,
     private readonly aiSuggestionProviderService: AiSuggestionProviderService,
     private readonly aiUsageService: AiUsageService,
+    private readonly configService: ConfigService,
+    private readonly tokenEncryptionService: ConnectedAccountTokenEncryptionService,
   ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryAiSuggestionsDto) {
@@ -810,6 +849,241 @@ export class AiSuggestionsService {
 
       return suggestion;
     });
+  }
+
+  async createGmailDraftFromEmailReplySuggestion(
+    id: string,
+    currentUser: CurrentUser,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: {
+        externalEmailMessage: {
+          select: {
+            id: true,
+            organizationId: true,
+            connectedAccountId: true,
+            provider: true,
+            externalMessageId: true,
+            externalThreadId: true,
+            subject: true,
+            snippet: true,
+            fromEmail: true,
+            fromName: true,
+            toEmailsJson: true,
+            ccEmailsJson: true,
+            labelIdsJson: true,
+            internalDate: true,
+            syncedAt: true,
+            connectedAccount: {
+              select: {
+                id: true,
+                organizationId: true,
+                userId: true,
+                provider: true,
+                email: true,
+                status: true,
+                capabilities: true,
+                scopesJson: true,
+                encryptedAccessToken: true,
+                encryptedRefreshToken: true,
+                tokenExpiresAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (suggestion.type !== AiSuggestionType.GENERATE_EMAIL_REPLY_DRAFT) {
+      throw new BadRequestException(
+        'Only email reply draft suggestions can create Gmail drafts',
+      );
+    }
+
+    if (suggestion.status !== AiSuggestionStatus.ACCEPTED) {
+      throw new ConflictException(
+        'Only accepted email reply draft suggestions can create Gmail drafts',
+      );
+    }
+
+    if (!suggestion.externalEmailMessageId || !suggestion.externalEmailMessage) {
+      throw new BadRequestException(
+        'AI suggestion is not linked to a synced external email message',
+      );
+    }
+
+    const email = suggestion.externalEmailMessage;
+    const account = email.connectedAccount;
+
+    if (
+      account.organizationId !== currentUser.organizationId ||
+      account.userId !== currentUser.id
+    ) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      account.provider !== ConnectedAccountProvider.GOOGLE ||
+      account.status !== ConnectedAccountStatus.CONNECTED ||
+      !account.capabilities.includes(ConnectedAccountCapability.EMAIL)
+    ) {
+      throw new BadRequestException(
+        'AI suggestion is not linked to a connected Google email account',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+      )
+    ) {
+      throw new ConflictException(
+        'A Gmail draft has already been created from this AI suggestion',
+      );
+    }
+
+    if (!account.encryptedAccessToken || !account.encryptedRefreshToken) {
+      throw new BadRequestException(
+        'Connected Google account does not have OAuth tokens',
+      );
+    }
+
+    if (!this.hasGoogleScope(account.scopesJson, GMAIL_COMPOSE_SCOPE)) {
+      throw new BadRequestException(
+        'Connected Google account is not authorized to create Gmail drafts. Reconnect Google with Gmail draft permissions and try again.',
+      );
+    }
+
+    const recipientEmail = email.fromEmail?.trim();
+
+    if (!recipientEmail) {
+      throw new BadRequestException(
+        'Synced email metadata does not include a reply recipient',
+      );
+    }
+
+    const replyBody = suggestion.outputText?.trim();
+
+    if (!replyBody) {
+      throw new BadRequestException(
+        'AI suggestion does not include a reply draft body',
+      );
+    }
+
+    const suggestedSubject =
+      this.getSuggestionMetadataString(suggestion.outputJson, 'suggestedSubject') ||
+      this.getSuggestionMetadataString(
+        suggestion.metadataJson,
+        'suggestedSubject',
+      ) ||
+      this.buildReplySubject(email.subject);
+
+    const accessToken = await this.getValidGoogleAccessToken(account);
+    const gmailDraft = await this.createGmailDraft({
+      accessToken,
+      toEmail: recipientEmail,
+      toName: email.fromName,
+      subject: suggestedSubject,
+      body: replyBody,
+      threadId: email.externalThreadId,
+    });
+
+    if (!gmailDraft.id) {
+      throw new HttpException(
+        'Gmail draft creation failed. Please try again later.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    const gmailThreadId = gmailDraft.message?.threadId ?? email.externalThreadId;
+    const createdAt = new Date();
+
+    const updatedSuggestion = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildGmailDraftAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            currentUser,
+            gmailDraftId: gmailDraft.id as string,
+            gmailThreadId,
+            connectedAccountId: account.id,
+            externalEmailMessageId: email.id,
+            externalMessageId: email.externalMessageId,
+            externalThreadId: email.externalThreadId,
+            createdAt,
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.CONNECTED_ACCOUNT,
+          entityId: account.id,
+          title: 'Gmail draft created from AI reply suggestion',
+          description:
+            'A human created a Gmail draft from an AI reply suggestion. The email was NOT sent automatically.',
+          source: Source.AI_SUGGESTION,
+          occurredAt: createdAt,
+          metadataJson: {
+            appliedAction:
+              'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            connectedAccountId: account.id,
+            externalEmailMessageId: email.id,
+            externalMessageId: email.externalMessageId,
+            externalThreadId: email.externalThreadId,
+            gmailDraftId: gmailDraft.id,
+            gmailThreadId,
+            humanApprovalRequired: true,
+            canSendEmailAutomatically: false,
+            draftCreatedAutomatically: false,
+            emailSentAutomatically: false,
+            crmRecordsCreated: false,
+          },
+        }),
+      });
+
+      return updated;
+    });
+
+    return {
+      suggestion: updatedSuggestion,
+      gmailDraftId: gmailDraft.id,
+      gmailThreadId,
+      gmailDraftMetadata: {
+        connectedAccountId: account.id,
+        externalEmailMessageId: email.id,
+        externalMessageId: email.externalMessageId,
+        externalThreadId: email.externalThreadId,
+        messageId: gmailDraft.message?.id ?? null,
+        labelIds: gmailDraft.message?.labelIds ?? [],
+        recipientEmail,
+        suggestedSubject,
+        createdAt: createdAt.toISOString(),
+      },
+      confirmation: {
+        humanApprovalRequired: true,
+        draftCreatedAutomatically: false,
+        canSendEmailAutomatically: false,
+        emailSentAutomatically: false,
+        crmRecordsCreated: false,
+      },
+    };
   }
 
   async analyzeExternalCalendarEvent(
@@ -2912,6 +3186,63 @@ export class AiSuggestionsService {
     };
   }
 
+  private buildGmailDraftAppliedMetadata({
+    metadataJson,
+    currentUser,
+    gmailDraftId,
+    gmailThreadId,
+    connectedAccountId,
+    externalEmailMessageId,
+    externalMessageId,
+    externalThreadId,
+    createdAt,
+  }: {
+    metadataJson: Prisma.JsonValue | null;
+    currentUser: CurrentUser;
+    gmailDraftId: string;
+    gmailThreadId?: string | null;
+    connectedAccountId: string;
+    externalEmailMessageId: string;
+    externalMessageId: string;
+    externalThreadId: string | null;
+    createdAt: Date;
+  }): Prisma.InputJsonValue {
+    const metadata = this.asMetadataObject(metadataJson);
+    const appliedActions = Array.isArray(metadata.appliedActions)
+      ? metadata.appliedActions
+      : [];
+
+    return {
+      ...metadata,
+      gmailDraftId,
+      gmailThreadId: gmailThreadId ?? null,
+      gmailDraftCreatedAt: createdAt.toISOString(),
+      gmailDraftCreatedByUserId: currentUser.id,
+      humanApprovalRequired: true,
+      canApplyAutomatically: false,
+      canSendEmailAutomatically: false,
+      draftCreatedAutomatically: false,
+      emailSentAutomatically: false,
+      appliedActions: [
+        ...appliedActions,
+        {
+          action: 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+          gmailDraftId,
+          gmailThreadId: gmailThreadId ?? null,
+          connectedAccountId,
+          externalEmailMessageId,
+          externalMessageId,
+          externalThreadId,
+          createdAt: createdAt.toISOString(),
+          createdByUserId: currentUser.id,
+          emailSentAutomatically: false,
+          draftCreatedAutomatically: false,
+          canSendEmailAutomatically: false,
+        },
+      ],
+    };
+  }
+
   private asMetadataObject(metadataJson: Prisma.JsonValue | null) {
     if (
       metadataJson &&
@@ -2922,6 +3253,227 @@ export class AiSuggestionsService {
     }
 
     return {};
+  }
+
+  private getSuggestionMetadataString(
+    value: Prisma.JsonValue | null,
+    key: string,
+  ) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+
+    const candidate = (value as Record<string, unknown>)[key];
+
+    return typeof candidate === 'string' && candidate.trim()
+      ? candidate.trim()
+      : null;
+  }
+
+  private hasGoogleScope(scopesJson: Prisma.JsonValue | null, scope: string) {
+    if (!scopesJson || typeof scopesJson !== 'object') {
+      return false;
+    }
+
+    const scopes = (scopesJson as Record<string, unknown>).scopes;
+
+    return Array.isArray(scopes) && scopes.includes(scope);
+  }
+
+  private buildReplySubject(subject: string | null) {
+    const trimmed = subject?.trim() || '(No subject)';
+
+    return trimmed.toLowerCase().startsWith('re:')
+      ? trimmed
+      : `Re: ${trimmed}`;
+  }
+
+  private async getValidGoogleAccessToken(account: {
+    id: string;
+    encryptedAccessToken: string | null;
+    encryptedRefreshToken: string | null;
+    tokenExpiresAt: Date | null;
+  }) {
+    if (!account.encryptedAccessToken || !account.encryptedRefreshToken) {
+      throw new BadRequestException(
+        'Connected Google account does not have OAuth tokens',
+      );
+    }
+
+    const expiresAt = account.tokenExpiresAt?.getTime() ?? 0;
+    const hasUsableAccessToken = expiresAt > Date.now() + 60_000;
+
+    if (hasUsableAccessToken) {
+      return this.tokenEncryptionService.decrypt(account.encryptedAccessToken);
+    }
+
+    const refreshToken = this.tokenEncryptionService.decrypt(
+      account.encryptedRefreshToken,
+    );
+
+    const refreshed = await this.refreshGoogleAccessToken(refreshToken);
+
+    if (!refreshed.access_token) {
+      throw new HttpException(
+        'Google token refresh failed. Please reconnect Google and try again.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    const encryptedAccessToken = this.tokenEncryptionService.encrypt(
+      refreshed.access_token,
+    );
+
+    const tokenExpiresAt =
+      typeof refreshed.expires_in === 'number'
+        ? new Date(Date.now() + refreshed.expires_in * 1000)
+        : null;
+
+    await this.prisma.connectedAccount.update({
+      where: { id: account.id },
+      data: {
+        encryptedAccessToken,
+        tokenExpiresAt,
+        tokenEncryptionVersion:
+          this.tokenEncryptionService.getEncryptionVersion(),
+        lastError: null,
+      },
+    });
+
+    return refreshed.access_token;
+  }
+
+  private async refreshGoogleAccessToken(
+    refreshToken: string,
+  ): Promise<GoogleRefreshTokenResponse> {
+    const clientId = this.configService.get<string>('app.googleOAuthClientId');
+    const clientSecret = this.configService.get<string>(
+      'app.googleOAuthClientSecret',
+    );
+
+    if (!clientId || !clientSecret) {
+      throw new HttpException(
+        'Google OAuth configuration is missing',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const body = new URLSearchParams();
+
+    body.set('client_id', clientId);
+    body.set('client_secret', clientSecret);
+    body.set('refresh_token', refreshToken);
+    body.set('grant_type', 'refresh_token');
+
+    const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    });
+
+    const data = (await response.json()) as GoogleRefreshTokenResponse;
+
+    if (!response.ok || data.error) {
+      throw new HttpException(
+        'Google token refresh failed. Please reconnect Google and try again.',
+        response.status === 400 || response.status === 401
+          ? HttpStatus.BAD_REQUEST
+          : HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    return data;
+  }
+
+  private async createGmailDraft(params: {
+    accessToken: string;
+    toEmail: string;
+    toName: string | null;
+    subject: string;
+    body: string;
+    threadId: string | null;
+  }): Promise<GmailDraftCreateResponse> {
+    const response = await fetch(GMAIL_DRAFTS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: {
+          raw: this.buildGmailRawMessage(params),
+          ...(params.threadId ? { threadId: params.threadId } : {}),
+        },
+      }),
+    });
+
+    const data = (await response.json()) as GmailDraftCreateResponse;
+
+    if (!response.ok || data.error) {
+      if (response.status === 401 || response.status === 403) {
+        throw new BadRequestException(
+          'Connected Google account is not authorized to create Gmail drafts. Reconnect Google with Gmail draft permissions and try again.',
+        );
+      }
+
+      throw new HttpException(
+        'Gmail draft creation failed. Please try again later.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    return data;
+  }
+
+  private buildGmailRawMessage(params: {
+    toEmail: string;
+    toName: string | null;
+    subject: string;
+    body: string;
+    threadId: string | null;
+  }) {
+    const headers = [
+      `To: ${this.formatEmailAddress(params.toEmail, params.toName)}`,
+      `Subject: ${this.encodeMailHeader(params.subject)}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: 8bit',
+      'MIME-Version: 1.0',
+    ];
+
+    const rawMessage = [...headers, '', params.body].join('\r\n');
+
+    return Buffer.from(rawMessage, 'utf8')
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
+
+  private formatEmailAddress(email: string, name: string | null) {
+    const safeEmail = this.stripMailHeaderUnsafeCharacters(email.trim());
+    const safeName = this.stripMailHeaderUnsafeCharacters(name?.trim() ?? '');
+
+    if (!safeName) {
+      return safeEmail;
+    }
+
+    return `"${safeName.replace(/["\\]/g, '\\$&')}" <${safeEmail}>`;
+  }
+
+  private encodeMailHeader(value: string) {
+    const safeValue = this.stripMailHeaderUnsafeCharacters(value.trim());
+
+    if (/^[\x20-\x7E]*$/.test(safeValue)) {
+      return safeValue;
+    }
+
+    return `=?UTF-8?B?${Buffer.from(safeValue, 'utf8').toString('base64')}?=`;
+  }
+
+  private stripMailHeaderUnsafeCharacters(value: string) {
+    return value.replace(/[\r\n]/g, ' ').trim();
   }
 
   private async reviewSuggestion({

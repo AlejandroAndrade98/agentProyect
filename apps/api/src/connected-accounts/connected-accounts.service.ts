@@ -90,6 +90,7 @@ const GOOGLE_BASE_SCOPES = ['openid', 'email', 'profile'];
 
 const GOOGLE_EMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.compose',
 ];
 
 const GOOGLE_CALENDAR_SCOPES = [

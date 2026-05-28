@@ -119,6 +119,18 @@ export class AiSuggestionsController {
     return this.aiSuggestionsService.reject(id, currentUser, dto);
   }
 
+  @Post(':id/create-gmail-draft')
+  @Roles(...CRM_WRITE_ROLES)
+  createGmailDraftFromEmailReplySuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.createGmailDraftFromEmailReplySuggestion(
+      id,
+      currentUser,
+    );
+  }
+
     @Patch(':id/apply/lead-next-step')
   @Roles(...CRM_WRITE_ROLES)
   applyLeadNextStep(
