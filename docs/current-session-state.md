@@ -201,3 +201,18 @@ Current AI Inbox flow:
 - No Gmail draft is created automatically from the Synced Emails page.
 - No CRM records are created automatically.
 - Human review remains required.
+
+## Latest completed phase
+
+Phase 17E.2 Synced Calendar Events AI Actions UI is completed and validated.
+
+Current AI Calendar flow:
+- Users can open `/dashboard/external-sync/calendar-events`.
+- Users can view synced Google Calendar metadata.
+- Users can manually sync Calendar from the frontend.
+- Users can generate external calendar analysis suggestions.
+- Created suggestions link to the AI Suggestions review page.
+- Existing calendar suggestions persist visually as `View analysis`.
+- No emails are sent automatically.
+- No tasks, notes, leads, or CRM records are created automatically.
+- Human review remains required.

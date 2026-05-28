@@ -4129,3 +4129,88 @@ Validation completed:
 - No Send email button exists.
 - No automatic Gmail draft creation exists from this page.
 - No automatic CRM record creation exists from this page.
+
+## Phase 17E.2, Synced Calendar Events AI Actions UI
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a frontend Synced Calendar / AI Calendar page so users can view synced Google Calendar metadata and trigger AI calendar analysis without using PowerShell.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/external-sync/calendar-events/page.tsx`
+- `apps/web/src/types/external-sync.ts`
+- `apps/web/src/lib/api/external-sync.ts`
+- `apps/web/src/components/DashboardLayout.tsx`
+
+Frontend behavior implemented:
+
+- Added route:
+  - `/dashboard/external-sync/calendar-events`
+
+- Added sidebar navigation link:
+  - `Synced Calendar`
+
+- Added typed frontend helpers for:
+  - `GET /api/external-sync/calendar-events`
+  - `POST /api/external-sync/calendar-events/sync`
+  - `POST /api/ai-suggestions/external-sync/calendar-events/:calendarEventId/analyze`
+
+- Added synced calendar event frontend types.
+
+Synced Calendar page behavior:
+
+- Shows synced Google Calendar metadata.
+- Supports search.
+- Supports pagination.
+- Shows manual `Sync Calendar` action.
+- Refreshes calendar event list after sync.
+- Shows calendar event cards with:
+  - summary
+  - date/time
+  - location
+  - organizer
+  - attendees count
+  - Google Calendar link when available
+  - synced date
+  - connected account/provider
+  - external calendar/event metadata
+
+AI action behavior:
+
+- Each calendar event can trigger:
+  - `Analyze event`
+
+- Successful AI actions show links to the created AI Suggestions review page.
+- Existing AI calendar analysis suggestions are loaded and mapped by `externalCalendarEventId`.
+- Calendar events with existing suggestions show:
+  - `View analysis`
+  - suggestion status badge
+
+Duplicate handling:
+
+- Duplicate pending suggestions return a friendly message.
+- The existing suggestion map refreshes after duplicate attempts.
+
+Safety rules preserved:
+
+- AI uses synced calendar metadata only.
+- No emails are sent automatically.
+- No CRM records are created automatically.
+- No tasks, notes, or leads are created automatically from this page.
+- Generated suggestions must be reviewed by a human.
+- No background jobs were added.
+- No backend or Prisma changes were made.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Synced Calendar page loads.
+- Calendar sync action refreshes the list.
+- Analyze event creates an AI suggestion.
+- Created suggestion link opens the AI Suggestion review page.
+- Navigating away and back preserves the `View analysis` state.
+- No Send email button exists.
+- No task/note/lead is created automatically.
+- No automatic CRM record creation exists from this page.

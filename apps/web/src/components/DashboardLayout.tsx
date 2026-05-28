@@ -62,6 +62,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/external-sync/email-messages',
       enabled: true,
     },
+    {
+      label: 'Synced Calendar',
+      href: '/dashboard/external-sync/calendar-events',
+      enabled: true,
+    },
     ...(user?.role === 'SUPER_ADMIN'
       ? [
           {

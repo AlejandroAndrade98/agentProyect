@@ -41,6 +41,35 @@ export type ExternalEmailMessage = {
   connectedAccount?: ExternalEmailMessageConnectedAccount | null;
 };
 
+export type ExternalCalendarEventConnectedAccount =
+  ExternalEmailMessageConnectedAccount;
+
+export type ExternalCalendarEvent = {
+  id: string;
+  organizationId?: string;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  externalCalendarId: string;
+  externalEventId: string;
+  iCalUid: string | null;
+  status: string | null;
+  summary: string | null;
+  description: string | null;
+  location: string | null;
+  startAt: string | null;
+  endAt: string | null;
+  isAllDay: boolean;
+  organizerEmail: string | null;
+  organizerName: string | null;
+  attendeesJson: unknown;
+  htmlLink: string | null;
+  metadataJson?: unknown;
+  syncedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  connectedAccount?: ExternalCalendarEventConnectedAccount | null;
+};
+
 export type QueryExternalEmailMessagesParams = {
   page?: number;
   pageSize?: number;
@@ -50,6 +79,16 @@ export type QueryExternalEmailMessagesParams = {
   externalThreadId?: string;
   internalDateFrom?: string;
   internalDateTo?: string;
+};
+
+export type QueryExternalCalendarEventsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  connectedAccountId?: string;
+  externalCalendarId?: string;
+  startFrom?: string;
+  startTo?: string;
 };
 
 export type ExternalSyncPaginationMeta = {
@@ -67,6 +106,11 @@ export type PaginatedExternalEmailMessages = {
   meta: ExternalSyncPaginationMeta;
 };
 
+export type PaginatedExternalCalendarEvents = {
+  data: ExternalCalendarEvent[];
+  meta: ExternalSyncPaginationMeta;
+};
+
 export type SyncExternalEmailMessagesResult = {
   messagesDeletedAsStale?: number;
   connectedAccountId: string;
@@ -78,4 +122,17 @@ export type SyncExternalEmailMessagesResult = {
   crmRecordsCreated: boolean;
   messagesFetched?: number;
   messagesStored?: number;
+};
+
+export type SyncExternalCalendarEventsResult = {
+  eventsDeletedAsStale?: number;
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  email: string;
+  syncedAt: string;
+  bodyStored: boolean;
+  aiAnalysisRun: boolean;
+  crmRecordsCreated: boolean;
+  eventsFetched?: number;
+  eventsStored?: number;
 };
