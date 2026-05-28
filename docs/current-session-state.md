@@ -3385,3 +3385,53 @@ Notes:
 
 - The first real OpenAI request used a large lead context with many activity events.
 - Future optimization should reduce prompt/input size by limiting historical activity and sending only the most relevant context.
+
+## Phase 17B.4, OpenAI External Email Metadata Analysis
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase connected real OpenAI generation for external email metadata analysis.
+
+Implemented:
+
+- `AiSuggestionProviderService.generateExternalEmailAnalysis` now supports:
+  - `AI_PROVIDER=mock` for the existing mock behavior
+  - `AI_PROVIDER=openai` for real OpenAI structured output generation
+
+- Added structured output validation for external email analysis.
+- OpenAI generation currently applies to:
+  - `AiSuggestionType.ANALYZE_EXTERNAL_EMAIL`
+  - `AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS`
+
+Runtime validation completed:
+
+- Generated a real OpenAI suggestion for a synced external email.
+- Suggestion was created with:
+  - `provider = openai`
+  - `model = gpt-4o-mini`
+  - `type = ANALYZE_EXTERNAL_EMAIL`
+  - `status = PENDING_REVIEW`
+  - `humanApprovalRequired = true`
+  - `noAutomaticCrmChanges = true`
+  - `noAutomaticEmailSending = true`
+  - `canApplyAutomatically = false`
+  - `canSendEmailAutomatically = false`
+
+- Usage record was created:
+  - feature `EXTERNAL_EMAIL_ANALYSIS`
+  - status `SUCCESS`
+  - provider `openai`
+  - model `gpt-4o-mini`
+  - input/output tokens recorded
+
+- Activity event was created:
+  - `AI_SUGGESTION_CREATED`
+  - `entityType = EXTERNAL_EMAIL_MESSAGE`
+
+Safety rules preserved:
+
+- Email body is not stored.
+- Analysis uses synced metadata/snippet only.
+- OpenAI does not create CRM records automatically.
+- OpenAI does not send emails.
+- Suggestions remain human-in-the-loop through `PENDING_REVIEW`.

@@ -406,7 +406,7 @@ export class AiSuggestionsService {
     });
 
     const generated =
-      this.aiSuggestionProviderService.generateExternalEmailAnalysis(
+      await this.aiSuggestionProviderService.generateExternalEmailAnalysis(
         {
           id: emailMessage.id,
           connectedAccountId: emailMessage.connectedAccountId,

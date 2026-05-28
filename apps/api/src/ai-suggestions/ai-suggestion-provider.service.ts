@@ -144,6 +144,34 @@ const LeadNextStepsSuggestionSchema = z.object({
     humanApprovalRequired: z.literal(true),
   });
 
+const ExternalEmailAnalysisSchema = z.object({
+  summary: z.string(),
+  importanceLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  suggestedReviewAction: z.enum([
+    'IGNORE',
+    'FOLLOW_UP',
+    'CREATE_CONTACT_CANDIDATE',
+    'CREATE_LEAD_CANDIDATE',
+    'LINK_TO_EXISTING_RECORD',
+    'CREATE_NOTE_CANDIDATE',
+  ]),
+  detectedSignals: z.array(z.string()),
+  suggestedTasks: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+      dueInDays: z.number().int().min(0).max(30),
+    }),
+  ),
+  suggestedNote: z.string(),
+  reasoningSummary: z.string(),
+  confidenceScore: z.number().min(0).max(1),
+  humanApprovalRequired: z.literal(true),
+  noAutomaticCrmChanges: z.literal(true),
+  noAutomaticEmailSending: z.literal(true),
+});
+
 @Injectable()
 export class AiSuggestionProviderService {
 
@@ -323,11 +351,15 @@ export class AiSuggestionProviderService {
     };
   }
 
-  generateExternalEmailAnalysis(
+  async generateExternalEmailAnalysis(
     email: ExternalEmailMetadataForAi,
     inputText: string,
-  ): GeneratedAiSuggestion<ExternalEmailAnalysisOutput> {
+  ): Promise<GeneratedAiSuggestion<ExternalEmailAnalysisOutput>> {
     this.assertInputWithinLimit(inputText);
+
+    if (this.aiProvider === 'openai') {
+      return this.generateExternalEmailAnalysisWithOpenAi(email, inputText);
+    }
     
     const subject = email.subject?.trim() || '(No subject)';
     const snippet = email.snippet?.trim() || '';
@@ -448,6 +480,85 @@ export class AiSuggestionProviderService {
       confidenceScore: outputJson.confidenceScore,
       tokensInput: Math.ceil(inputText.length / 4),
       tokensOutput: 220,
+      estimatedCostUsd: 0,
+    };
+  }
+
+  private async generateExternalEmailAnalysisWithOpenAi(
+    email: ExternalEmailMetadataForAi,
+    inputText: string,
+  ): Promise<GeneratedAiSuggestion<ExternalEmailAnalysisOutput>> {
+    const client = this.getOpenAiClient();
+
+    if (!client) {
+      throw new Error('OpenAI client is not configured');
+    }
+
+    const subject = email.subject?.trim() || '(No subject)';
+
+    const response = await client.responses.parse({
+      model: this.openAiModel,
+      input: [
+        {
+          role: 'system',
+          content: [
+            'You are an AI assistant for a CRM platform.',
+            'Analyze email metadata/snippet only.',
+            'Generate a safe, concise, structured review suggestion for synced external email metadata.',
+            'You must return only the structured output requested by the schema.',
+            'Do not claim CRM changes were made.',
+            'Do not create contacts/leads/tasks/notes.',
+            'Do not send emails.',
+            'Human review is required.',
+            'Set humanApprovalRequired true.',
+            'Set noAutomaticCrmChanges true.',
+            'Set noAutomaticEmailSending true.',
+          ].join('\n'),
+        },
+        {
+          role: 'user',
+          content: inputText,
+        },
+      ],
+      text: {
+        format: zodTextFormat(
+          ExternalEmailAnalysisSchema,
+          'external_email_analysis',
+        ),
+      },
+    });
+
+    const parsed = response.output_parsed;
+
+    if (!parsed) {
+      throw new Error('OpenAI did not return a parsed external email analysis');
+    }
+
+    const outputJson = parsed as ExternalEmailAnalysisOutput;
+
+    return {
+      provider: 'openai',
+      model: this.openAiModel,
+      title: `AI email review suggestion: ${subject}`,
+      outputJson,
+      outputText: [
+        outputJson.summary,
+        '',
+        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        '',
+        `Importance: ${outputJson.importanceLevel}`,
+        '',
+        `Detected signals: ${
+          outputJson.detectedSignals.length > 0
+            ? outputJson.detectedSignals.join(', ')
+            : 'None'
+        }`,
+        '',
+        `Reasoning: ${outputJson.reasoningSummary}`,
+      ].join('\n'),
+      confidenceScore: outputJson.confidenceScore,
+      tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
+      tokensOutput: response.usage?.output_tokens ?? 0,
       estimatedCostUsd: 0,
     };
   }
