@@ -305,3 +305,5 @@ export type ApplyExternalEmailLeadResponse = {
     contactId: string | null;
   };
 };
+
+export type ApplyExternalCalendarLeadResponse = ApplyExternalEmailLeadResponse;

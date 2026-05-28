@@ -210,4 +210,16 @@ export class AiSuggestionsController {
       currentUser,
     );
   }
+
+  @Post(':id/apply/external-calendar-lead')
+  @Roles(...CRM_WRITE_ROLES)
+  createLeadFromExternalCalendarSuggestion(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.aiSuggestionsService.createLeadFromExternalCalendarSuggestion(
+      id,
+      currentUser,
+    );
+  }
 }

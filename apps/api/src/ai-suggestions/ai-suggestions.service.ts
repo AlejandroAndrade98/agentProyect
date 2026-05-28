@@ -91,7 +91,8 @@ type AppliedActionName =
   | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
   | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
-  | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR';
+  | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR';
 
 @Injectable()
 export class AiSuggestionsService {
@@ -1893,6 +1894,152 @@ export class AiSuggestionsService {
     });
   }
 
+  async createLeadFromExternalCalendarSuggestion(
+    id: string,
+    currentUser: CurrentUser,
+  ) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+      include: this.getSuggestionInclude(),
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException('AI suggestion not found');
+    }
+
+    if (
+      suggestion.status !== AiSuggestionStatus.ACCEPTED &&
+      suggestion.status !== AiSuggestionStatus.EDITED_AND_ACCEPTED
+    ) {
+      throw new ConflictException(
+        'Only accepted AI suggestions can be applied to CRM',
+      );
+    }
+
+    if (suggestion.type !== AiSuggestionType.ANALYZE_EXTERNAL_CALENDAR_EVENT) {
+      throw new ConflictException('Unsupported AI suggestion type');
+    }
+
+    if (!suggestion.externalCalendarEventId) {
+      throw new ConflictException(
+        'AI suggestion is not linked to an external calendar event',
+      );
+    }
+
+    if (
+      this.hasAppliedAction(
+        suggestion.metadataJson,
+        'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+      )
+    ) {
+      throw new ConflictException('External calendar lead was already created');
+    }
+
+    const output = this.parseExternalCalendarEventAnalysisOutput(
+      suggestion.outputJson,
+    );
+    const calendarEvent = suggestion.externalCalendarEvent;
+    const title = `Calendar lead: ${
+      calendarEvent?.summary?.trim() || 'Synced event'
+    }`;
+    const importanceLevel = this.normalizeImportanceLevel(output.importanceLevel);
+    const priority = this.mapImportanceToPriority(importanceLevel);
+    const description = this.buildExternalCalendarLeadDescription({
+      output,
+      calendarEvent,
+      externalCalendarEventId: suggestion.externalCalendarEventId,
+    });
+    const appliedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const pipelinePosition = await this.getNextLeadPipelinePosition(
+        tx,
+        currentUser.organizationId,
+        LeadStatus.NEW,
+      );
+
+      const lead = await tx.lead.create({
+        data: {
+          organizationId: currentUser.organizationId,
+          title,
+          description,
+          companyId: suggestion.companyId,
+          contactId: suggestion.contactId,
+          assignedToUserId: currentUser.id,
+          status: LeadStatus.NEW,
+          priority,
+          importanceLevel,
+          source: Source.AI_SUGGESTION,
+          pipelinePosition,
+          statusChangedAt: appliedAt,
+        },
+      });
+
+      const updatedSuggestion = await tx.aiSuggestion.update({
+        where: {
+          id: suggestion.id,
+        },
+        data: {
+          metadataJson: this.buildAppliedMetadata({
+            metadataJson: suggestion.metadataJson,
+            action: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+            currentUser,
+            appliedAt,
+            recordType: EntityType.LEAD,
+            recordId: lead.id,
+            details: {
+              title,
+              priority,
+              importanceLevel,
+              externalCalendarEventId: suggestion.externalCalendarEventId,
+              externalEventId: calendarEvent?.externalEventId ?? null,
+              externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+              emailSentAutomatically: false,
+            },
+          }),
+        },
+        include: this.getSuggestionInclude(),
+      });
+
+      await tx.activityEvent.create({
+        data: this.activityEventsService.buildCreateData(currentUser, {
+          type: ActivityEventType.AI_SUGGESTION_APPLIED,
+          entityType: EntityType.LEAD,
+          entityId: lead.id,
+          title: 'AI suggestion applied: external calendar lead created',
+          description:
+            'A human created a CRM lead from an accepted external calendar AI suggestion. No email was sent automatically.',
+          source: Source.AI_SUGGESTION,
+          companyId: lead.companyId ?? undefined,
+          contactId: lead.contactId ?? undefined,
+          leadId: lead.id,
+          occurredAt: appliedAt,
+          metadataJson: {
+            aiSuggestionId: suggestion.id,
+            aiSuggestionType: suggestion.type,
+            appliedAction: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+            externalCalendarEventId: suggestion.externalCalendarEventId,
+            externalEventId: calendarEvent?.externalEventId ?? null,
+            externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+            leadId: lead.id,
+            appliedToCrm: true,
+            canApplyAutomatically: false,
+            canSendEmailAutomatically: false,
+            emailSentAutomatically: false,
+          },
+        }),
+      });
+
+      return {
+        suggestion: updatedSuggestion,
+        lead,
+      };
+    });
+  }
+
   private async generateWithFailureUsage<TGenerated>(
     currentUser: CurrentUser,
     input: {
@@ -2302,6 +2449,63 @@ export class AiSuggestionsService {
       output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
       '',
       'Human approval: This note was created by explicit human action from an accepted AI suggestion. No company, contact, lead, task, or email was created automatically. No email was sent automatically.',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
+  }
+
+  private buildExternalCalendarLeadDescription({
+    output,
+    calendarEvent,
+    externalCalendarEventId,
+  }: {
+    output: ExternalCalendarEventAnalysisApplyOutput;
+    calendarEvent?: {
+      externalCalendarId: string;
+      externalEventId: string;
+      iCalUid: string | null;
+      status: string | null;
+      summary: string | null;
+      description: string | null;
+      location: string | null;
+      startAt: Date | null;
+      endAt: Date | null;
+      isAllDay: boolean;
+      organizerEmail: string | null;
+      organizerName: string | null;
+      htmlLink: string | null;
+      syncedAt: Date;
+    } | null;
+    externalCalendarEventId: string;
+  }) {
+    return [
+      'Lead created from an accepted external calendar AI suggestion.',
+      '',
+      'Synced calendar metadata:',
+      `Summary: ${calendarEvent?.summary ?? '(no title)'}`,
+      `Status: ${calendarEvent?.status ?? '(unknown)'}`,
+      `Location: ${calendarEvent?.location ?? '(none)'}`,
+      `Description: ${calendarEvent?.description ?? '(none)'}`,
+      `Start: ${calendarEvent?.startAt?.toISOString() ?? '(unknown)'}`,
+      `End: ${calendarEvent?.endAt?.toISOString() ?? '(unknown)'}`,
+      `All day: ${calendarEvent?.isAllDay ? 'yes' : 'no'}`,
+      `Organizer: ${
+        calendarEvent?.organizerName ||
+        calendarEvent?.organizerEmail ||
+        '(unknown)'
+      }`,
+      `Organizer email: ${calendarEvent?.organizerEmail ?? '(unknown)'}`,
+      `Synced at: ${calendarEvent?.syncedAt?.toISOString() ?? '(unknown)'}`,
+      `External calendar event id: ${externalCalendarEventId}`,
+      `External provider event id: ${calendarEvent?.externalEventId ?? '(unknown)'}`,
+      `External calendar id: ${calendarEvent?.externalCalendarId ?? '(unknown)'}`,
+      `iCal UID: ${calendarEvent?.iCalUid ?? '(none)'}`,
+      '',
+      'AI review context:',
+      output.summary ? `Summary: ${output.summary}` : null,
+      output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
+      '',
+      'Human approval: This lead was created by explicit human action from an accepted AI suggestion. No company or contact was created automatically. No email was sent automatically.',
     ]
       .filter((line): line is string => line !== null)
       .join('\n');
