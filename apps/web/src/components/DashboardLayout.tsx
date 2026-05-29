@@ -11,82 +11,113 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
 
-  const navItems = [
+  const navGroups = [
     {
-      label: 'Dashboard',
-      href: '/dashboard',
-      enabled: true,
+      label: 'Overview',
+      items: [
+        {
+          label: 'Dashboard',
+          href: '/dashboard',
+          enabled: true,
+        },
+      ],
     },
     {
-      label: 'AI Workspace',
-      href: '/dashboard/ai-workspace',
-      enabled: true,
+      label: 'AI',
+      items: [
+        {
+          label: 'AI Workspace',
+          href: '/dashboard/ai-workspace',
+          enabled: true,
+        },
+        {
+          label: 'AI Suggestions',
+          href: '/dashboard/ai-suggestions',
+          enabled: true,
+        },
+        {
+          label: 'Synced Emails',
+          href: '/dashboard/external-sync/email-messages',
+          enabled: true,
+        },
+        {
+          label: 'Synced Calendar',
+          href: '/dashboard/external-sync/calendar-events',
+          enabled: true,
+        },
+      ],
     },
     {
-      label: 'AI Suggestions',
-      href: '/dashboard/ai-suggestions',
-      enabled: true,
+      label: 'CRM Work',
+      items: [
+        {
+          label: 'Leads',
+          href: '/dashboard/leads',
+          enabled: true,
+        },
+        {
+          label: 'Tasks',
+          href: '/dashboard/tasks',
+          enabled: true,
+        },
+        {
+          label: 'Notes',
+          href: '/dashboard/notes',
+          enabled: true,
+        },
+      ],
     },
     {
-      label: 'Synced Emails',
-      href: '/dashboard/external-sync/email-messages',
-      enabled: true,
+      label: 'CRM Data',
+      items: [
+        {
+          label: 'Companies',
+          href: '/dashboard/companies',
+          enabled: true,
+        },
+        {
+          label: 'Contacts',
+          href: '/dashboard/contacts',
+          enabled: true,
+        },
+        {
+          label: 'Products',
+          href: '/dashboard/products',
+          enabled: true,
+        },
+      ],
     },
     {
-      label: 'Synced Calendar',
-      href: '/dashboard/external-sync/calendar-events',
-      enabled: true,
-    },
-    {
-      label: 'Leads',
-      href: '/dashboard/leads',
-      enabled: true,
-    },
-    {
-      label: 'Tasks',
-      href: '/dashboard/tasks',
-      enabled: true,
-    },
-    {
-      label: 'Notes',
-      href: '/dashboard/notes',
-      enabled: true,
-    },
-    {
-      label: 'Companies',
-      href: '/dashboard/companies',
-      enabled: true,
-    },
-    {
-      label: 'Contacts',
-      href: '/dashboard/contacts',
-      enabled: true,
-    },
-    {
-      label: 'Products',
-      href: '/dashboard/products',
-      enabled: true,
-    },
-    {
-      label: 'Activity',
-      href: '/dashboard/activity',
-      enabled: true,
-    },
-    ...(user?.role === 'SUPER_ADMIN'
-      ? [
-          {
-            label: 'Platform',
-            href: '/dashboard/platform/organizations',
-            enabled: true,
-          },
-        ]
-      : []),
-    {
-      label: 'Settings',
-      href: '/dashboard/settings',
-      enabled: true,
+      label: 'System',
+      items: [
+        {
+          label: 'Activity',
+          href: '/dashboard/activity',
+          enabled: true,
+        },
+        ...(user?.role === 'SUPER_ADMIN'
+          ? [
+              {
+                label: 'Platform',
+                href: '/dashboard/platform/organizations',
+                enabled: true,
+              },
+            ]
+          : []),
+        {
+          label: 'Settings',
+          href: '/dashboard/settings',
+          enabled: true,
+        },
+      ],
     },
   ];
+
+  function isActiveRoute(href: string) {
+    return href === '/dashboard'
+      ? pathname === '/dashboard'
+      : pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   function handleLogout() {
     logout();
@@ -95,8 +126,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-slate-800 bg-slate-950 px-6 py-6 text-white lg:block">
-        <div>
+      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-slate-800 bg-slate-950 px-6 py-6 text-white lg:flex">
+        <div className="shrink-0">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-300">
             Sales AI
           </p>
@@ -105,42 +136,48 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </h1>
         </div>
 
-        <nav className="mt-10 space-y-2">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/dashboard'
-                ? pathname === '/dashboard'
-                : pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+        <nav className="mt-8 flex-1 space-y-6 overflow-y-auto pb-4 pr-1">
+          {navGroups.map((group) => (
+            <section key={group.label}>
+              <p className="px-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {group.label}
+              </p>
 
-            if (!item.enabled) {
-              return (
-                <span
-                  key={item.href}
-                  className="block rounded-xl px-4 py-3 text-sm text-slate-500"
-                >
-                  {item.label}
-                </span>
-              );
-            }
+              <div className="mt-2 space-y-1">
+                {group.items.map((item) => {
+                  const isActive = isActiveRoute(item.href);
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-white/10 text-white'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+                  if (!item.enabled) {
+                    return (
+                      <span
+                        key={item.href}
+                        className="block rounded-xl px-4 py-2.5 text-sm text-slate-500"
+                      >
+                        {item.label}
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`block rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+                        isActive
+                          ? 'bg-white/10 text-white'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </nav>
 
-        <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="mt-4 shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-sm font-medium text-white">{user?.name}</p>
           <p className="mt-1 truncate text-xs text-slate-400">{user?.email}</p>
           <p className="mt-2 text-xs uppercase tracking-wide text-blue-300">

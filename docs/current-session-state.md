@@ -374,3 +374,14 @@ Current dashboard UX:
 - CRM Health, Quick Workspaces, External Sync Snapshot, Task Focus, and Recent Activity are organized into clearer sections.
 - Recent synced emails/calendar no longer dominate the page.
 - No backend, Prisma, API, email, Gmail draft, CRM apply, or automation behavior changed.
+
+## Latest completed phase
+
+Phase 17J.2 Sidebar Navigation Polish is completed and validated.
+
+Current navigation UX:
+- Sidebar is grouped into Overview, AI, CRM Work, CRM Data, and System.
+- Nested active states still work for board/list/detail routes.
+- Platform Admin remains restricted to SUPER_ADMIN.
+- User card, logout, and existing routes are preserved.
+- No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.

@@ -5187,3 +5187,71 @@ Validation completed:
 - Next meeting block renders correctly.
 - Quick Workspace links work.
 - Sync Gmail and Sync Calendar actions remain explicit and safe.
+
+## Phase 17J.2, Sidebar Navigation Polish
+
+Status: completed, validated in typecheck/build, pending commit/push.
+
+This phase reorganized the dashboard sidebar navigation into clearer product sections.
+
+Frontend file updated:
+
+- `apps/web/src/components/DashboardLayout.tsx`
+
+Sidebar groups implemented:
+
+- Overview
+  - Dashboard
+
+- AI
+  - AI Workspace
+  - AI Suggestions
+  - Synced Emails
+  - Synced Calendar
+
+- CRM Work
+  - Leads
+  - Tasks
+  - Notes
+
+- CRM Data
+  - Companies
+  - Contacts
+  - Products
+
+- System
+  - Activity
+  - Settings
+
+Behavior preserved:
+
+- Existing routes were preserved.
+- Nested-route active states were preserved.
+- Platform Admin visibility remains restricted to `SUPER_ADMIN`.
+- Brand display was preserved.
+- User card was preserved.
+- Logout behavior was preserved.
+
+UX improvements:
+
+- Sidebar is easier to scan.
+- Navigation is grouped by product area.
+- Internal sidebar scrolling was added so group labels do not overlap the user card on shorter screens.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email or Gmail behavior changed.
+- No CRM automation behavior changed.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm build` passed after stopping the running web dev server.
+- Sidebar groups render correctly.
+- Nested active states continue to work.
+- User card and logout continue to work.
