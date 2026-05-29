@@ -18,13 +18,23 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       enabled: true,
     },
     {
-      label: 'Companies',
-      href: '/dashboard/companies',
+      label: 'AI Workspace',
+      href: '/dashboard/ai-workspace',
       enabled: true,
     },
     {
-      label: 'Contacts',
-      href: '/dashboard/contacts',
+      label: 'AI Suggestions',
+      href: '/dashboard/ai-suggestions',
+      enabled: true,
+    },
+    {
+      label: 'Synced Emails',
+      href: '/dashboard/external-sync/email-messages',
+      enabled: true,
+    },
+    {
+      label: 'Synced Calendar',
+      href: '/dashboard/external-sync/calendar-events',
       enabled: true,
     },
     {
@@ -38,38 +48,28 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       enabled: true,
     },
     {
-      label: 'Products',
-      href: '/dashboard/products',
-      enabled: true,
-    },
-    {
       label: 'Notes',
       href: '/dashboard/notes',
       enabled: true,
     },
     {
+      label: 'Companies',
+      href: '/dashboard/companies',
+      enabled: true,
+    },
+    {
+      label: 'Contacts',
+      href: '/dashboard/contacts',
+      enabled: true,
+    },
+    {
+      label: 'Products',
+      href: '/dashboard/products',
+      enabled: true,
+    },
+    {
       label: 'Activity',
       href: '/dashboard/activity',
-      enabled: true,
-    },
-    {
-      label: 'AI Suggestions',
-      href: '/dashboard/ai-suggestions',
-      enabled: true,
-    },
-    {
-      label: 'AI Workspace',
-      href: '/dashboard/ai-workspace',
-      enabled: true,
-    },
-    {
-      label: 'Synced Emails',
-      href: '/dashboard/external-sync/email-messages',
-      enabled: true,
-    },
-    {
-      label: 'Synced Calendar',
-      href: '/dashboard/external-sync/calendar-events',
       enabled: true,
     },
     ...(user?.role === 'SUPER_ADMIN'
@@ -107,10 +107,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
         <nav className="mt-10 space-y-2">
           {navItems.map((item) => {
-          const isActive =
-            item.href === '/dashboard'
-              ? pathname === '/dashboard'
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive =
+              item.href === '/dashboard'
+                ? pathname === '/dashboard'
+                : pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
 
             if (!item.enabled) {
               return (
