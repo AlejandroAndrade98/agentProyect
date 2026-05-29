@@ -1,0 +1,72 @@
+{
+  "common": {
+    "actions": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "search": "Buscar",
+      "clear": "Limpiar",
+      "viewDetails": "Ver detalles",
+      "boardView": "Vista de tablero",
+      "listView": "Vista de lista",
+      "logout": "Cerrar sesión"
+    }
+  },
+  "navigation": {
+    "language": "Idioma",
+    "welcomeBack": "Bienvenido de nuevo",
+    "groups": {
+      "overview": "Resumen",
+      "ai": "IA",
+      "crmWork": "Trabajo CRM",
+      "crmData": "Datos CRM",
+      "system": "Sistema"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "aiWorkspace": "Espacio de IA",
+      "aiSuggestions": "Sugerencias de IA",
+      "syncedEmails": "Correos sincronizados",
+      "syncedCalendar": "Calendario sincronizado",
+      "leads": "Oportunidades",
+      "tasks": "Tareas",
+      "notes": "Notas",
+      "companies": "Empresas",
+      "contacts": "Contactos",
+      "products": "Productos",
+      "activity": "Actividad",
+      "platform": "Plataforma",
+      "settings": "Configuración"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Centro de comando",
+    "title": "Dashboard",
+    "subtitle": "Monitorea lo que requiere atención en CRM, IA, correo y calendario.",
+    "quickLinks": {
+      "aiWorkspace": "Espacio de IA",
+      "leadPipeline": "Pipeline de oportunidades",
+      "tasksBoard": "Tablero de tareas"
+    },
+    "sections": {
+      "actionRequired": "Atención requerida",
+      "actionRequiredDescription": "Los elementos más importantes que requieren atención hoy.",
+      "crmHealth": "Salud del CRM",
+      "crmHealthDescription": "Métricas compactas del pipeline y la carga de tareas.",
+      "quickWorkspaces": "Espacios de trabajo",
+      "quickWorkspacesDescription": "Entra rápidamente al tablero o espacio de revisión adecuado.",
+      "externalSyncSnapshot": "Resumen de sincronización externa",
+      "externalSyncSnapshotDescription": "Metadatos de Gmail y Calendar en un formato compacto para mantener el foco.",
+      "syncStatus": "Estado de sincronización",
+      "taskFocus": "Enfoque de tareas",
+      "taskFocusDescription": "Una muestra breve del trabajo pendiente.",
+      "recentActivity": "Actividad reciente",
+      "recentActivityDescription": "Últimos eventos de la línea de tiempo del CRM.",
+      "nextMeeting": "Próxima reunión de Calendar",
+      "untilNextMeeting": "para la próxima reunión",
+      "noUpcomingMeeting": "No se encontraron próximas reuniones",
+      "openSyncedCalendar": "Abrir calendario sincronizado",
+      "viewCalendarBoard": "Ver tablero de calendario",
+      "openGoogleCalendar": "Abrir en Google Calendar"
+    }
+  }
+}

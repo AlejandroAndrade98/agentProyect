@@ -1,0 +1,72 @@
+{
+  "common": {
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "search": "Search",
+      "clear": "Clear",
+      "viewDetails": "View details",
+      "boardView": "Board view",
+      "listView": "List view",
+      "logout": "Logout"
+    }
+  },
+  "navigation": {
+    "language": "Language",
+    "welcomeBack": "Welcome back",
+    "groups": {
+      "overview": "Overview",
+      "ai": "AI",
+      "crmWork": "CRM Work",
+      "crmData": "CRM Data",
+      "system": "System"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "aiWorkspace": "AI Workspace",
+      "aiSuggestions": "AI Suggestions",
+      "syncedEmails": "Synced Emails",
+      "syncedCalendar": "Synced Calendar",
+      "leads": "Leads",
+      "tasks": "Tasks",
+      "notes": "Notes",
+      "companies": "Companies",
+      "contacts": "Contacts",
+      "products": "Products",
+      "activity": "Activity",
+      "platform": "Platform",
+      "settings": "Settings"
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Command Center",
+    "title": "Dashboard",
+    "subtitle": "Monitor what needs attention across CRM, AI, email, and calendar.",
+    "quickLinks": {
+      "aiWorkspace": "AI Workspace",
+      "leadPipeline": "Lead Pipeline",
+      "tasksBoard": "Tasks Board"
+    },
+    "sections": {
+      "actionRequired": "Action Required",
+      "actionRequiredDescription": "The highest-signal items that need attention today.",
+      "crmHealth": "CRM Health",
+      "crmHealthDescription": "Compact operating metrics for pipeline and task load.",
+      "quickWorkspaces": "Quick Workspaces",
+      "quickWorkspacesDescription": "Jump into the right board or review surface.",
+      "externalSyncSnapshot": "External Sync Snapshot",
+      "externalSyncSnapshotDescription": "Gmail and Calendar metadata, kept compact so the dashboard stays focused.",
+      "syncStatus": "Sync status",
+      "taskFocus": "Task focus",
+      "taskFocusDescription": "A small sample of pending work.",
+      "recentActivity": "Recent Activity",
+      "recentActivityDescription": "Latest CRM timeline events.",
+      "nextMeeting": "Next Calendar Meeting",
+      "untilNextMeeting": "until the next meeting",
+      "noUpcomingMeeting": "No upcoming meeting found",
+      "openSyncedCalendar": "Open Synced Calendar",
+      "viewCalendarBoard": "View Calendar Board",
+      "openGoogleCalendar": "Open in Google Calendar"
+    }
+  }
+}

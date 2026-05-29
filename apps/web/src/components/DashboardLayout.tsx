@@ -5,107 +5,109 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { locale, locales, setLocale, t } = useI18n();
   const pathname = usePathname();
 
   const navGroups = [
     {
-      label: 'Overview',
+      label: t('navigation.groups.overview'),
       items: [
         {
-          label: 'Dashboard',
+          label: t('navigation.items.dashboard'),
           href: '/dashboard',
           enabled: true,
         },
       ],
     },
     {
-      label: 'AI',
+      label: t('navigation.groups.ai'),
       items: [
         {
-          label: 'AI Workspace',
+          label: t('navigation.items.aiWorkspace'),
           href: '/dashboard/ai-workspace',
           enabled: true,
         },
         {
-          label: 'AI Suggestions',
+          label: t('navigation.items.aiSuggestions'),
           href: '/dashboard/ai-suggestions',
           enabled: true,
         },
         {
-          label: 'Synced Emails',
+          label: t('navigation.items.syncedEmails'),
           href: '/dashboard/external-sync/email-messages',
           enabled: true,
         },
         {
-          label: 'Synced Calendar',
+          label: t('navigation.items.syncedCalendar'),
           href: '/dashboard/external-sync/calendar-events',
           enabled: true,
         },
       ],
     },
     {
-      label: 'CRM Work',
+      label: t('navigation.groups.crmWork'),
       items: [
         {
-          label: 'Leads',
+          label: t('navigation.items.leads'),
           href: '/dashboard/leads',
           enabled: true,
         },
         {
-          label: 'Tasks',
+          label: t('navigation.items.tasks'),
           href: '/dashboard/tasks',
           enabled: true,
         },
         {
-          label: 'Notes',
+          label: t('navigation.items.notes'),
           href: '/dashboard/notes',
           enabled: true,
         },
       ],
     },
     {
-      label: 'CRM Data',
+      label: t('navigation.groups.crmData'),
       items: [
         {
-          label: 'Companies',
+          label: t('navigation.items.companies'),
           href: '/dashboard/companies',
           enabled: true,
         },
         {
-          label: 'Contacts',
+          label: t('navigation.items.contacts'),
           href: '/dashboard/contacts',
           enabled: true,
         },
         {
-          label: 'Products',
+          label: t('navigation.items.products'),
           href: '/dashboard/products',
           enabled: true,
         },
       ],
     },
     {
-      label: 'System',
+      label: t('navigation.groups.system'),
       items: [
         {
-          label: 'Activity',
+          label: t('navigation.items.activity'),
           href: '/dashboard/activity',
           enabled: true,
         },
         ...(user?.role === 'SUPER_ADMIN'
           ? [
               {
-                label: 'Platform',
+                label: t('navigation.items.platform'),
                 href: '/dashboard/platform/organizations',
                 enabled: true,
               },
             ]
           : []),
         {
-          label: 'Settings',
+          label: t('navigation.items.settings'),
           href: '/dashboard/settings',
           enabled: true,
         },
@@ -178,6 +180,27 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-4 shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {t('navigation.language')}
+            </span>
+            <select
+              value={locale}
+              onChange={(event) =>
+                setLocale(event.target.value as typeof locale)
+              }
+              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-2.5 py-2 text-xs font-medium text-white outline-none transition focus:border-blue-400"
+            >
+              {locales.map((availableLocale) => (
+                <option key={availableLocale} value={availableLocale}>
+                  {availableLocale.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="my-4 border-t border-white/10" />
+
           <p className="text-sm font-medium text-white">{user?.name}</p>
           <p className="mt-1 truncate text-xs text-slate-400">{user?.email}</p>
           <p className="mt-2 text-xs uppercase tracking-wide text-blue-300">
@@ -190,9 +213,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-500">Welcome back</p>
+              <p className="text-sm text-slate-500">
+                {t('navigation.welcomeBack')}
+              </p>
               <h2 className="text-xl font-semibold tracking-tight text-slate-950">
-                {user?.name ?? 'Dashboard'}
+                {user?.name ?? t('navigation.items.dashboard')}
               </h2>
             </div>
 
@@ -201,7 +226,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               onClick={handleLogout}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
             >
-              Logout
+              {t('common.actions.logout')}
             </button>
           </div>
         </header>

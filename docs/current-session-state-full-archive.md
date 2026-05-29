@@ -5189,42 +5189,30 @@ Validation completed:
 - Sync Gmail and Sync Calendar actions remain explicit and safe.
 
 ## Phase 17J.2, Sidebar Navigation Polish
-
 Status: completed, validated in typecheck/build, pending commit/push.
-
 This phase reorganized the dashboard sidebar navigation into clearer product sections.
-
 Frontend file updated:
-
 - `apps/web/src/components/DashboardLayout.tsx`
-
 Sidebar groups implemented:
-
 - Overview
   - Dashboard
-
 - AI
   - AI Workspace
   - AI Suggestions
   - Synced Emails
   - Synced Calendar
-
 - CRM Work
   - Leads
   - Tasks
   - Notes
-
 - CRM Data
   - Companies
   - Contacts
   - Products
-
 - System
   - Activity
   - Settings
-
 Behavior preserved:
-
 - Existing routes were preserved.
 - Nested-route active states were preserved.
 - Platform Admin visibility remains restricted to `SUPER_ADMIN`.
@@ -5232,11 +5220,53 @@ Behavior preserved:
 - User card was preserved.
 - Logout behavior was preserved.
 
-UX improvements:
 
-- Sidebar is easier to scan.
-- Navigation is grouped by product area.
-- Internal sidebar scrolling was added so group labels do not overlap the user card on shorter screens.
+## Phase 17K.1, i18n Foundation
+
+Status: completed, validated in typecheck/build, pending commit/push.
+
+This phase added a lightweight frontend internationalization foundation using organized JSON dictionaries.
+
+Frontend files added/updated:
+
+- `apps/web/src/i18n/config.ts`
+- `apps/web/src/i18n/I18nProvider.tsx`
+- `apps/web/src/i18n/useI18n.ts`
+- `apps/web/src/i18n/locales/en.json`
+- `apps/web/src/i18n/locales/es.json`
+- `apps/web/src/app/layout.tsx`
+- `apps/web/src/app/dashboard/page.tsx`
+- `apps/web/src/components/DashboardLayout.tsx`
+- `apps/web/src/components/DashboardOverview.tsx`
+
+i18n behavior implemented:
+
+- Added lightweight JSON-based i18n foundation.
+- Added English and Spanish locale dictionaries.
+- Added English fallback for missing translations.
+- Added key fallback when a translation is missing in both selected locale and English.
+- Added browser-language detection.
+- Added localStorage persistence for selected language.
+- Added global `I18nProvider`.
+- Added `useI18n()` hook.
+- Added compact EN/ES language selector in the dashboard sidebar.
+
+Translated initial UI surface:
+
+- Sidebar group labels.
+- Sidebar navigation item labels.
+- Welcome/logout copy.
+- Dashboard title/subtitle.
+- Dashboard major section headings.
+- Next-meeting spotlight copy.
+
+Architecture decisions:
+
+- No i18n dependency was added.
+- Route paths were not translated.
+- Backend enum values were not translated internally.
+- API payloads were not changed.
+- Future languages can be added by creating a new locale JSON file and registering it in `config.ts`.
 
 Safety rules preserved:
 
@@ -5251,7 +5281,8 @@ Validation completed:
 
 - `git diff --check` passed.
 - `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
-- `corepack pnpm build` passed after stopping the running web dev server.
-- Sidebar groups render correctly.
-- Nested active states continue to work.
-- User card and logout continue to work.
+- `corepack pnpm build` passed after stopping the active Next dev server.
+- Switching between English and Spanish updates the sidebar and dashboard UI.
+- Selected language persists after refresh.
+- Sidebar active states still work.
+- Logout still works.

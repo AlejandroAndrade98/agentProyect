@@ -385,3 +385,17 @@ Current navigation UX:
 - Platform Admin remains restricted to SUPER_ADMIN.
 - User card, logout, and existing routes are preserved.
 - No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17K.1 i18n Foundation is completed and validated.
+
+Current i18n foundation:
+- Frontend has lightweight JSON-based internationalization.
+- English and Spanish dictionaries exist.
+- `I18nProvider` and `useI18n()` are available.
+- Locale selection persists in localStorage.
+- Sidebar includes an EN/ES selector.
+- Sidebar navigation and main dashboard labels are translated.
+- Future languages can be added by adding a locale JSON file and registering it in config.
+- No backend, Prisma, API, route, email, Gmail, CRM automation, or background job behavior changed.

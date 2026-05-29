@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getAiSuggestions,
@@ -321,16 +322,18 @@ function NextMeetingSpotlight({
   meeting: DashboardExternalCalendarEvent | null;
   now: Date;
 }) {
+  const { t } = useI18n();
+
   if (!meeting) {
     return (
       <section className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Next Calendar Meeting
+              {t('dashboard.sections.nextMeeting')}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              No upcoming meeting found
+              {t('dashboard.sections.noUpcomingMeeting')}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               Calendar metadata is synced into the workspace when available.
@@ -342,7 +345,7 @@ function NextMeetingSpotlight({
             href="/dashboard/external-sync/calendar-events"
             className="inline-flex justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Open Synced Calendar
+            {t('dashboard.sections.openSyncedCalendar')}
           </Link>
         </div>
       </section>
@@ -356,12 +359,14 @@ function NextMeetingSpotlight({
       <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr_auto] lg:items-center">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-200">
-            Next Calendar Meeting
+            {t('dashboard.sections.nextMeeting')}
           </p>
           <p className="mt-3 text-5xl font-semibold tracking-tight">
             {countdown}
           </p>
-          <p className="mt-2 text-sm text-blue-100">until the next meeting</p>
+          <p className="mt-2 text-sm text-blue-100">
+            {t('dashboard.sections.untilNextMeeting')}
+          </p>
         </div>
 
         <div className="min-w-0">
@@ -389,7 +394,7 @@ function NextMeetingSpotlight({
               rel="noreferrer"
               className="rounded-xl bg-white px-4 py-2.5 text-center text-sm font-medium text-slate-950 transition hover:bg-blue-50"
             >
-              Open in Google Calendar
+              {t('dashboard.sections.openGoogleCalendar')}
             </a>
           ) : null}
 
@@ -397,7 +402,7 @@ function NextMeetingSpotlight({
             href="/dashboard/external-sync/calendar-events"
             className="rounded-xl border border-white/20 px-4 py-2.5 text-center text-sm font-medium text-white transition hover:bg-white/10"
           >
-            View Calendar Board
+            {t('dashboard.sections.viewCalendarBoard')}
           </Link>
         </div>
       </div>
@@ -520,6 +525,7 @@ function ExternalSyncSnapshot({
   onSyncEmail: () => void;
   onSyncCalendar: () => void;
 }) {
+  const { t } = useI18n();
   const recentEmails = externalSync.recentEmailMessages.slice(0, 3);
   const upcomingEvents = externalSync.upcomingCalendarEvents.slice(0, 3);
 
@@ -527,11 +533,10 @@ function ExternalSyncSnapshot({
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-          External Sync Snapshot
+          {t('dashboard.sections.externalSyncSnapshot')}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Gmail and Calendar metadata, kept compact so the dashboard stays
-          focused.
+          {t('dashboard.sections.externalSyncSnapshotDescription')}
         </p>
       </div>
 
@@ -540,7 +545,7 @@ function ExternalSyncSnapshot({
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-950">
-                Sync status
+                {t('dashboard.sections.syncStatus')}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
                 Manual sync only. No background automation is started here.
@@ -670,6 +675,7 @@ function ExternalSyncSnapshot({
 
 export function DashboardOverview() {
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -883,10 +889,10 @@ export function DashboardOverview() {
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-            Action Required
+            {t('dashboard.sections.actionRequired')}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            The highest-signal items that need attention today.
+            {t('dashboard.sections.actionRequiredDescription')}
           </p>
         </div>
 
@@ -926,10 +932,10 @@ export function DashboardOverview() {
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-            CRM Health
+            {t('dashboard.sections.crmHealth')}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Compact operating metrics for pipeline and task load.
+            {t('dashboard.sections.crmHealthDescription')}
           </p>
         </div>
 
@@ -1040,10 +1046,10 @@ export function DashboardOverview() {
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-            Quick Workspaces
+            {t('dashboard.sections.quickWorkspaces')}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Jump into the right board or review surface.
+            {t('dashboard.sections.quickWorkspacesDescription')}
           </p>
         </div>
 
@@ -1096,10 +1102,10 @@ export function DashboardOverview() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-                Task focus
+                {t('dashboard.sections.taskFocus')}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                A small sample of pending work.
+                {t('dashboard.sections.taskFocusDescription')}
               </p>
             </div>
             <Link
@@ -1124,10 +1130,10 @@ export function DashboardOverview() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-              Recent Activity
+              {t('dashboard.sections.recentActivity')}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Latest CRM timeline events.
+              {t('dashboard.sections.recentActivityDescription')}
             </p>
           </div>
 
