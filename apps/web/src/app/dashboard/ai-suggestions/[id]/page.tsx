@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
@@ -126,6 +127,10 @@ function getMetadataString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function getArrayCount(value: unknown) {
+  return Array.isArray(value) ? value.length : null;
+}
+
 type AppliedActionName =
   | 'UPDATE_LEAD_NEXT_STEP'
   | 'CREATE_TASK'
@@ -140,6 +145,101 @@ type AppliedActionName =
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
+
+function SectionIntro({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-5">
+      {eyebrow ? (
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">
+        {title}
+      </h2>
+      {description ? (
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function InfoTile({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string | null;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      {children ?? (
+        <p className="mt-2 break-words text-sm font-medium text-slate-900">
+          {value || 'Not set'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SafetyPanel({
+  isMetadataOnly,
+}: {
+  isMetadataOnly: boolean;
+}) {
+  const items = [
+    'Human review is required',
+    'No email is sent automatically',
+    'No CRM records are created during analysis',
+    'Gmail drafts require an explicit user click',
+    isMetadataOnly ? 'Analysis uses synced metadata/snippet only' : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return (
+    <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Safety
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-blue-950">
+            Human-controlled workflow
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-900">
+            This page reviews AI output and exposes only explicit human actions.
+            It does not send email or create CRM data by itself.
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
+          {items.map((item) => (
+            <div
+              key={item}
+              className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm font-medium text-blue-900"
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function AiSuggestionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -866,8 +966,8 @@ const canCreateGmailDraft =
   return (
     <div className="space-y-8">
       <PageHeader
-        title={suggestion?.title ?? 'AI Suggestion'}
-        description="Review the AI-generated recommendation before applying any CRM changes."
+        title="AI Suggestion Review"
+        description="Review the recommendation, source context, safety flags, and explicit human actions."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -894,6 +994,185 @@ const canCreateGmailDraft =
       {!isLoading && errorMessage ? <ErrorState message={errorMessage} /> : null}
 
       {!isLoading && !errorMessage && suggestion ? (
+        <>
+        <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <Badge className={getStatusClasses(suggestion.status)}>
+                    {formatEnumLabel(suggestion.status)}
+                  </Badge>
+                  <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
+                    {formatEnumLabel(suggestion.type)}
+                  </Badge>
+                  {suggestion.confidenceScore !== null ? (
+                    <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
+                      Confidence {formatConfidence(suggestion.confidenceScore)}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <h1 className="max-w-4xl text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+                  {suggestion.title ?? 'Untitled AI suggestion'}
+                </h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                  Review the AI output first, then decide whether to accept,
+                  reject, or run one of the explicit apply actions.
+                </p>
+              </div>
+
+              <div className="grid min-w-full gap-3 text-sm sm:grid-cols-2 lg:min-w-[380px]">
+                <InfoTile label="Created" value={formatDateTime(suggestion.createdAt)} />
+                <InfoTile
+                  label="Reviewed"
+                  value={formatDateTime(suggestion.reviewedAt)}
+                />
+                <InfoTile label="Provider" value={suggestion.provider} />
+                <InfoTile
+                  label="Model"
+                  value={String(suggestion.metadataJson?.model ?? 'Not set')}
+                />
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <SafetyPanel
+          isMetadataOnly={
+            Boolean(isExternalEmailSuggestion) ||
+            Boolean(isExternalEmailReplyDraftSuggestion) ||
+            Boolean(isExternalCalendarSuggestion)
+          }
+        />
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <SectionIntro
+            eyebrow="Source context"
+            title={
+              isLeadNextStepsSuggestion
+                ? 'Lead suggestion context'
+                : isExternalEmailReplyDraftSuggestion
+                  ? 'Original email and reply draft'
+                  : isExternalEmailSuggestion
+                    ? 'Synced email metadata'
+                    : isExternalCalendarSuggestion
+                      ? 'Synced calendar metadata'
+                      : 'Suggestion source'
+            }
+            description="The AI suggestion is grounded in this loaded context. Full identifiers remain available in the detailed metadata cards below."
+          />
+
+          {isLeadNextStepsSuggestion ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <InfoTile label="Lead ID" value={suggestion.leadId ?? 'Not linked'} />
+              <InfoTile label="Entity type" value={suggestion.entityType ?? 'Lead'} />
+              <InfoTile label="Entity ID" value={suggestion.entityId ?? 'Not set'} />
+            </div>
+          ) : null}
+
+          {isExternalEmailSuggestion || isExternalEmailReplyDraftSuggestion ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <InfoTile
+                label="Email subject"
+                value={suggestion.externalEmailMessage?.subject ?? 'No subject'}
+              />
+              <InfoTile
+                label="Sender"
+                value={
+                  suggestion.externalEmailMessage?.fromName ||
+                  suggestion.externalEmailMessage?.fromEmail ||
+                  'Unknown sender'
+                }
+              />
+              <InfoTile
+                label="Internal date"
+                value={
+                  suggestion.externalEmailMessage?.internalDate
+                    ? formatDateTime(suggestion.externalEmailMessage.internalDate)
+                    : 'Not set'
+                }
+              />
+              <InfoTile
+                label="Synced at"
+                value={
+                  suggestion.externalEmailMessage?.syncedAt
+                    ? formatDateTime(suggestion.externalEmailMessage.syncedAt)
+                    : 'Not set'
+                }
+              />
+              {isExternalEmailReplyDraftSuggestion ? (
+                <InfoTile label="Suggested subject" value={replyDraftSubject} />
+              ) : null}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Snippet
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {suggestion.externalEmailMessage?.snippet ??
+                    'No snippet available'}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {isExternalCalendarSuggestion ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <InfoTile
+                label="Event"
+                value={suggestion.externalCalendarEvent?.summary ?? 'No title'}
+              />
+              <InfoTile
+                label="Organizer"
+                value={
+                  suggestion.externalCalendarEvent?.organizerName ||
+                  suggestion.externalCalendarEvent?.organizerEmail ||
+                  'Unknown organizer'
+                }
+              />
+              <InfoTile
+                label="Start"
+                value={
+                  suggestion.externalCalendarEvent?.startAt
+                    ? formatDateTime(suggestion.externalCalendarEvent.startAt)
+                    : 'Not set'
+                }
+              />
+              <InfoTile
+                label="End"
+                value={
+                  suggestion.externalCalendarEvent?.endAt
+                    ? formatDateTime(suggestion.externalCalendarEvent.endAt)
+                    : 'Not set'
+                }
+              />
+              <InfoTile
+                label="Attendees"
+                value={String(
+                  getArrayCount(suggestion.externalCalendarEvent?.attendeesJson) ??
+                    'Not set',
+                )}
+              />
+              <InfoTile label="Calendar link">
+                {suggestion.externalCalendarEvent?.htmlLink ? (
+                  <a
+                    href={suggestion.externalCalendarEvent.htmlLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-900"
+                  >
+                    Open event
+                  </a>
+                ) : (
+                  <p className="mt-2 text-sm font-medium text-slate-900">
+                    Not set
+                  </p>
+                )}
+              </InfoTile>
+            </div>
+          ) : null}
+        </article>
+
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
           <section className="space-y-6">
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -911,9 +1190,11 @@ const canCreateGmailDraft =
                 </Badge>
               </div>
 
-              <h2 className="text-lg font-semibold text-slate-950">
-                Suggested output
-              </h2>
+              <SectionIntro
+                eyebrow="AI output"
+                title="Generated recommendation"
+                description="The complete AI-generated response is preserved here for review."
+              />
 
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">
                 {suggestion.outputText ?? 'No output text available.'}
@@ -2607,6 +2888,7 @@ const canCreateGmailDraft =
             </article>
           </aside>
         </div>
+        </>
       ) : null}
     </div>
   );

@@ -4734,3 +4734,66 @@ Validation completed:
 - AI-created note detail renders full text in readable format.
 - AI-created lead detail renders next step and description in readable format.
 - Existing edit/delete/navigation flows continue to work.
+
+## Phase 17I.1, AI Suggestion Detail Light Polish
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase polished the AI Suggestion detail page to make it easier to understand now that it supports many AI suggestion types, review states, apply actions, completed states, and Gmail draft flows.
+
+Frontend file updated:
+
+- `apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx`
+
+Frontend behavior implemented:
+
+- Improved the AI Suggestion detail page header with:
+  - clearer title hierarchy
+  - type badge
+  - status badge
+  - confidence display
+  - key metadata
+
+- Added a consistent safety panel near the top of the page.
+
+- Added clearer source context sections based on suggestion type:
+  - lead suggestions
+  - external email suggestions
+  - email reply draft suggestions
+  - external calendar suggestions
+
+- Improved the main AI output card with clearer structure and headings.
+
+- Added frontend-only visual helpers:
+  - `SectionIntro`
+  - `InfoTile`
+  - `SafetyPanel`
+
+Behavior preserved:
+
+- Accept/reject eligibility was not changed.
+- Apply action eligibility was not changed.
+- Gmail draft creation eligibility was not changed.
+- Existing API helpers and request payloads were not changed.
+- Existing handlers were not changed.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail send button was added.
+- No automatic Gmail draft creation was added.
+- No automatic CRM record creation was added.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Pending suggestions still show review controls.
+- Accepted suggestions still show the correct available actions.
+- Email reply draft suggestions still show Gmail draft flow correctly.
+- External calendar suggestions still show applied task/note/lead states correctly.
+- Rejected suggestions remain read-only.

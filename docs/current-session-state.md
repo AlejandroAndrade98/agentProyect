@@ -298,3 +298,15 @@ Current AI-created CRM detail UX:
 - AI-sourced notes and leads show AI suggestion notices when source data is available.
 - Full content remains visible on detail pages.
 - No backend, Prisma, API, email, Gmail draft, or AI apply behavior changed.
+
+## Latest completed phase
+
+Phase 17I.1 AI Suggestion Detail Light Polish is completed and validated.
+
+Current AI Suggestion detail UX:
+- Detail page has clearer header, type/status/confidence badges, and key metadata.
+- Source context is shown based on suggestion type.
+- Safety messaging is centralized and easier to understand.
+- AI output is displayed with better visual hierarchy.
+- Existing review, apply, and Gmail draft actions keep the same behavior.
+- No backend, Prisma, API, email, Gmail send, background job, or automatic action behavior changed.
