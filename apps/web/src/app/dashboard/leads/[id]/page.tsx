@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteLead, getLeadById } from '@/lib/api-client';
 import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
@@ -337,33 +338,45 @@ export default function LeadDetailPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Source
             </p>
-            <p className="mt-2 text-sm text-slate-950">
-              {formatEnumLabel(lead.source)}
-            </p>
+            <div className="mt-2">
+              {lead.source === 'AI_SUGGESTION' ? (
+                <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                  AI suggestion
+                </Badge>
+              ) : (
+                <p className="text-sm text-slate-950">
+                  {formatEnumLabel(lead.source)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
+      </section>
 
-        {lead.nextStep ? (
-          <div className="mt-6 border-t border-slate-200 pt-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Next step
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              {lead.nextStep}
-            </p>
-          </div>
-        ) : null}
+      {lead.source === 'AI_SUGGESTION' ? (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <Badge className="border-blue-200 bg-white text-blue-700">
+            AI suggestion
+          </Badge>
+          <p className="mt-3 text-sm leading-6 text-blue-900">
+            This lead came from a reviewed AI suggestion. No email is sent
+            automatically from this page, and no company, contact, task, or note
+            is created automatically here.
+          </p>
+        </section>
+      ) : null}
 
-        {lead.description ? (
-          <div className="mt-6 border-t border-slate-200 pt-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Description
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              {lead.description}
-            </p>
-          </div>
-        ) : null}
+      <section className="grid gap-6 xl:grid-cols-2">
+        <LongTextCard
+          title="Next step"
+          content={lead.nextStep}
+          emptyText="No next step recorded for this lead."
+        />
+        <LongTextCard
+          title="Description"
+          content={lead.description}
+          emptyText="No description recorded for this lead."
+        />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">

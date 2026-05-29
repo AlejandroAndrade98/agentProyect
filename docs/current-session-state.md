@@ -286,3 +286,15 @@ Current CRM list UX:
 - AI-created notes and leads show `AI suggestion` badges when source data is available.
 - Full content remains available in detail pages.
 - No backend, Prisma, email, Gmail draft, or AI apply behavior changed.
+
+## Latest completed phase
+
+Phase 17H.2 AI-created CRM Detail Polish is completed and validated.
+
+Current AI-created CRM detail UX:
+- Task details show long AI-generated descriptions in readable cards.
+- Note details show long AI-generated content in readable cards.
+- Lead details show long AI-generated next steps/descriptions in readable cards.
+- AI-sourced notes and leads show AI suggestion notices when source data is available.
+- Full content remains visible on detail pages.
+- No backend, Prisma, API, email, Gmail draft, or AI apply behavior changed.

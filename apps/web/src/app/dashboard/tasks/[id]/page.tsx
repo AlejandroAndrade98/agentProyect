@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteTask, getTaskById } from '@/lib/api-client';
 import { getPriorityClasses, getTaskStatusClasses } from '@/lib/crm-styles';
@@ -309,17 +310,13 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {task.description ? (
-          <div className="mt-6 border-t border-slate-200 pt-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Description
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              {task.description}
-            </p>
-          </div>
-        ) : null}
       </section>
+
+      <LongTextCard
+        title="Description"
+        content={task.description}
+        emptyText="No description recorded for this task."
+      />
     </div>
   );
 }

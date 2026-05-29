@@ -4670,3 +4670,67 @@ Validation completed:
 - Leads list rows remain compact.
 - Detail pages still show full content.
 - Search, filters, and pagination continue to work.
+
+## Phase 17H.2, AI-created CRM Detail Polish
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase improved frontend detail pages for CRM records created from AI suggestions, making long AI-generated descriptions and content easier to read.
+
+Frontend files added/updated:
+
+- `apps/web/src/components/ui/LongTextCard.tsx`
+- `apps/web/src/app/dashboard/tasks/[id]/page.tsx`
+- `apps/web/src/app/dashboard/notes/[id]/page.tsx`
+- `apps/web/src/app/dashboard/leads/[id]/page.tsx`
+
+Frontend behavior implemented:
+
+- Added reusable `LongTextCard` component.
+- `LongTextCard` preserves full text content while improving readability with:
+  - preserved line breaks
+  - wrapping
+  - readable spacing
+  - consistent card styling
+
+Task detail:
+
+- Full task description now renders in a dedicated readable card.
+- Task detail keeps existing status, priority, due date, completed state, and assigned user behavior.
+- Task edit/delete/navigation behavior was not changed.
+
+Note detail:
+
+- Full note content now renders in a dedicated readable card.
+- Notes with `source = AI_SUGGESTION` show an AI suggestion badge/notice.
+- Note detail keeps existing source, importance, linked record, created by, and date behavior.
+- Note edit/delete/navigation behavior was not changed.
+
+Lead detail:
+
+- Lead next step now renders in a readable card.
+- Lead description now renders in a readable card.
+- Leads with `source = AI_SUGGESTION` show an AI suggestion badge/notice.
+- Lead detail keeps existing status, priority, importance, source, company/contact/user display, and related records behavior.
+- Lead edit/delete/navigation behavior was not changed.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email actions were added.
+- No Gmail draft actions were added.
+- No AI apply actions were added.
+- No automatic CRM actions were added.
+- This phase was read-only UI polish only.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Initial Windows `.next/trace` lock was caused by the running Next dev server and was resolved by temporarily stopping the dev server.
+- AI-created task detail renders full text in readable format.
+- AI-created note detail renders full text in readable format.
+- AI-created lead detail renders next step and description in readable format.
+- Existing edit/delete/navigation flows continue to work.

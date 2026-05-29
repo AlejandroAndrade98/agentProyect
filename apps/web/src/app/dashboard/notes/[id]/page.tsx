@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, deleteNote, getNoteById } from '@/lib/api-client';
 import { getImportanceClasses } from '@/lib/crm-styles';
@@ -222,9 +223,17 @@ export default function NoteDetailPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Source
             </p>
-            <p className="mt-2 text-sm text-slate-950">
-              {formatEnumLabel(note.source)}
-            </p>
+            <div className="mt-2">
+              {note.source === 'AI_SUGGESTION' ? (
+                <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                  AI suggestion
+                </Badge>
+              ) : (
+                <p className="text-sm text-slate-950">
+                  {formatEnumLabel(note.source)}
+                </p>
+              )}
+            </div>
           </div>
 
           <div>
@@ -303,15 +312,22 @@ export default function NoteDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6 border-t border-slate-200 pt-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Content
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-            {note.content}
-          </p>
-        </div>
       </section>
+
+      {note.source === 'AI_SUGGESTION' ? (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <Badge className="border-blue-200 bg-white text-blue-700">
+            AI suggestion
+          </Badge>
+          <p className="mt-3 text-sm leading-6 text-blue-900">
+            This note came from a reviewed AI suggestion. The full CRM note
+            content is preserved below for audit and follow-up context. No
+            email is sent automatically from this page.
+          </p>
+        </section>
+      ) : null}
+
+      <LongTextCard title="Content" content={note.content} />
     </div>
   );
 }
