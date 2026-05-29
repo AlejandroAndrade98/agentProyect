@@ -259,3 +259,18 @@ Current AI Calendar apply flow:
 - No task or note is created automatically during analysis.
 - No email is sent automatically.
 - No lead, contact, or company is created automatically.
+
+## Latest completed phase
+
+Phase 17G.3 Apply External Calendar Suggestion to CRM Lead is completed and validated.
+
+Current AI Calendar apply flow:
+- Users can analyze synced calendar events.
+- Calendar analysis suggestions require human review.
+- Accepted calendar suggestions can create CRM Tasks through explicit user action.
+- Accepted calendar suggestions can create CRM Notes through explicit user action.
+- Accepted calendar suggestions can create CRM Leads through explicit user action.
+- Created task/note/lead states appear in the AI Suggestion detail page.
+- No task, note, or lead is created automatically during analysis.
+- No email is sent automatically.
+- No company or contact is created automatically.

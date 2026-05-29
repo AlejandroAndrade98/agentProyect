@@ -114,6 +114,7 @@ type ExternalEmailAnalysisApplyOutput = {
 type ExternalCalendarEventAnalysisApplyOutput = {
   summary?: string;
   importanceLevel?: ImportanceLevel;
+  suggestedReviewAction?: string;
   suggestedNote?: string;
   suggestedTasks?: SuggestedTaskOutput[];
   reasoningSummary?: string;
@@ -130,6 +131,7 @@ type AppliedActionName =
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
 
@@ -2474,6 +2476,10 @@ export class AiSuggestionsService {
     if (
       this.hasAppliedAction(
         suggestion.metadataJson,
+        'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT',
+      ) ||
+      this.hasAppliedAction(
+        suggestion.metadataJson,
         'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
       )
     ) {
@@ -2485,7 +2491,10 @@ export class AiSuggestionsService {
     );
     const calendarEvent = suggestion.externalCalendarEvent;
     const title = `Calendar lead: ${
-      calendarEvent?.summary?.trim() || 'Synced event'
+      calendarEvent?.summary?.trim() ||
+      output.summary?.trim() ||
+      output.suggestedReviewAction?.trim() ||
+      'Calendar follow-up lead'
     }`;
     const importanceLevel = this.normalizeImportanceLevel(output.importanceLevel);
     const priority = this.mapImportanceToPriority(importanceLevel);
@@ -2525,23 +2534,37 @@ export class AiSuggestionsService {
           id: suggestion.id,
         },
         data: {
-          metadataJson: this.buildAppliedMetadata({
-            metadataJson: suggestion.metadataJson,
-            action: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
-            currentUser,
-            appliedAt,
-            recordType: EntityType.LEAD,
-            recordId: lead.id,
-            details: {
-              title,
-              priority,
-              importanceLevel,
-              externalCalendarEventId: suggestion.externalCalendarEventId,
-              externalEventId: calendarEvent?.externalEventId ?? null,
-              externalCalendarId: calendarEvent?.externalCalendarId ?? null,
-              emailSentAutomatically: false,
-            },
-          }),
+          metadataJson: {
+            ...(this.buildAppliedMetadata({
+              metadataJson: suggestion.metadataJson,
+              action: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT',
+              currentUser,
+              appliedAt,
+              recordType: EntityType.LEAD,
+              recordId: lead.id,
+              details: {
+                leadId: lead.id,
+                title,
+                priority,
+                importanceLevel,
+                externalCalendarEventId: suggestion.externalCalendarEventId,
+                externalEventId: calendarEvent?.externalEventId ?? null,
+                externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+                crmRecordsCreated: true,
+                emailSentAutomatically: false,
+                leadCreatedAutomatically: false,
+                companyCreatedAutomatically: false,
+                contactCreatedAutomatically: false,
+              },
+            }) as Record<string, unknown>),
+            appliedAt: appliedAt.toISOString(),
+            appliedByUserId: currentUser.id,
+            crmRecordsCreated: true,
+            emailSentAutomatically: false,
+            leadCreatedAutomatically: false,
+            companyCreatedAutomatically: false,
+            contactCreatedAutomatically: false,
+          },
         },
         include: this.getSuggestionInclude(),
       });
@@ -2562,15 +2585,19 @@ export class AiSuggestionsService {
           metadataJson: {
             aiSuggestionId: suggestion.id,
             aiSuggestionType: suggestion.type,
-            appliedAction: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+            appliedAction: 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT',
             externalCalendarEventId: suggestion.externalCalendarEventId,
             externalEventId: calendarEvent?.externalEventId ?? null,
             externalCalendarId: calendarEvent?.externalCalendarId ?? null,
             leadId: lead.id,
             appliedToCrm: true,
+            crmRecordsCreated: true,
             canApplyAutomatically: false,
             canSendEmailAutomatically: false,
             emailSentAutomatically: false,
+            leadCreatedAutomatically: false,
+            companyCreatedAutomatically: false,
+            contactCreatedAutomatically: false,
           },
         }),
       });
@@ -2899,6 +2926,7 @@ export class AiSuggestionsService {
       isAllDay: boolean;
       organizerEmail: string | null;
       organizerName: string | null;
+      attendeesJson: Prisma.JsonValue | null;
       htmlLink: string | null;
       syncedAt: Date;
     } | null;
@@ -3025,6 +3053,7 @@ export class AiSuggestionsService {
       isAllDay: boolean;
       organizerEmail: string | null;
       organizerName: string | null;
+      attendeesJson: Prisma.JsonValue | null;
       htmlLink: string | null;
       syncedAt: Date;
     } | null;
@@ -3047,6 +3076,12 @@ export class AiSuggestionsService {
         '(unknown)'
       }`,
       `Organizer email: ${calendarEvent?.organizerEmail ?? '(unknown)'}`,
+      `Attendees: ${
+        calendarEvent
+          ? this.safeStringifyJson(calendarEvent.attendeesJson)
+          : 'null'
+      }`,
+      `Calendar link: ${calendarEvent?.htmlLink ?? '(none)'}`,
       `Synced at: ${calendarEvent?.syncedAt?.toISOString() ?? '(unknown)'}`,
       `External calendar event id: ${externalCalendarEventId}`,
       `External provider event id: ${calendarEvent?.externalEventId ?? '(unknown)'}`,
@@ -3055,9 +3090,13 @@ export class AiSuggestionsService {
       '',
       'AI review context:',
       output.summary ? `Summary: ${output.summary}` : null,
+      output.suggestedReviewAction
+        ? `Suggested action: ${output.suggestedReviewAction}`
+        : null,
+      output.suggestedNote ? `Suggested note: ${output.suggestedNote}` : null,
       output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
       '',
-      'Human approval: This lead was created by explicit human action from an accepted AI suggestion. No company or contact was created automatically. No email was sent automatically.',
+      'Human approval: This lead was created by explicit human action from an accepted AI suggestion. No company, contact, task, note, or email was created automatically. No email was sent automatically.',
     ]
       .filter((line): line is string => line !== null)
       .join('\n');

@@ -137,6 +137,7 @@ type AppliedActionName =
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
+  | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
 
@@ -814,9 +815,27 @@ const externalCalendarNoteAppliedAt = getMetadataString(
 const externalCalendarNoteAppliedByUserId = getMetadataString(
   externalCalendarNoteAction?.appliedByUserId,
 );
-const externalCalendarLeadApplied = hasAppliedAction(
-  suggestion,
-  'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+const externalCalendarLeadAction =
+  getAppliedActionRecord(
+    suggestion,
+    'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT',
+  ) ??
+  getAppliedActionRecord(
+    suggestion,
+    'CREATE_LEAD_FROM_EXTERNAL_CALENDAR',
+  );
+const externalCalendarLeadApplied = Boolean(externalCalendarLeadAction);
+const externalCalendarLeadId =
+  getMetadataString(externalCalendarLeadAction?.recordId) ??
+  getMetadataString(
+    (externalCalendarLeadAction?.details as Record<string, unknown> | undefined)
+      ?.leadId,
+  );
+const externalCalendarLeadAppliedAt = getMetadataString(
+  externalCalendarLeadAction?.appliedAt,
+);
+const externalCalendarLeadAppliedByUserId = getMetadataString(
+  externalCalendarLeadAction?.appliedByUserId,
 );
 const gmailDraftAction = getAppliedActionRecord(
   suggestion,
@@ -2082,6 +2101,52 @@ const canCreateGmailDraft =
         </article>
       ) : null}
 
+        {isExternalCalendarSuggestion && externalCalendarLeadApplied ? (
+        <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-emerald-700">
+              External calendar action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-emerald-950">
+              CRM lead created
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-emerald-800">
+              Created by explicit human action. No email was sent automatically,
+              and no company, contact, task, or note was created automatically.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <div>
+              <p className="font-medium text-emerald-950">Lead ID</p>
+              <p className="mt-1 break-all text-emerald-800">
+                {externalCalendarLeadId ?? 'Created'}
+              </p>
+            </div>
+
+            {externalCalendarLeadAppliedAt ? (
+              <div>
+                <p className="font-medium text-emerald-950">Applied at</p>
+                <p className="mt-1 text-emerald-800">
+                  {formatDateTime(externalCalendarLeadAppliedAt)}
+                </p>
+              </div>
+            ) : null}
+
+            {externalCalendarLeadAppliedByUserId ? (
+              <div>
+                <p className="font-medium text-emerald-950">
+                  Applied by user ID
+                </p>
+                <p className="mt-1 break-all text-emerald-800">
+                  {externalCalendarLeadAppliedByUserId}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </article>
+      ) : null}
+
         {canApplyExternalCalendarLead && !externalCalendarLeadApplied ? (
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
@@ -2094,7 +2159,7 @@ const canCreateGmailDraft =
             <p className="mt-2 text-sm leading-6 text-slate-600">
               This creates one official CRM lead from the accepted calendar
               review. It requires this explicit human click and does not send an
-              email.
+              email. No lead is created automatically.
             </p>
           </div>
 
@@ -2108,7 +2173,8 @@ const canCreateGmailDraft =
                   The lead will include safe synced calendar metadata, AI
                   summary, reasoning, event identifiers, and a human approval
                   notice. Existing company or contact links are reused only if
-                  already present on the suggestion.
+                  already present on the suggestion. No company, contact, task,
+                  note, or email will be created automatically.
                 </p>
               </div>
             </div>

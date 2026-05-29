@@ -4502,3 +4502,110 @@ Validation completed:
 - Duplicate apply was blocked.
 - `AI_SUGGESTION_APPLIED` ActivityEvent was created.
 - No email, Gmail draft, lead, contact, company, or task was created automatically.
+
+## Phase 17G.3, Apply External Calendar Suggestion to CRM Lead
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase aligned and completed the human-controlled apply action to create a CRM Lead from an accepted external calendar AI suggestion.
+
+Backend behavior implemented:
+
+- Reused existing endpoint:
+  - `POST /api/ai-suggestions/:id/apply/external-calendar-lead`
+
+- Calendar lead apply action now uses:
+  - `CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Duplicate protection checks:
+  - `CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT`
+  - legacy `CREATE_LEAD_FROM_EXTERNAL_CALENDAR`
+
+- The action only works for accepted calendar suggestions:
+  - `ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `ACCEPTED` or `EDITED_AND_ACCEPTED`
+
+- Lead creation remains explicit human action only.
+
+CRM Lead behavior:
+
+- Creates a CRM Lead only after the user clicks the apply action.
+- Lead is assigned to the current user.
+- Lead uses `source = AI_SUGGESTION`.
+- Lead starts with `status = NEW`.
+- Lead description includes safe synced calendar metadata:
+  - event summary
+  - organizer
+  - attendees when available
+  - start/end time
+  - location when available
+  - calendar link when available
+  - AI summary
+  - AI suggested action
+  - AI suggested note
+  - AI reasoning when available
+  - external identifiers
+  - explicit human approval notice
+
+Suggestion metadata updates:
+
+- Stores applied action:
+  - `CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Stores:
+  - created lead id
+  - appliedAt
+  - appliedByUserId
+  - `crmRecordsCreated = true`
+  - `emailSentAutomatically = false`
+  - `leadCreatedAutomatically = false`
+  - `companyCreatedAutomatically = false`
+  - `contactCreatedAutomatically = false`
+
+Activity Events:
+
+- Creates `AI_SUGGESTION_APPLIED`.
+- Activity metadata includes:
+  - aiSuggestionId
+  - aiSuggestionType
+  - appliedAction
+  - externalCalendarEventId
+  - leadId
+  - crmRecordsCreated = true
+  - emailSentAutomatically = false
+  - leadCreatedAutomatically = false
+  - companyCreatedAutomatically = false
+  - contactCreatedAutomatically = false
+
+Frontend behavior implemented:
+
+- AI Suggestion detail page detects both new and legacy calendar-lead applied actions.
+- Shows applied state for external calendar lead creation:
+  - `CRM lead created`
+  - lead id when available
+  - applied time/user when available
+  - explicit human action notice
+  - no automatic email notice
+  - no automatic company/contact creation notice
+
+Safety rules preserved:
+
+- No lead is created automatically during analysis.
+- Creating a lead requires explicit human action.
+- No email is sent automatically.
+- No Gmail draft is created.
+- No company or contact is created automatically.
+- No task or note is created automatically by the lead action.
+- Human-in-the-loop workflow remains enforced.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Calendar event analysis was created.
+- Calendar suggestion was accepted.
+- CRM Lead was created only after explicit user action.
+- Applied state appeared in the AI Suggestion detail page.
+- Duplicate apply was blocked.
+- `AI_SUGGESTION_APPLIED` ActivityEvent was created.
+- No email, Gmail draft, company, contact, task, or note was created automatically.
