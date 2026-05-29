@@ -335,3 +335,15 @@ Current CRM navigation:
 - Sidebar Leads and Tasks now land on board-first views.
 - List views remain available through `List view` / `Board view` buttons.
 - No backend, Prisma, API, email, Gmail, AI, or CRM automation behavior changed.
+
+## Latest completed phase
+
+Phase 17I.5 Board UX Enhancements is completed and validated.
+
+Current board UX:
+- AI Suggestions is now board-first.
+- AI Suggestions list is available at `/dashboard/ai-suggestions/list`.
+- Lead Pipeline and Tasks Board have independent per-column pagination.
+- Leads and Tasks can be moved between columns with native drag-and-drop.
+- Existing dropdown status controls remain as fallback.
+- No backend, Prisma, API, email, Gmail, or CRM automation behavior changed.

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { DragEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +18,9 @@ import { canCreateCrm } from '@/lib/permissions';
 import type { Lead, LeadStatus } from '@/types/crm';
 
 type LeadsByStatus = Record<LeadStatus, Lead[]>;
+type LeadColumnPages = Record<LeadStatus, number>;
+
+const BOARD_PAGE_SIZE = 5;
 
 function createEmptyLeadsByStatus() {
   return leadStatusOptions.reduce((accumulator, status) => {
@@ -24,6 +28,24 @@ function createEmptyLeadsByStatus() {
 
     return accumulator;
   }, {} as LeadsByStatus);
+}
+
+function createInitialLeadColumnPages() {
+  return leadStatusOptions.reduce((accumulator, status) => {
+    accumulator[status] = 1;
+
+    return accumulator;
+  }, {} as LeadColumnPages);
+}
+
+function getLeadColumnTotalPages(leads: Lead[]) {
+  return Math.max(1, Math.ceil(leads.length / BOARD_PAGE_SIZE));
+}
+
+function getVisibleLeadPage(leads: Lead[], page: number) {
+  const startIndex = (page - 1) * BOARD_PAGE_SIZE;
+
+  return leads.slice(startIndex, startIndex + BOARD_PAGE_SIZE);
 }
 
 function sortLeadsForBoard(leads: Lead[]) {
@@ -45,6 +67,11 @@ export default function LeadPipelinePage() {
   const [leadsByStatus, setLeadsByStatus] = useState<LeadsByStatus>(() =>
     createEmptyLeadsByStatus(),
   );
+  const [columnPages, setColumnPages] = useState<LeadColumnPages>(() =>
+    createInitialLeadColumnPages(),
+  );
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<LeadStatus | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +124,21 @@ export default function LeadPipelinePage() {
     loadPipeline();
   }, [loadPipeline]);
 
+  useEffect(() => {
+    setColumnPages((currentPages) => {
+      const nextPages = { ...currentPages };
+
+      leadStatusOptions.forEach((status) => {
+        nextPages[status] = Math.min(
+          nextPages[status],
+          getLeadColumnTotalPages(leadsByStatus[status]),
+        );
+      });
+
+      return nextPages;
+    });
+  }, [leadsByStatus]);
+
   async function handleMoveLead(lead: Lead, nextStatus: LeadStatus) {
     if (!token || lead.status === nextStatus) {
       return;
@@ -122,6 +164,68 @@ export default function LeadPipelinePage() {
     } finally {
       setMovingLeadId(null);
     }
+  }
+
+  function getLeadById(leadId: string) {
+    for (const status of leadStatusOptions) {
+      const lead = leadsByStatus[status].find((item) => item.id === leadId);
+
+      if (lead) {
+        return lead;
+      }
+    }
+
+    return null;
+  }
+
+  function handleLeadDragStart(
+    event: DragEvent<HTMLElement>,
+    lead: Lead,
+  ) {
+    setDraggedLeadId(lead.id);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', lead.id);
+  }
+
+  function handleColumnDragOver(
+    event: DragEvent<HTMLDivElement>,
+    status: LeadStatus,
+  ) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverStatus(status);
+  }
+
+  function handleColumnDragLeave(event: DragEvent<HTMLDivElement>) {
+    const relatedTarget = event.relatedTarget;
+
+    if (
+      !(relatedTarget instanceof Node) ||
+      !event.currentTarget.contains(relatedTarget)
+    ) {
+      setDragOverStatus(null);
+    }
+  }
+
+  function handleLeadDrop(
+    event: DragEvent<HTMLDivElement>,
+    nextStatus: LeadStatus,
+  ) {
+    event.preventDefault();
+    const leadId = event.dataTransfer.getData('text/plain') || draggedLeadId;
+    const lead = leadId ? getLeadById(leadId) : null;
+
+    setDraggedLeadId(null);
+    setDragOverStatus(null);
+
+    if (lead) {
+      void handleMoveLead(lead, nextStatus);
+    }
+  }
+
+  function handleLeadDragEnd() {
+    setDraggedLeadId(null);
+    setDragOverStatus(null);
   }
 
   const totalLeads = useMemo(
@@ -177,11 +281,21 @@ export default function LeadPipelinePage() {
           <div className="grid min-w-[1320px] gap-4 xl:grid-cols-4 2xl:grid-cols-8">
             {leadStatusOptions.map((status) => {
               const leads = leadsByStatus[status];
+              const currentPage = columnPages[status];
+              const totalPages = getLeadColumnTotalPages(leads);
+              const visibleLeads = getVisibleLeadPage(leads, currentPage);
 
               return (
                 <div
                   key={status}
-                  className="flex min-h-[520px] flex-col rounded-2xl border border-slate-200 bg-slate-50"
+                  onDragOver={(event) => handleColumnDragOver(event, status)}
+                  onDragLeave={handleColumnDragLeave}
+                  onDrop={(event) => handleLeadDrop(event, status)}
+                  className={`flex min-h-[520px] flex-col rounded-2xl border bg-slate-50 transition ${
+                    dragOverStatus === status
+                      ? 'border-blue-300 ring-4 ring-blue-100'
+                      : 'border-slate-200'
+                  }`}
                 >
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -196,11 +310,20 @@ export default function LeadPipelinePage() {
                   </div>
 
                   <div className="flex-1 space-y-3 p-3">
-                    {leads.length > 0 ? (
-                      leads.map((lead) => (
+                    {visibleLeads.length > 0 ? (
+                      visibleLeads.map((lead) => (
                         <article
                           key={lead.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                          draggable={movingLeadId !== lead.id}
+                          onDragStart={(event) =>
+                            handleLeadDragStart(event, lead)
+                          }
+                          onDragEnd={handleLeadDragEnd}
+                          className={`cursor-grab rounded-2xl border bg-white p-4 shadow-sm transition active:cursor-grabbing ${
+                            draggedLeadId === lead.id || movingLeadId === lead.id
+                              ? 'border-blue-200 opacity-60'
+                              : 'border-slate-200'
+                          }`}
                         >
                           <div className="space-y-3">
                             <div>
@@ -304,6 +427,42 @@ export default function LeadPipelinePage() {
                         No leads
                       </div>
                     )}
+                  </div>
+
+                  <div className="border-t border-slate-200 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        disabled={currentPage <= 1}
+                        onClick={() =>
+                          setColumnPages((currentPages) => ({
+                            ...currentPages,
+                            [status]: currentPage - 1,
+                          }))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+
+                      <span className="text-xs text-slate-500">
+                        Page {currentPage} of {totalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentPage >= totalPages}
+                        onClick={() =>
+                          setColumnPages((currentPages) => ({
+                            ...currentPages,
+                            [status]: currentPage + 1,
+                          }))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

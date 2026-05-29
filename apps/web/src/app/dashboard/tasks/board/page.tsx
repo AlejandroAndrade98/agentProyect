@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { DragEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +18,9 @@ import { canCreateCrm } from '@/lib/permissions';
 import type { Task, TaskStatus } from '@/types/crm';
 
 type TasksByStatus = Record<TaskStatus, Task[]>;
+type TaskColumnPages = Record<TaskStatus, number>;
+
+const BOARD_PAGE_SIZE = 5;
 
 function createEmptyTasksByStatus() {
   return taskStatusOptions.reduce((accumulator, status) => {
@@ -24,6 +28,24 @@ function createEmptyTasksByStatus() {
 
     return accumulator;
   }, {} as TasksByStatus);
+}
+
+function createInitialTaskColumnPages() {
+  return taskStatusOptions.reduce((accumulator, status) => {
+    accumulator[status] = 1;
+
+    return accumulator;
+  }, {} as TaskColumnPages);
+}
+
+function getTaskColumnTotalPages(tasks: Task[]) {
+  return Math.max(1, Math.ceil(tasks.length / BOARD_PAGE_SIZE));
+}
+
+function getVisibleTaskPage(tasks: Task[], page: number) {
+  const startIndex = (page - 1) * BOARD_PAGE_SIZE;
+
+  return tasks.slice(startIndex, startIndex + BOARD_PAGE_SIZE);
 }
 
 function sortTasksForBoard(tasks: Task[]) {
@@ -45,6 +67,11 @@ export default function TasksBoardPage() {
   const [tasksByStatus, setTasksByStatus] = useState<TasksByStatus>(() =>
     createEmptyTasksByStatus(),
   );
+  const [columnPages, setColumnPages] = useState<TaskColumnPages>(() =>
+    createInitialTaskColumnPages(),
+  );
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +124,21 @@ export default function TasksBoardPage() {
     loadBoard();
   }, [loadBoard]);
 
+  useEffect(() => {
+    setColumnPages((currentPages) => {
+      const nextPages = { ...currentPages };
+
+      taskStatusOptions.forEach((status) => {
+        nextPages[status] = Math.min(
+          nextPages[status],
+          getTaskColumnTotalPages(tasksByStatus[status]),
+        );
+      });
+
+      return nextPages;
+    });
+  }, [tasksByStatus]);
+
   async function handleMoveTask(task: Task, nextStatus: TaskStatus) {
     if (!token || task.status === nextStatus) {
       return;
@@ -122,6 +164,68 @@ export default function TasksBoardPage() {
     } finally {
       setMovingTaskId(null);
     }
+  }
+
+  function getTaskById(taskId: string) {
+    for (const status of taskStatusOptions) {
+      const task = tasksByStatus[status].find((item) => item.id === taskId);
+
+      if (task) {
+        return task;
+      }
+    }
+
+    return null;
+  }
+
+  function handleTaskDragStart(
+    event: DragEvent<HTMLElement>,
+    task: Task,
+  ) {
+    setDraggedTaskId(task.id);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', task.id);
+  }
+
+  function handleColumnDragOver(
+    event: DragEvent<HTMLDivElement>,
+    status: TaskStatus,
+  ) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverStatus(status);
+  }
+
+  function handleColumnDragLeave(event: DragEvent<HTMLDivElement>) {
+    const relatedTarget = event.relatedTarget;
+
+    if (
+      !(relatedTarget instanceof Node) ||
+      !event.currentTarget.contains(relatedTarget)
+    ) {
+      setDragOverStatus(null);
+    }
+  }
+
+  function handleTaskDrop(
+    event: DragEvent<HTMLDivElement>,
+    nextStatus: TaskStatus,
+  ) {
+    event.preventDefault();
+    const taskId = event.dataTransfer.getData('text/plain') || draggedTaskId;
+    const task = taskId ? getTaskById(taskId) : null;
+
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
+
+    if (task) {
+      void handleMoveTask(task, nextStatus);
+    }
+  }
+
+  function handleTaskDragEnd() {
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
   }
 
   const totalTasks = useMemo(
@@ -177,11 +281,21 @@ export default function TasksBoardPage() {
           <div className="grid min-w-[1200px] gap-4 xl:grid-cols-5">
             {taskStatusOptions.map((status) => {
               const tasks = tasksByStatus[status];
+              const currentPage = columnPages[status];
+              const totalPages = getTaskColumnTotalPages(tasks);
+              const visibleTasks = getVisibleTaskPage(tasks, currentPage);
 
               return (
                 <div
                   key={status}
-                  className="flex min-h-[520px] flex-col rounded-2xl border border-slate-200 bg-slate-50"
+                  onDragOver={(event) => handleColumnDragOver(event, status)}
+                  onDragLeave={handleColumnDragLeave}
+                  onDrop={(event) => handleTaskDrop(event, status)}
+                  className={`flex min-h-[520px] flex-col rounded-2xl border bg-slate-50 transition ${
+                    dragOverStatus === status
+                      ? 'border-blue-300 ring-4 ring-blue-100'
+                      : 'border-slate-200'
+                  }`}
                 >
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -196,11 +310,20 @@ export default function TasksBoardPage() {
                   </div>
 
                   <div className="flex-1 space-y-3 p-3">
-                    {tasks.length > 0 ? (
-                      tasks.map((task) => (
+                    {visibleTasks.length > 0 ? (
+                      visibleTasks.map((task) => (
                         <article
                           key={task.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                          draggable={movingTaskId !== task.id}
+                          onDragStart={(event) =>
+                            handleTaskDragStart(event, task)
+                          }
+                          onDragEnd={handleTaskDragEnd}
+                          className={`cursor-grab rounded-2xl border bg-white p-4 shadow-sm transition active:cursor-grabbing ${
+                            draggedTaskId === task.id || movingTaskId === task.id
+                              ? 'border-blue-200 opacity-60'
+                              : 'border-slate-200'
+                          }`}
                         >
                           <div className="space-y-3">
                             <div>
@@ -304,6 +427,42 @@ export default function TasksBoardPage() {
                         No tasks
                       </div>
                     )}
+                  </div>
+
+                  <div className="border-t border-slate-200 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        disabled={currentPage <= 1}
+                        onClick={() =>
+                          setColumnPages((currentPages) => ({
+                            ...currentPages,
+                            [status]: currentPage - 1,
+                          }))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+
+                      <span className="text-xs text-slate-500">
+                        Page {currentPage} of {totalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentPage >= totalPages}
+                        onClick={() =>
+                          setColumnPages((currentPages) => ({
+                            ...currentPages,
+                            [status]: currentPage + 1,
+                          }))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

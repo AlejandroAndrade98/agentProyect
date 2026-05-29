@@ -5005,3 +5005,48 @@ Validation completed:
 - Independent column pagination works.
 - Board cards link to AI Suggestion detail.
 - List view returns to `/dashboard/ai-suggestions`.
+
+## Phase 17I.5, Board UX Enhancements
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase improved board experiences across the app.
+
+Frontend files updated:
+
+- `apps/web/src/app/dashboard/ai-suggestions/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/list/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/board/page.tsx`
+- `apps/web/src/app/dashboard/leads/pipeline/page.tsx`
+- `apps/web/src/app/dashboard/tasks/board/page.tsx`
+
+Behavior implemented:
+
+- `/dashboard/ai-suggestions` now redirects to `/dashboard/ai-suggestions/board`.
+- The previous AI Suggestions list view moved to `/dashboard/ai-suggestions/list`.
+- AI Suggestions board/list buttons now navigate correctly.
+- Lead Pipeline now has independent per-column pagination.
+- Tasks Board now has independent per-column pagination.
+- Lead Pipeline supports native HTML5 drag-and-drop between status columns.
+- Tasks Board supports native HTML5 drag-and-drop between status columns.
+- Existing dropdown status controls remain available as fallback.
+- Drag/drop includes light visual feedback and moving-card opacity.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail draft behavior changed.
+- No CRM apply actions were added to board cards.
+- No automatic CRM behavior was added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- AI Suggestions board-first routing works.
+- Leads and Tasks board pagination works.
+- Leads and Tasks drag/drop status updates work.
+- Dropdown status fallback still works.
