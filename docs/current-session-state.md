@@ -322,3 +322,16 @@ Current AI Suggestions list UX:
 - Reviewed suggestions show `View details`.
 - Apply/create actions remain only on detail pages.
 - No email sending, Gmail draft creation, CRM apply action, backend, Prisma, or API behavior changed.
+
+## Latest completed phase
+
+Phase 17I.3 Board-first CRM Navigation is completed and validated.
+
+Current CRM navigation:
+- `/dashboard/leads` now opens the Lead Pipeline board.
+- `/dashboard/leads/list` shows the Leads list.
+- `/dashboard/tasks` now opens the Tasks Board.
+- `/dashboard/tasks/list` shows the Tasks list.
+- Sidebar Leads and Tasks now land on board-first views.
+- List views remain available through `List view` / `Board view` buttons.
+- No backend, Prisma, API, email, Gmail, AI, or CRM automation behavior changed.

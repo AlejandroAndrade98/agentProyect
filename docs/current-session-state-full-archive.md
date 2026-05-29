@@ -4874,3 +4874,64 @@ Validation completed:
 - Suggestion cards show source context and applied indicators.
 - `Review` and `View details` navigate correctly to the detail page.
 - No Send email, Create Gmail draft, or Create CRM record action exists on the list page.
+
+## Phase 17I.3, Board-first CRM Navigation
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase made board/pipeline views the primary navigation experience for workflow-based CRM records.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/leads/page.tsx`
+- `apps/web/src/app/dashboard/leads/list/page.tsx`
+- `apps/web/src/app/dashboard/leads/pipeline/page.tsx`
+- `apps/web/src/app/dashboard/tasks/page.tsx`
+- `apps/web/src/app/dashboard/tasks/list/page.tsx`
+- `apps/web/src/app/dashboard/tasks/board/page.tsx`
+
+Leads behavior implemented:
+
+- `/dashboard/leads` now redirects to `/dashboard/leads/pipeline`.
+- Current leads list UI moved to:
+  - `/dashboard/leads/list`
+- Lead Pipeline now has `List view` button.
+- Leads List now has `Board view` button.
+- Existing lead detail/create/edit routes remain preserved.
+
+Tasks behavior implemented:
+
+- `/dashboard/tasks` now redirects to `/dashboard/tasks/board`.
+- Current tasks list UI moved to:
+  - `/dashboard/tasks/list`
+- Tasks Board now has `List view` button.
+- Tasks List now has `Board view` button.
+- Existing task detail/create/edit routes remain preserved.
+
+Navigation behavior:
+
+- Sidebar links remain:
+  - `/dashboard/leads`
+  - `/dashboard/tasks`
+- Because those routes now redirect, sidebar navigation lands on board-first views.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email or Gmail behavior changed.
+- No automatic CRM behavior changed.
+- No AI behavior changed.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- New routes were included in the build:
+  - `/dashboard/leads/list`
+  - `/dashboard/tasks/list`
+  - `/dashboard/leads`
+  - `/dashboard/tasks`
+- Leads and Tasks now use board-first navigation.
+- List views remain available as secondary views.
