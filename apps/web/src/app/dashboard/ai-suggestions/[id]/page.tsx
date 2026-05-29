@@ -2210,28 +2210,31 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-emerald-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-emerald-950">
-              CRM task created
+              {t('aiSuggestions.completedActions.taskCreated')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              Created by explicit human action. No email was sent automatically,
-              and no lead, contact, company, or note was created automatically.
+              {t('aiSuggestions.detail.calendarTaskCompletedSafety')}
             </p>
           </div>
 
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <p className="font-medium text-emerald-950">Task ID</p>
+              <p className="font-medium text-emerald-950">
+                {t('aiSuggestions.detail.taskId')}
+              </p>
               <p className="mt-1 break-all text-emerald-800">
-                {externalCalendarTaskId ?? 'Created'}
+                {externalCalendarTaskId ?? t('aiSuggestions.detail.created')}
               </p>
             </div>
 
             {externalCalendarTaskAppliedAt ? (
               <div>
-                <p className="font-medium text-emerald-950">Applied at</p>
+                <p className="font-medium text-emerald-950">
+                  {t('aiSuggestions.detail.appliedAt')}
+                </p>
                 <p className="mt-1 text-emerald-800">
                   {formatDateTime(externalCalendarTaskAppliedAt)}
                 </p>
@@ -2241,7 +2244,7 @@ const canCreateGmailDraft =
             {externalCalendarTaskAppliedByUserId ? (
               <div>
                 <p className="font-medium text-emerald-950">
-                  Applied by user ID
+                  {t('aiSuggestions.detail.appliedByUserId')}
                 </p>
                 <p className="mt-1 break-all text-emerald-800">
                   {externalCalendarTaskAppliedByUserId}
@@ -2256,15 +2259,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM task from reviewed calendar event
+              {t('aiSuggestions.detail.createCalendarTaskTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM task from the accepted calendar
-              review. It requires this explicit human click and does not send an
-              email. No task is created automatically.
+              {t('aiSuggestions.detail.createCalendarTaskDescription')}
             </p>
           </div>
 
@@ -2275,10 +2276,7 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmTask')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The task will include safe synced calendar metadata, AI
-                  summary, reasoning, event identifiers, and a human approval
-                  notice. No company, contact, lead, note, or email will be
-                  created automatically.
+                  {t('aiSuggestions.detail.calendarTaskPayloadDescription')}
                 </p>
               </div>
             </div>
@@ -2294,7 +2292,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-calendar-task'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalCalendarTaskApplied
                   ? t('aiSuggestions.completedActions.taskCreated')
                   : t('common.actions.createCrmTask')}
@@ -2307,28 +2305,31 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-emerald-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-emerald-950">
-              CRM note created
+              {t('aiSuggestions.completedActions.noteCreated')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              Created by explicit human action. No email was sent automatically,
-              and no lead, contact, company, or task was created automatically.
+              {t('aiSuggestions.detail.calendarNoteCompletedSafety')}
             </p>
           </div>
 
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <p className="font-medium text-emerald-950">Note ID</p>
+              <p className="font-medium text-emerald-950">
+                {t('aiSuggestions.detail.noteId')}
+              </p>
               <p className="mt-1 break-all text-emerald-800">
-                {externalCalendarNoteId ?? 'Created'}
+                {externalCalendarNoteId ?? t('aiSuggestions.detail.created')}
               </p>
             </div>
 
             {externalCalendarNoteAppliedAt ? (
               <div>
-                <p className="font-medium text-emerald-950">Applied at</p>
+                <p className="font-medium text-emerald-950">
+                  {t('aiSuggestions.detail.appliedAt')}
+                </p>
                 <p className="mt-1 text-emerald-800">
                   {formatDateTime(externalCalendarNoteAppliedAt)}
                 </p>
@@ -2338,7 +2339,7 @@ const canCreateGmailDraft =
             {externalCalendarNoteAppliedByUserId ? (
               <div>
                 <p className="font-medium text-emerald-950">
-                  Applied by user ID
+                  {t('aiSuggestions.detail.appliedByUserId')}
                 </p>
                 <p className="mt-1 break-all text-emerald-800">
                   {externalCalendarNoteAppliedByUserId}
@@ -2353,15 +2354,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM note from reviewed calendar event
+              {t('aiSuggestions.detail.createCalendarNoteTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM note from the accepted calendar
-              review. It requires this explicit human click and does not send an
-              email. No note is created automatically.
+              {t('aiSuggestions.detail.createCalendarNoteDescription')}
             </p>
           </div>
 
@@ -2372,10 +2371,7 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmNote')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The note will include safe synced calendar metadata, AI
-                  summary, reasoning, event identifiers, and a human approval
-                  notice. No company, contact, lead, task, or email will be
-                  created automatically.
+                  {t('aiSuggestions.detail.calendarNotePayloadDescription')}
                 </p>
               </div>
             </div>
@@ -2391,7 +2387,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-calendar-note'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalCalendarNoteApplied
                   ? t('aiSuggestions.completedActions.noteCreated')
                   : t('common.actions.createCrmNote')}

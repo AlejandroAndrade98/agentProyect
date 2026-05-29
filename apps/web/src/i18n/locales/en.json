@@ -240,7 +240,26 @@
       "cost": "Cost",
       "humanApprovalRequired": "Human approval required",
       "canApplyAutomatically": "Can apply automatically",
-      "canSendEmailAutomatically": "Can send email automatically"
+      "canSendEmailAutomatically": "Can send email automatically",
+      "externalCalendarAction": "External calendar action",
+      "taskId": "Task ID",
+      "noteId": "Note ID",
+      "leadId": "Lead ID",
+      "appliedAt": "Applied at",
+      "appliedByUserId": "Applied by user ID",
+      "created": "Created",
+      "calendarTaskCompletedSafety": "Created by explicit human action. No email was sent automatically, and no lead, contact, company, or note was created automatically.",
+      "calendarNoteCompletedSafety": "Created by explicit human action. No email was sent automatically, and no lead, contact, company, or task was created automatically.",
+      "calendarLeadCompletedSafety": "Created by explicit human action. No email was sent automatically, and no company, contact, task, or note was created automatically.",
+      "createCalendarTaskTitle": "Create CRM task from reviewed calendar event",
+      "createCalendarNoteTitle": "Create CRM note from reviewed calendar event",
+      "createCalendarLeadTitle": "Create CRM lead from reviewed calendar event",
+      "createCalendarTaskDescription": "This creates one official CRM task from the accepted calendar review. It requires this explicit human click and does not send an email. No task is created automatically.",
+      "createCalendarNoteDescription": "This creates one official CRM note from the accepted calendar review. It requires this explicit human click and does not send an email. No note is created automatically.",
+      "createCalendarLeadDescription": "This creates one official CRM lead from the accepted calendar review. It requires this explicit human click and does not send an email. No lead is created automatically.",
+      "calendarTaskPayloadDescription": "The task will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, lead, note, or email will be created automatically.",
+      "calendarNotePayloadDescription": "The note will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, lead, task, or email will be created automatically.",
+      "calendarLeadPayloadDescription": "The lead will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, task, note, or email will be created automatically."
     }
   }
 }

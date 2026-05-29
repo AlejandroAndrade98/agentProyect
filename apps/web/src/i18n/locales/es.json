@@ -240,7 +240,26 @@
       "cost": "Costo",
       "humanApprovalRequired": "Aprobación humana requerida",
       "canApplyAutomatically": "Puede aplicarse automáticamente",
-      "canSendEmailAutomatically": "Puede enviar correos automáticamente"
+      "canSendEmailAutomatically": "Puede enviar correos automáticamente",
+      "externalCalendarAction": "Acción de calendario externo",
+      "taskId": "ID de tarea",
+      "noteId": "ID de nota",
+      "leadId": "ID de prospecto",
+      "appliedAt": "Aplicada el",
+      "appliedByUserId": "ID del usuario que aplicó la acción",
+      "created": "Creada",
+      "calendarTaskCompletedSafety": "Creada por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon prospectos, contactos, empresas ni notas automáticamente.",
+      "calendarNoteCompletedSafety": "Creada por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon prospectos, contactos, empresas ni tareas automáticamente.",
+      "calendarLeadCompletedSafety": "Creado por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon empresas, contactos, tareas ni notas automáticamente.",
+      "createCalendarTaskTitle": "Crear tarea CRM desde el evento revisado",
+      "createCalendarNoteTitle": "Crear nota CRM desde el evento revisado",
+      "createCalendarLeadTitle": "Crear prospecto CRM desde el evento revisado",
+      "createCalendarTaskDescription": "Esto crea una tarea oficial de CRM desde la revisión de calendario aceptada. Requiere este clic humano explícito y no envía correos. No se crea ninguna tarea automáticamente.",
+      "createCalendarNoteDescription": "Esto crea una nota oficial de CRM desde la revisión de calendario aceptada. Requiere este clic humano explícito y no envía correos. No se crea ninguna nota automáticamente.",
+      "createCalendarLeadDescription": "Esto crea un prospecto oficial de CRM desde la revisión de calendario aceptada. Requiere este clic humano explícito y no envía correos. No se crea ningún prospecto automáticamente.",
+      "calendarTaskPayloadDescription": "La tarea incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, prospectos, notas ni correos automáticamente.",
+      "calendarNotePayloadDescription": "La nota incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, prospectos, tareas ni correos automáticamente.",
+      "calendarLeadPayloadDescription": "El prospecto incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, tareas, notas ni correos automáticamente."
     }
   }
 }
