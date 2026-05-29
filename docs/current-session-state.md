@@ -347,3 +347,16 @@ Current board UX:
 - Leads and Tasks can be moved between columns with native drag-and-drop.
 - Existing dropdown status controls remain as fallback.
 - No backend, Prisma, API, email, Gmail, or CRM automation behavior changed.
+
+## Latest completed phase
+
+Phase 17I.6 Notes Board and AI Workspace Board-like Polish is completed and validated.
+
+Current board UX:
+- Notes is now board-first.
+- `/dashboard/notes` opens the Notes Board.
+- `/dashboard/notes/list` shows the Notes list.
+- Notes Board is read-only and grouped by source.
+- Notes Board has independent per-column pagination.
+- AI Workspace now uses a clearer board-like layout with Needs Review, Ready for Action, Completed, Quick Actions, and Recent Synced Inputs.
+- No backend, Prisma, API, email, Gmail, drag/drop mutation, or CRM automation behavior changed.

@@ -5050,3 +5050,73 @@ Validation completed:
 - Leads and Tasks board pagination works.
 - Leads and Tasks drag/drop status updates work.
 - Dropdown status fallback still works.
+
+## Phase 17I.6, Notes Board and AI Workspace Board-like Polish
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a read-only Notes Board and improved AI Workspace into a more board-like hub.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/notes/page.tsx`
+- `apps/web/src/app/dashboard/notes/list/page.tsx`
+- `apps/web/src/app/dashboard/notes/board/page.tsx`
+- `apps/web/src/app/dashboard/ai-workspace/page.tsx`
+
+Notes behavior implemented:
+
+- `/dashboard/notes` now redirects to `/dashboard/notes/board`.
+- The previous Notes list view moved to:
+  - `/dashboard/notes/list`
+- Notes Board was added at:
+  - `/dashboard/notes/board`
+- Notes Board is read-only.
+- Notes Board groups notes by existing source values.
+- Notes Board has independent per-column pagination.
+- Notes cards show:
+  - title
+  - compact content preview
+  - source
+  - importance
+  - linked record context
+  - created date
+  - View record link
+- No drag/drop or mutation behavior was added for Notes.
+
+AI Workspace behavior implemented:
+
+- AI Workspace was reorganized into a more board-like hub.
+- Sections include:
+  - Needs Review
+  - Ready for Action
+  - Completed
+  - Quick Actions
+  - Recent Synced Inputs
+- Existing safe sync actions were preserved:
+  - Sync Gmail
+  - Sync Calendar
+- No send, apply, Gmail draft, or CRM creation actions were added to AI Workspace cards.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No drag/drop mutation was added for Notes.
+- No email sending was added.
+- No Gmail draft creation action was added.
+- No CRM apply actions were added.
+- No automatic CRM behavior was added.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- New routes were included in the build:
+  - `/dashboard/notes`
+  - `/dashboard/notes/board`
+  - `/dashboard/notes/list`
+- Notes Board renders correctly.
+- AI Workspace renders as a clearer board-like hub.
