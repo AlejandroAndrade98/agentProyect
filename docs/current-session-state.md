@@ -274,3 +274,15 @@ Current AI Calendar apply flow:
 - No task, note, or lead is created automatically during analysis.
 - No email is sent automatically.
 - No company or contact is created automatically.
+
+## Latest completed phase
+
+Phase 17H.1 CRM List UX Cleanup for AI-created Records is completed and validated.
+
+Current CRM list UX:
+- Tasks list truncates long AI-generated descriptions.
+- Notes list truncates long AI-generated content.
+- Leads list truncates long AI-generated next steps/descriptions.
+- AI-created notes and leads show `AI suggestion` badges when source data is available.
+- Full content remains available in detail pages.
+- No backend, Prisma, email, Gmail draft, or AI apply behavior changed.

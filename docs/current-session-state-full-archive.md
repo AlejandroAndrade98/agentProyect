@@ -4609,3 +4609,64 @@ Validation completed:
 - Duplicate apply was blocked.
 - `AI_SUGGESTION_APPLIED` ActivityEvent was created.
 - No email, Gmail draft, company, contact, task, or note was created automatically.
+
+## Phase 17H.1, CRM List UX Cleanup for AI-created Records
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase improved frontend readability for CRM list pages affected by long AI-generated content.
+
+Frontend files updated:
+
+- `apps/web/src/lib/formatters.ts`
+- `apps/web/src/app/dashboard/tasks/page.tsx`
+- `apps/web/src/app/dashboard/notes/page.tsx`
+- `apps/web/src/app/dashboard/leads/page.tsx`
+
+Frontend behavior implemented:
+
+- Added helper:
+  - `truncateText(value, maxLength)`
+
+Tasks list:
+
+- Task descriptions now render as compact previews.
+- Description previews are capped at 160 characters.
+- Full task descriptions remain available on task detail pages.
+- Task create/edit/detail behavior was not changed.
+
+Notes list:
+
+- Note content now renders as compact previews.
+- Note previews are capped at 160 characters.
+- Notes with `source = AI_SUGGESTION` show an `AI suggestion` badge.
+- Full note content remains available on note detail pages.
+- Note create/edit/detail behavior was not changed.
+
+Leads list:
+
+- Lead `nextStep` or fallback description now renders as compact preview.
+- Lead previews are capped at 160 characters.
+- Leads with `source = AI_SUGGESTION` show an `AI suggestion` badge.
+- Full lead details remain available on lead detail pages.
+- Lead create/edit/detail behavior was not changed.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No email actions were added.
+- No Gmail draft actions were added.
+- No AI apply actions were added.
+- No CRM records are created automatically.
+- This phase was UI readability only.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Tasks list rows remain compact.
+- Notes list rows remain compact.
+- Leads list rows remain compact.
+- Detail pages still show full content.
+- Search, filters, and pagination continue to work.

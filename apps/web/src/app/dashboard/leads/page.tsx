@@ -12,7 +12,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getLeads } from '@/lib/api-client';
 import { leadStatusOptions, priorityOptions } from '@/lib/crm-options';
 import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
+import {
+  formatDate,
+  formatEnumLabel,
+  formatMoney,
+  truncateText,
+} from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type {
   Lead,
@@ -239,11 +244,19 @@ export default function LeadsPage() {
                 {leads.map((lead) => (
                   <tr key={lead.id} className="transition hover:bg-slate-50">
                     <td className="px-6 py-4">
-                      <p className="font-medium text-slate-950">
-                        {lead.title}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {lead.nextStep ?? 'No next step'}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-slate-950">
+                          {lead.title}
+                        </p>
+                        {lead.source === 'AI_SUGGESTION' ? (
+                          <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                            AI suggestion
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+                        {truncateText(lead.nextStep ?? lead.description, 160) ||
+                          'No next step'}
                       </p>
                     </td>
 

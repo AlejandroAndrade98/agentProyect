@@ -52,3 +52,27 @@ export function formatMoney(value: number | null | undefined) {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+export function truncateText(
+  value: string | null | undefined,
+  maxLength: number,
+) {
+  const text = value?.replace(/\s+/g, ' ').trim();
+
+  if (!text) {
+    return '';
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const truncated = text.slice(0, maxLength).trimEnd();
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+
+  if (lastSpaceIndex > Math.floor(maxLength * 0.7)) {
+    return `${truncated.slice(0, lastSpaceIndex)}...`;
+  }
+
+  return `${truncated}...`;
+}

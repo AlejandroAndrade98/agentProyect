@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getNotes } from '@/lib/api-client';
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate, formatEnumLabel, truncateText } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type {
   ImportanceLevel,
@@ -243,8 +243,8 @@ export default function NotesPage() {
                       <p className="font-medium text-slate-950">
                         {note.title ?? 'Untitled note'}
                       </p>
-                      <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-                        {note.content}
+                      <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+                        {truncateText(note.content, 160)}
                       </p>
                     </td>
 
@@ -260,8 +260,16 @@ export default function NotesPage() {
                       </Badge>
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {formatEnumLabel(note.source)}
+                    <td className="px-6 py-4">
+                      {note.source === 'AI_SUGGESTION' ? (
+                        <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                          AI suggestion
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-slate-600">
+                          {formatEnumLabel(note.source)}
+                        </span>
+                      )}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">

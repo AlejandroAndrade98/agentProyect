@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiClientError, getTasks } from '@/lib/api-client';
 import { priorityOptions, taskStatusOptions } from '@/lib/crm-options';
 import { getPriorityClasses, getTaskStatusClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate, formatEnumLabel, truncateText } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type {
   PaginatedResponse,
@@ -242,8 +242,9 @@ export default function TasksPage() {
                       <p className="font-medium text-slate-950">
                         {task.title}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {task.description ?? 'No description'}
+                      <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+                        {truncateText(task.description, 160) ||
+                          'No description'}
                       </p>
                     </td>
 
