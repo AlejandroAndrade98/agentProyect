@@ -310,3 +310,15 @@ Current AI Suggestion detail UX:
 - AI output is displayed with better visual hierarchy.
 - Existing review, apply, and Gmail draft actions keep the same behavior.
 - No backend, Prisma, API, email, Gmail send, background job, or automatic action behavior changed.
+
+## Latest completed phase
+
+Phase 17I.2 AI Suggestions List / Review Queue Polish is completed and validated.
+
+Current AI Suggestions list UX:
+- `/dashboard/ai-suggestions` now behaves more clearly as a review queue.
+- Suggestion cards show readable type/status labels, confidence, provider/model, source context, and applied indicators.
+- Pending suggestions show `Review`.
+- Reviewed suggestions show `View details`.
+- Apply/create actions remain only on detail pages.
+- No email sending, Gmail draft creation, CRM apply action, backend, Prisma, or API behavior changed.

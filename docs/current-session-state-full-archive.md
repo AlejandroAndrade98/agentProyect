@@ -4797,3 +4797,80 @@ Validation completed:
 - Email reply draft suggestions still show Gmail draft flow correctly.
 - External calendar suggestions still show applied task/note/lead states correctly.
 - Rejected suggestions remain read-only.
+
+## Phase 17I.2, AI Suggestions List / Review Queue Polish
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase polished the AI Suggestions list page so it works more clearly as a human review queue.
+
+Frontend file updated:
+
+- `apps/web/src/app/dashboard/ai-suggestions/page.tsx`
+
+Frontend behavior implemented:
+
+- Reorganized `/dashboard/ai-suggestions` as a clearer AI review queue.
+- Improved page header and safety copy.
+- Added clearer review-queue messaging:
+  - human review required
+  - no automatic email sending
+  - no automatic CRM changes
+  - apply actions are handled from the detail page
+
+- Improved filters and search layout.
+- Improved readable labels for suggestion types and statuses.
+- Added summary cards for current-page suggestion counts.
+- Improved empty states for no suggestions and filtered results.
+
+Suggestion cards now show:
+
+- readable suggestion type
+- readable status
+- confidence
+- created/reviewed dates when available
+- provider/model
+- source context preview depending on type:
+  - lead context
+  - external email context
+  - email reply draft context
+  - external calendar context
+
+Completed/applied indicators:
+
+- Cards can show compact indicators such as:
+  - Task created
+  - Note created
+  - Lead created
+  - Gmail draft created
+  - Next step applied
+
+Primary actions:
+
+- Pending suggestions show `Review`.
+- Reviewed suggestions show `View details`.
+- No apply/create/send actions were added to the list page.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail send button was added.
+- No Gmail draft creation action was added to the list page.
+- No CRM apply action was added to the list page.
+- No automatic CRM record creation was added.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Turbo build log was restored after validation.
+- `/dashboard/ai-suggestions` renders as a clearer review queue.
+- Filters by status/type still work.
+- Search still works.
+- Suggestion cards show source context and applied indicators.
+- `Review` and `View details` navigate correctly to the detail page.
+- No Send email, Create Gmail draft, or Create CRM record action exists on the list page.
