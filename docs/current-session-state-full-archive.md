@@ -4214,3 +4214,104 @@ Validation completed:
 - No Send email button exists.
 - No task/note/lead is created automatically.
 - No automatic CRM record creation exists from this page.
+
+## Phase 17F.1, AI Workspace / Unified Review Hub
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a unified AI Workspace page that brings together pending AI suggestions, synced emails, synced calendar events, and safe quick actions.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/ai-workspace/page.tsx`
+- `apps/web/src/components/DashboardLayout.tsx`
+
+Frontend behavior implemented:
+
+- Added route:
+  - `/dashboard/ai-workspace`
+
+- Added sidebar navigation link:
+  - `AI Workspace`
+
+AI Workspace sections:
+
+- Review queue summary:
+  - pending review suggestions
+  - accepted suggestions
+  - rejected suggestions
+  - Gmail draft suggestions
+  - external email analysis suggestions
+  - external calendar analysis suggestions
+
+- Latest pending AI suggestions:
+  - title
+  - type
+  - status
+  - confidence when available
+  - created date
+  - review link to AI Suggestion detail
+
+- Recent synced emails:
+  - subject
+  - sender
+  - snippet
+  - internal date
+  - synced date
+  - link to Synced Emails page
+
+- Upcoming synced calendar events:
+  - summary
+  - start/end date
+  - location when available
+  - organizer when available
+  - link to Synced Calendar page
+
+- Quick actions:
+  - Review AI Suggestions
+  - Open Synced Emails
+  - Open Synced Calendar
+  - Sync Gmail
+  - Sync Calendar
+
+Sync behavior:
+
+- `Sync Gmail` calls the existing Gmail sync endpoint.
+- `Sync Calendar` calls the existing Calendar sync endpoint.
+- Sync actions show loading states.
+- Sync actions show success/error messages.
+- Workspace data refreshes after successful sync.
+
+Error and empty states:
+
+- Each section handles partial errors independently.
+- One failing section does not block the rest of the workspace.
+- Empty states were added for:
+  - no pending suggestions
+  - no synced emails
+  - no synced calendar events
+  - no connected data yet
+
+Safety rules preserved:
+
+- AI suggestions require human review.
+- AI uses synced metadata/snippets only where applicable.
+- No email is sent automatically.
+- No Gmail draft is created automatically from this workspace.
+- No CRM records are created automatically.
+- No Send email button was added.
+- No Create Gmail draft button was added to the workspace.
+- No CRM apply actions were added to the workspace.
+- No backend or Prisma changes were made.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- AI Workspace page loads.
+- Suggestions, emails, and calendar sections load independently.
+- Quick links navigate correctly.
+- Sync Gmail works and refreshes data.
+- Sync Calendar works and refreshes data.
+- Existing AI Suggestions, Synced Emails, and Synced Calendar pages still work.

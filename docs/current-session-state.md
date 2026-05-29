@@ -216,3 +216,19 @@ Current AI Calendar flow:
 - No emails are sent automatically.
 - No tasks, notes, leads, or CRM records are created automatically.
 - Human review remains required.
+
+## Latest completed phase
+
+Phase 17F.1 AI Workspace / Unified Review Hub is completed and validated.
+
+Current AI Workspace flow:
+- Users can open `/dashboard/ai-workspace`.
+- Users can see pending AI suggestions.
+- Users can see recent synced emails.
+- Users can see upcoming synced calendar events.
+- Users can navigate quickly to AI Suggestions, Synced Emails, and Synced Calendar.
+- Users can manually sync Gmail and Calendar from the workspace.
+- No email is sent automatically.
+- No Gmail draft is created automatically from the workspace.
+- No CRM records are created automatically.
+- Human review remains required.

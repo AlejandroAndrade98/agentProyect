@@ -58,6 +58,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       enabled: true,
     },
     {
+      label: 'AI Workspace',
+      href: '/dashboard/ai-workspace',
+      enabled: true,
+    },
+    {
       label: 'Synced Emails',
       href: '/dashboard/external-sync/email-messages',
       enabled: true,
