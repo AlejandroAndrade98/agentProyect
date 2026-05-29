@@ -7,6 +7,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getAiStatusLabel,
+  getAiTypeLabel,
+  getAppliedActionLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getAiSuggestions } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel, truncateText } from '@/lib/formatters';
 import type {
@@ -31,69 +38,34 @@ type StatusColumnState = {
 const statusColumnConfig: Record<
   StatusColumnKey,
   {
-    title: string;
-    description: string;
-    emptyMessage: string;
+    titleKey: string;
+    descriptionKey: string;
+    emptyMessageKey: string;
     status: AiSuggestionStatus;
     headingClassName: string;
   }
 > = {
   pending: {
-    title: 'Pending Review',
-    description: 'Needs human review before anything can happen.',
-    emptyMessage: 'No pending suggestions',
+    titleKey: 'aiSuggestions.board.pending',
+    descriptionKey: 'aiSuggestions.board.pendingDescription',
+    emptyMessageKey: 'aiSuggestions.board.noPending',
     status: 'PENDING_REVIEW',
     headingClassName: 'text-amber-700',
   },
   rejected: {
-    title: 'Rejected',
-    description: 'Reviewed suggestions that were declined.',
-    emptyMessage: 'No rejected suggestions',
+    titleKey: 'aiSuggestions.board.rejected',
+    descriptionKey: 'aiSuggestions.board.rejectedDescription',
+    emptyMessageKey: 'aiSuggestions.board.noRejected',
     status: 'REJECTED',
     headingClassName: 'text-rose-700',
   },
   expired: {
-    title: 'Expired',
-    description: 'Suggestions that are no longer active.',
-    emptyMessage: 'No expired suggestions',
+    titleKey: 'aiSuggestions.board.expired',
+    descriptionKey: 'aiSuggestions.board.expiredDescription',
+    emptyMessageKey: 'aiSuggestions.board.noExpired',
     status: 'EXPIRED',
     headingClassName: 'text-slate-700',
   },
-};
-
-const statusLabels: Record<AiSuggestionStatus, string> = {
-  PENDING_REVIEW: 'Pending review',
-  ACCEPTED: 'Accepted',
-  EDITED_AND_ACCEPTED: 'Edited and accepted',
-  REJECTED: 'Rejected',
-  EXPIRED: 'Expired',
-};
-
-const typeLabels: Partial<Record<AiSuggestionType, string>> = {
-  SUGGEST_NEXT_STEPS: 'Lead next steps',
-  ANALYZE_EXTERNAL_EMAIL: 'Email analysis',
-  GENERATE_EMAIL_REPLY_DRAFT: 'Email reply draft',
-  ANALYZE_EXTERNAL_CALENDAR_EVENT: 'Calendar analysis',
-  ANALYZE_MESSAGE: 'Message analysis',
-  GENERATE_REPLY: 'Reply generation',
-  EXTRACT_IMPORTANT_DATA: 'Data extraction',
-  SUMMARIZE_LEAD: 'Lead summary',
-};
-
-const appliedActionLabels: Record<string, string> = {
-  UPDATE_LEAD_NEXT_STEP: 'Next step applied',
-  CREATE_TASK: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_EMAIL: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT: 'Task created',
-  CREATE_NOTE: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_EMAIL: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT: 'Note created',
-  CREATE_LEAD_FROM_EXTERNAL_EMAIL: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT: 'Lead created',
-  CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION: 'Gmail draft created',
 };
 
 const emptyStatusColumnState: StatusColumnState = {
@@ -114,14 +86,6 @@ function getStatusClasses(status: AiSuggestionStatus) {
   };
 
   return classes[status];
-}
-
-function getStatusLabel(status: AiSuggestionStatus) {
-  return statusLabels[status] ?? formatEnumLabel(status);
-}
-
-function getTypeLabel(type: AiSuggestionType) {
-  return typeLabels[type] ?? formatEnumLabel(type);
 }
 
 function getConfidenceLabel(suggestion: AiSuggestion) {
@@ -176,22 +140,22 @@ function hasGmailDraftCreated(suggestion: AiSuggestion) {
   );
 }
 
-function getAppliedLabels(suggestion: AiSuggestion) {
+function getAppliedLabels(suggestion: AiSuggestion, t: Translate) {
   const labels = new Set(
     getAppliedActionNames(suggestion)
-      .map((action) => appliedActionLabels[action])
+      .map((action) => getAppliedActionLabel(action, t))
       .filter(Boolean),
   );
 
   if (hasGmailDraftCreated(suggestion)) {
-    labels.add('Gmail draft created');
+    labels.add(t('aiSuggestions.completedActions.gmailDraftCreated'));
   }
 
   return Array.from(labels);
 }
 
-function hasCompletedAction(suggestion: AiSuggestion) {
-  return getAppliedLabels(suggestion).length > 0;
+function hasCompletedAction(suggestion: AiSuggestion, t: Translate) {
+  return getAppliedLabels(suggestion, t).length > 0;
 }
 
 function getReplyDraftSubject(suggestion: AiSuggestion) {
@@ -245,7 +209,7 @@ function getSuggestionTitle(suggestion: AiSuggestion) {
   return 'Untitled AI suggestion';
 }
 
-function getSourcePreview(suggestion: AiSuggestion) {
+function getSourcePreview(suggestion: AiSuggestion, t: Translate) {
   if (
     suggestion.type === 'ANALYZE_EXTERNAL_EMAIL' ||
     suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT'
@@ -263,7 +227,7 @@ function getSourcePreview(suggestion: AiSuggestion) {
         <p>{getEmailSender(suggestion)}</p>
         {suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT' ? (
           <p>
-            Suggested subject:{' '}
+            {t('aiSuggestions.labels.suggestedSubject')}:{' '}
             <span className="font-medium text-slate-800">
               {getReplyDraftSubject(suggestion)}
             </span>
@@ -285,7 +249,12 @@ function getSourcePreview(suggestion: AiSuggestion) {
         </p>
         <p>{formatDateTime(event?.startAt)}</p>
         <p>{event?.organizerName || event?.organizerEmail || 'Unknown organizer'}</p>
-        <p>Attendees: {attendeesCount === null ? 'Not set' : attendeesCount}</p>
+        <p>
+          {t('aiSuggestions.labels.attendees')}:{' '}
+          {attendeesCount === null
+            ? t('aiSuggestions.labels.notSet')
+            : attendeesCount}
+        </p>
       </div>
     );
   }
@@ -335,17 +304,18 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 }
 
 function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
-  const appliedLabels = getAppliedLabels(suggestion);
+  const { t } = useI18n();
+  const appliedLabels = getAppliedLabels(suggestion, t);
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Badge className={getStatusClasses(suggestion.status)}>
-            {getStatusLabel(suggestion.status)}
+            {getAiStatusLabel(suggestion.status, t)}
           </Badge>
           <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
-            {getTypeLabel(suggestion.type)}
+            {getAiTypeLabel(suggestion.type, t)}
           </Badge>
         </div>
 
@@ -357,13 +327,19 @@ function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
             {getSuggestionTitle(suggestion)}
           </Link>
           <div className="mt-2 space-y-1 text-xs text-slate-500">
-            <p>Confidence: {getConfidenceLabel(suggestion)}</p>
-            <p>Created {formatDateTime(suggestion.createdAt)}</p>
+            <p>
+              {t('aiSuggestions.labels.confidence')}:{' '}
+              {getConfidenceLabel(suggestion)}
+            </p>
+            <p>
+              {t('aiSuggestions.labels.created')}{' '}
+              {formatDateTime(suggestion.createdAt)}
+            </p>
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          {getSourcePreview(suggestion)}
+          {getSourcePreview(suggestion, t)}
         </div>
 
         {appliedLabels.length > 0 ? (
@@ -383,7 +359,7 @@ function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
           href={`/dashboard/ai-suggestions/${suggestion.id}`}
           className="inline-flex text-xs font-medium text-blue-700 transition hover:text-blue-900"
         >
-          View details
+          {t('common.actions.viewDetails')}
         </Link>
       </div>
     </article>
@@ -421,6 +397,8 @@ function BoardColumn({
   onNext,
   onRetry,
 }: BoardColumnProps) {
+  const { t } = useI18n();
+
   return (
     <section className="flex min-h-[660px] flex-col rounded-2xl border border-slate-200 bg-slate-50">
       <div className="border-b border-slate-200 p-4">
@@ -457,7 +435,7 @@ function BoardColumn({
               onClick={onRetry}
               className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
             >
-              Retry
+              {t('common.actions.retry')}
             </button>
           </div>
         ) : null}
@@ -483,11 +461,12 @@ function BoardColumn({
             onClick={onPrevious}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Previous
+            {t('common.actions.previous')}
           </button>
 
           <span className="text-xs text-slate-500">
-            Page {page} of {totalPages}
+            {t('aiSuggestions.labels.page')} {page}{' '}
+            {t('aiSuggestions.labels.of')} {totalPages}
           </span>
 
           <button
@@ -496,7 +475,7 @@ function BoardColumn({
             onClick={onNext}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Next
+            {t('common.actions.next')}
           </button>
         </div>
       </div>
@@ -506,6 +485,7 @@ function BoardColumn({
 
 export default function AiSuggestionsBoardPage() {
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [statusPages, setStatusPages] = useState<Record<StatusColumnKey, number>>({
     pending: 1,
@@ -577,13 +557,13 @@ export default function AiSuggestionsBoardPage() {
             isLoading: false,
             errorMessage: getSafeErrorMessage(
               error,
-              `Could not load ${statusColumnConfig[key].title}.`,
+              `Could not load ${t(statusColumnConfig[key].titleKey)}.`,
             ),
           },
         }));
       }
     },
-    [token],
+    [t, token],
   );
 
   const loadAcceptedColumns = useCallback(async () => {
@@ -619,9 +599,15 @@ export default function AiSuggestionsBoardPage() {
       ]);
 
       setAcceptedItems(
-        reviewedSuggestions.filter((suggestion) => !hasCompletedAction(suggestion)),
+        reviewedSuggestions.filter(
+          (suggestion) => !hasCompletedAction(suggestion, t),
+        ),
       );
-      setCompletedItems(reviewedSuggestions.filter(hasCompletedAction));
+      setCompletedItems(
+        reviewedSuggestions.filter((suggestion) =>
+          hasCompletedAction(suggestion, t),
+        ),
+      );
     } catch (error) {
       setAcceptedErrorMessage(
         getSafeErrorMessage(error, 'Could not load accepted suggestions.'),
@@ -629,7 +615,7 @@ export default function AiSuggestionsBoardPage() {
     } finally {
       setIsAcceptedLoading(false);
     }
-  }, [token]);
+  }, [t, token]);
 
   useEffect(() => {
     void loadStatusColumn('pending', statusPages.pending);
@@ -681,22 +667,22 @@ export default function AiSuggestionsBoardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Review"
-        title="AI Suggestions Board"
-        description="Review AI suggestions visually by status. Cards only open details; email sending, Gmail drafts, and CRM apply actions still require explicit human action on the detail page."
+        eyebrow={t('aiSuggestions.eyebrow')}
+        title={t('aiSuggestions.boardTitle')}
+        description={t('aiSuggestions.boardSubtitle')}
         actions={
           <>
             <Link
               href="/dashboard/ai-suggestions/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
             <Link
               href="/dashboard/ai-workspace"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              AI Workspace
+              {t('navigation.items.aiWorkspace')}
             </Link>
           </>
         }
@@ -705,10 +691,10 @@ export default function AiSuggestionsBoardPage() {
       <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <div className="grid gap-3 md:grid-cols-4">
           {[
-            'Human review required',
-            'No automatic email sending',
-            'No Gmail draft from board cards',
-            'No CRM records from board cards',
+            t('common.safety.humanReviewRequired'),
+            t('common.safety.noAutomaticEmailSending'),
+            t('common.safety.noAutomaticGmailDraft'),
+            t('common.safety.noAutomaticCrmRecords'),
           ].map((message) => (
             <div
               key={message}
@@ -723,9 +709,9 @@ export default function AiSuggestionsBoardPage() {
       <section className="overflow-x-auto pb-3">
         <div className="grid min-w-[1700px] gap-4 xl:grid-cols-5">
           <BoardColumn
-            title={statusColumnConfig.pending.title}
-            description={statusColumnConfig.pending.description}
-            emptyMessage={statusColumnConfig.pending.emptyMessage}
+            title={t(statusColumnConfig.pending.titleKey)}
+            description={t(statusColumnConfig.pending.descriptionKey)}
+            emptyMessage={t(statusColumnConfig.pending.emptyMessageKey)}
             headingClassName={statusColumnConfig.pending.headingClassName}
             items={statusColumns.pending.items}
             total={statusColumns.pending.total}
@@ -741,9 +727,9 @@ export default function AiSuggestionsBoardPage() {
           />
 
           <BoardColumn
-            title="Accepted"
-            description="Approved suggestions that still have no completed action."
-            emptyMessage="No accepted suggestions"
+            title={t('aiSuggestions.board.accepted')}
+            description={t('aiSuggestions.board.acceptedDescription')}
+            emptyMessage={t('aiSuggestions.board.noAccepted')}
             headingClassName="text-emerald-700"
             items={visibleAcceptedItems}
             total={acceptedItems.length}
@@ -757,9 +743,9 @@ export default function AiSuggestionsBoardPage() {
           />
 
           <BoardColumn
-            title="Completed Actions"
-            description="Accepted suggestions with applied CRM or Gmail draft actions."
-            emptyMessage="No completed actions"
+            title={t('aiSuggestions.board.completed')}
+            description={t('aiSuggestions.board.completedDescription')}
+            emptyMessage={t('aiSuggestions.board.noCompleted')}
             headingClassName="text-blue-700"
             items={visibleCompletedItems}
             total={completedItems.length}
@@ -773,9 +759,9 @@ export default function AiSuggestionsBoardPage() {
           />
 
           <BoardColumn
-            title={statusColumnConfig.rejected.title}
-            description={statusColumnConfig.rejected.description}
-            emptyMessage={statusColumnConfig.rejected.emptyMessage}
+            title={t(statusColumnConfig.rejected.titleKey)}
+            description={t(statusColumnConfig.rejected.descriptionKey)}
+            emptyMessage={t(statusColumnConfig.rejected.emptyMessageKey)}
             headingClassName={statusColumnConfig.rejected.headingClassName}
             items={statusColumns.rejected.items}
             total={statusColumns.rejected.total}
@@ -795,9 +781,9 @@ export default function AiSuggestionsBoardPage() {
           />
 
           <BoardColumn
-            title={statusColumnConfig.expired.title}
-            description={statusColumnConfig.expired.description}
-            emptyMessage={statusColumnConfig.expired.emptyMessage}
+            title={t(statusColumnConfig.expired.titleKey)}
+            description={t(statusColumnConfig.expired.descriptionKey)}
+            emptyMessage={t(statusColumnConfig.expired.emptyMessageKey)}
             headingClassName={statusColumnConfig.expired.headingClassName}
             items={statusColumns.expired.items}
             total={statusColumns.expired.total}

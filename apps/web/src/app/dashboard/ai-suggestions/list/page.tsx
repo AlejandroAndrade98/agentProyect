@@ -11,6 +11,13 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getAiStatusLabel,
+  getAiTypeLabel,
+  getAppliedActionLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getAiSuggestions } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel, truncateText } from '@/lib/formatters';
 import type {
@@ -36,41 +43,6 @@ const typeOptions: Array<AiSuggestionType | ''> = [
   'ANALYZE_EXTERNAL_CALENDAR_EVENT',
 ];
 
-const statusLabels: Record<AiSuggestionStatus, string> = {
-  PENDING_REVIEW: 'Pending review',
-  ACCEPTED: 'Accepted',
-  EDITED_AND_ACCEPTED: 'Edited and accepted',
-  REJECTED: 'Rejected',
-  EXPIRED: 'Expired',
-};
-
-const typeLabels: Partial<Record<AiSuggestionType, string>> = {
-  SUGGEST_NEXT_STEPS: 'Lead next steps',
-  ANALYZE_EXTERNAL_EMAIL: 'Email analysis',
-  GENERATE_EMAIL_REPLY_DRAFT: 'Email reply draft',
-  ANALYZE_EXTERNAL_CALENDAR_EVENT: 'Calendar analysis',
-  ANALYZE_MESSAGE: 'Message analysis',
-  GENERATE_REPLY: 'Reply generation',
-  EXTRACT_IMPORTANT_DATA: 'Data extraction',
-  SUMMARIZE_LEAD: 'Lead summary',
-};
-
-const appliedActionLabels: Record<string, string> = {
-  UPDATE_LEAD_NEXT_STEP: 'Next step applied',
-  CREATE_TASK: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_EMAIL: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT: 'Task created',
-  CREATE_NOTE: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_EMAIL: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT: 'Note created',
-  CREATE_LEAD_FROM_EXTERNAL_EMAIL: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT: 'Lead created',
-  CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION: 'Gmail draft created',
-};
-
 function getStatusClasses(status: AiSuggestionStatus) {
   const classes: Record<AiSuggestionStatus, string> = {
     PENDING_REVIEW: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -81,14 +53,6 @@ function getStatusClasses(status: AiSuggestionStatus) {
   };
 
   return classes[status];
-}
-
-function getStatusLabel(status: AiSuggestionStatus) {
-  return statusLabels[status] ?? formatEnumLabel(status);
-}
-
-function getTypeLabel(type: AiSuggestionType) {
-  return typeLabels[type] ?? formatEnumLabel(type);
 }
 
 function getConfidenceLabel(suggestion: AiSuggestion) {
@@ -163,15 +127,15 @@ function hasGmailDraftCreated(suggestion: AiSuggestion) {
   );
 }
 
-function getAppliedLabels(suggestion: AiSuggestion) {
+function getAppliedLabels(suggestion: AiSuggestion, t: Translate) {
   const labels = new Set(
     getAppliedActionNames(suggestion)
-      .map((action) => appliedActionLabels[action])
+      .map((action) => getAppliedActionLabel(action, t))
       .filter(Boolean),
   );
 
   if (hasGmailDraftCreated(suggestion)) {
-    labels.add('Gmail draft created');
+    labels.add(t('aiSuggestions.completedActions.gmailDraftCreated'));
   }
 
   return Array.from(labels);
@@ -228,7 +192,7 @@ function getSuggestionTitle(suggestion: AiSuggestion) {
   return 'Untitled AI suggestion';
 }
 
-function renderSourcePreview(suggestion: AiSuggestion) {
+function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
   if (
     suggestion.type === 'ANALYZE_EXTERNAL_EMAIL' ||
     suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT'
@@ -245,14 +209,14 @@ function renderSourcePreview(suggestion: AiSuggestion) {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Original email
+              {t('aiSuggestions.detail.emailSubject')}
             </p>
             <p className="mt-1 font-medium text-slate-950">{subject}</p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Sender
+              {t('aiSuggestions.labels.sender')}
             </p>
             <p className="mt-1 break-words text-sm text-slate-700">
               {getEmailSender(suggestion)}
@@ -263,7 +227,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
         {suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT' ? (
           <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Suggested subject
+              {t('aiSuggestions.labels.suggestedSubject')}
             </p>
             <p className="mt-1 text-sm font-medium text-slate-950">
               {getReplyDraftSubject(suggestion)}
@@ -285,7 +249,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Calendar event
+              {t('aiSuggestions.detail.calendarEvent')}
             </p>
             <p className="mt-1 font-medium text-slate-950">
               {event?.summary ?? 'No title'}
@@ -294,7 +258,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Organizer
+              {t('aiSuggestions.labels.organizer')}
             </p>
             <p className="mt-1 break-words text-sm text-slate-700">
               {event?.organizerName ||
@@ -314,7 +278,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Attendees
+              {t('aiSuggestions.labels.attendees')}
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {attendeesCount === null ? 'Not set' : attendeesCount}
@@ -328,7 +292,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Source context
+        {t('aiSuggestions.detail.sourceContext')}
       </p>
       <p className="mt-1 text-sm text-slate-700">
         {suggestion.leadId
@@ -343,6 +307,7 @@ function renderSourcePreview(suggestion: AiSuggestion) {
 
 export default function AiSuggestionsPage() {
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
   const [status, setStatus] = useState<AiSuggestionStatus | ''>('');
@@ -411,7 +376,7 @@ export default function AiSuggestionsPage() {
       (suggestion) => suggestion.status === 'REJECTED',
     ).length;
     const applied = suggestions.filter(
-      (suggestion) => getAppliedLabels(suggestion).length > 0,
+      (suggestion) => getAppliedLabels(suggestion, t).length > 0,
     ).length;
     const replyDrafts = suggestions.filter(
       (suggestion) => suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT',
@@ -423,14 +388,14 @@ export default function AiSuggestionsPage() {
     ).length;
 
     return [
-      { label: 'Pending review', value: pending, tone: 'text-amber-700' },
-      { label: 'Accepted', value: accepted, tone: 'text-emerald-700' },
-      { label: 'Rejected', value: rejected, tone: 'text-rose-700' },
-      { label: 'Completed actions', value: applied, tone: 'text-blue-700' },
-      { label: 'Reply drafts', value: replyDrafts, tone: 'text-indigo-700' },
+      { label: t('common.statuses.pendingReview'), value: pending, tone: 'text-amber-700' },
+      { label: t('common.statuses.accepted'), value: accepted, tone: 'text-emerald-700' },
+      { label: t('common.statuses.rejected'), value: rejected, tone: 'text-rose-700' },
+      { label: t('aiSuggestions.board.completed'), value: applied, tone: 'text-blue-700' },
+      { label: t('common.types.emailReplyDraft'), value: replyDrafts, tone: 'text-indigo-700' },
       { label: 'External sources', value: externalSources, tone: 'text-slate-700' },
     ];
-  }, [suggestions]);
+  }, [suggestions, t]);
 
   function clearFilters() {
     setStatus('');
@@ -449,34 +414,34 @@ export default function AiSuggestionsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Review"
-        title="AI Suggestions"
-        description="Review AI-generated recommendations before applying anything. Human approval is required, and this queue never sends email or changes CRM records automatically."
+        eyebrow={t('aiSuggestions.eyebrow')}
+        title={t('aiSuggestions.title')}
+        description={t('aiSuggestions.subtitle')}
         actions={
           <>
             <Link
               href="/dashboard/ai-suggestions/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Board view
+              {t('common.actions.boardView')}
             </Link>
             <Link
               href="/dashboard/ai-workspace"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              AI Workspace
+              {t('navigation.items.aiWorkspace')}
             </Link>
             <Link
               href="/dashboard/external-sync/email-messages"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Synced Emails
+              {t('navigation.items.syncedEmails')}
             </Link>
             <Link
               href="/dashboard/external-sync/calendar-events"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Synced Calendar
+              {t('navigation.items.syncedCalendar')}
             </Link>
           </>
         }
@@ -485,9 +450,9 @@ export default function AiSuggestionsPage() {
       <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <div className="grid gap-3 md:grid-cols-4">
           {[
-            'Human review required',
-            'No automatic email sending',
-            'No automatic CRM changes',
+            t('common.safety.humanReviewRequired'),
+            t('common.safety.noAutomaticEmailSending'),
+            t('common.safety.noAutomaticCrmChanges'),
             'Details page handles apply actions',
           ].map((message) => (
             <div
@@ -523,18 +488,22 @@ export default function AiSuggestionsPage() {
           className="grid gap-4 lg:grid-cols-[1fr_220px_260px_140px]"
         >
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Search</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('aiSuggestions.list.search')}
+            </span>
             <input
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search title, output, or source context"
+              placeholder={t('aiSuggestions.list.searchPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Status</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('aiSuggestions.list.status')}
+            </span>
             <select
               value={status}
               onChange={(event) => {
@@ -545,14 +514,18 @@ export default function AiSuggestionsPage() {
             >
               {statusOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? getStatusLabel(option) : 'All statuses'}
+                  {option
+                    ? getAiStatusLabel(option, t)
+                    : t('aiSuggestions.list.allStatuses')}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Type</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('aiSuggestions.list.type')}
+            </span>
             <select
               value={type}
               onChange={(event) => {
@@ -563,7 +536,9 @@ export default function AiSuggestionsPage() {
             >
               {typeOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? getTypeLabel(option) : 'All types'}
+                  {option
+                    ? getAiTypeLabel(option, t)
+                    : t('aiSuggestions.list.allTypes')}
                 </option>
               ))}
             </select>
@@ -574,7 +549,7 @@ export default function AiSuggestionsPage() {
               type="submit"
               className="flex-1 rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              Search
+              {t('common.actions.search')}
             </button>
             <button
               type="button"
@@ -582,7 +557,7 @@ export default function AiSuggestionsPage() {
               disabled={!hasFilters}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Clear
+              {t('common.actions.clear')}
             </button>
           </div>
         </form>
@@ -608,8 +583,8 @@ export default function AiSuggestionsPage() {
           <EmptyState
             title={
               hasFilters
-                ? 'No suggestions match these filters'
-                : 'No AI suggestions yet'
+                ? t('aiSuggestions.list.noMatches')
+                : t('aiSuggestions.list.noSuggestions')
             }
             description={
               hasFilters
@@ -625,7 +600,7 @@ export default function AiSuggestionsPage() {
                 onClick={clearFilters}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Clear filters
+                {t('aiSuggestions.list.clearFilters')}
               </button>
             ) : null}
             <Link
@@ -655,7 +630,7 @@ export default function AiSuggestionsPage() {
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">
-                Review queue
+                {t('aiSuggestions.list.reviewQueue')}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 Showing {suggestions.length} of {totalSuggestions} suggestions
@@ -664,7 +639,7 @@ export default function AiSuggestionsPage() {
           </div>
 
           {suggestions.map((suggestion) => {
-            const appliedLabels = getAppliedLabels(suggestion);
+            const appliedLabels = getAppliedLabels(suggestion, t);
             const isPending = suggestion.status === 'PENDING_REVIEW';
 
             return (
@@ -676,15 +651,16 @@ export default function AiSuggestionsPage() {
                   <div className="min-w-0 flex-1 space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className={getStatusClasses(suggestion.status)}>
-                        {getStatusLabel(suggestion.status)}
+                        {getAiStatusLabel(suggestion.status, t)}
                       </Badge>
 
                       <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
-                        {getTypeLabel(suggestion.type)}
+                        {getAiTypeLabel(suggestion.type, t)}
                       </Badge>
 
                       <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                        Confidence: {getConfidenceLabel(suggestion)}
+                        {t('aiSuggestions.labels.confidence')}:{' '}
+                        {getConfidenceLabel(suggestion)}
                       </Badge>
 
                       <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
@@ -693,7 +669,7 @@ export default function AiSuggestionsPage() {
 
                       {hasGmailDraftCreated(suggestion) ? (
                         <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                          Gmail draft created
+                          {t('aiSuggestions.completedActions.gmailDraftCreated')}
                         </Badge>
                       ) : null}
                     </div>
@@ -706,20 +682,30 @@ export default function AiSuggestionsPage() {
                         {getSuggestionTitle(suggestion)}
                       </Link>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                        <span>Created {formatDateTime(suggestion.createdAt)}</span>
+                        <span>
+                          {t('aiSuggestions.labels.created')}{' '}
+                          {formatDateTime(suggestion.createdAt)}
+                        </span>
                         {suggestion.reviewedAt ? (
                           <span>
-                            Reviewed {formatDateTime(suggestion.reviewedAt)}
+                            {t('aiSuggestions.labels.reviewed')}{' '}
+                            {formatDateTime(suggestion.reviewedAt)}
                           </span>
                         ) : null}
-                        <span>Provider: {suggestion.provider}</span>
+                        <span>
+                          {t('aiSuggestions.labels.provider')}:{' '}
+                          {suggestion.provider}
+                        </span>
                         {suggestion.metadataJson?.model ? (
-                          <span>Model: {suggestion.metadataJson.model}</span>
+                          <span>
+                            {t('aiSuggestions.labels.model')}:{' '}
+                            {suggestion.metadataJson.model}
+                          </span>
                         ) : null}
                       </div>
                     </div>
 
-                    {renderSourcePreview(suggestion)}
+                    {renderSourcePreview(suggestion, t)}
 
                     {suggestion.outputText ? (
                       <p className="max-w-4xl text-sm leading-6 text-slate-600">
@@ -755,7 +741,9 @@ export default function AiSuggestionsPage() {
                       href={`/dashboard/ai-suggestions/${suggestion.id}`}
                       className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
                     >
-                      {isPending ? 'Review' : 'View details'}
+                      {isPending
+                        ? t('common.actions.review')
+                        : t('common.actions.viewDetails')}
                     </Link>
                   </div>
                 </div>
@@ -770,11 +758,12 @@ export default function AiSuggestionsPage() {
               onClick={() => setPage((currentPage) => currentPage - 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Previous
+              {t('common.actions.previous')}
             </button>
 
             <span className="text-sm text-slate-500">
-              Page {page} of {totalPages}
+              {t('aiSuggestions.labels.page')} {page}{' '}
+              {t('aiSuggestions.labels.of')} {totalPages}
             </span>
 
             <button
@@ -783,7 +772,7 @@ export default function AiSuggestionsPage() {
               onClick={() => setPage((currentPage) => currentPage + 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Next
+              {t('common.actions.next')}
             </button>
           </div>
         </section>

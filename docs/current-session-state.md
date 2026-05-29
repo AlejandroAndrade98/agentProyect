@@ -399,3 +399,15 @@ Current i18n foundation:
 - Sidebar navigation and main dashboard labels are translated.
 - Future languages can be added by adding a locale JSON file and registering it in config.
 - No backend, Prisma, API, route, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17K.2 i18n for AI Workspace and AI Suggestions is completed and validated.
+
+Current i18n coverage:
+- Sidebar and dashboard are translated.
+- AI Workspace is translated.
+- AI Suggestions board, list, and detail pages are translated.
+- Common AI statuses, suggestion types, safety messages, and applied action labels have translated display helpers.
+- Backend enum values, API payloads, routes, and AI-generated content remain unchanged.
+- No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.

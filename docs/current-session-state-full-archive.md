@@ -5286,3 +5286,95 @@ Validation completed:
 - Selected language persists after refresh.
 - Sidebar active states still work.
 - Logout still works.
+
+## Phase 17K.2, i18n for AI Workspace and AI Suggestions
+
+Status: completed, validated in typecheck/build, pending commit/push.
+
+This phase extended the frontend i18n foundation to the main AI product surfaces.
+
+Frontend areas translated:
+
+- AI Workspace
+- AI Suggestions Board
+- AI Suggestions List
+- AI Suggestion Detail
+
+Frontend behavior implemented:
+
+- Extended English and Spanish JSON dictionaries with organized namespaces for:
+  - common statuses
+  - AI suggestion types
+  - safety messages
+  - actions
+  - AI Workspace
+  - AI Suggestions board/list/detail
+
+- Added or reused frontend display helpers for translated labels:
+  - AI suggestion statuses
+  - AI suggestion types
+  - applied/completed action indicators
+
+- AI Workspace now translates:
+  - page title/subtitle
+  - board-like section headings
+  - quick action labels
+  - safety copy
+  - empty states and static labels
+
+- AI Suggestions Board now translates:
+  - column names
+  - pagination labels
+  - card labels
+  - status/type labels
+  - applied indicators
+  - List view action
+  - safety copy
+
+- AI Suggestions List now translates:
+  - filters
+  - search labels
+  - status/type labels
+  - summary cards
+  - card metadata labels
+  - Review/View details actions
+  - applied indicators
+  - Board view action
+
+- AI Suggestion Detail now translates:
+  - header/static labels
+  - source context labels
+  - safety panel
+  - human review controls
+  - sensitive action labels
+  - completed action states
+  - metadata labels
+
+Important behavior preserved:
+
+- API enum values remain unchanged.
+- Route paths remain unchanged.
+- AI-generated output text is not translated.
+- Dynamic email subjects, calendar titles, lead titles, and provider/model values remain unchanged.
+- Existing handlers and API calls were not changed.
+- Action visibility rules were not changed.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail send button was added.
+- No automatic Gmail draft creation was added.
+- No automatic CRM record creation was added.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- AI Workspace translates between English and Spanish.
+- AI Suggestions board/list/detail translate between English and Spanish.
+- Language switching preserves existing routes and actions.
+- Existing AI review/apply/Gmail draft flows remain unchanged.

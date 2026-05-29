@@ -10,6 +10,13 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAiStatusLabel,
+  getAiTypeLabel,
+  getAppliedActionLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   getAiSuggestions,
   getExternalCalendarEvents,
@@ -22,7 +29,6 @@ import { canUpdateCrm } from '@/lib/permissions';
 import type {
   AiSuggestion,
   AiSuggestionStatus,
-  AiSuggestionType,
 } from '@/types/ai-suggestions';
 import type {
   ExternalCalendarEvent,
@@ -52,29 +58,6 @@ type WorkspaceErrors = {
 };
 
 type SyncAction = 'gmail' | 'calendar';
-
-const typeLabels: Partial<Record<AiSuggestionType, string>> = {
-  SUGGEST_NEXT_STEPS: 'Lead next steps',
-  ANALYZE_EXTERNAL_EMAIL: 'Email analysis',
-  GENERATE_EMAIL_REPLY_DRAFT: 'Email reply draft',
-  ANALYZE_EXTERNAL_CALENDAR_EVENT: 'Calendar analysis',
-};
-
-const appliedActionLabels: Record<string, string> = {
-  UPDATE_LEAD_NEXT_STEP: 'Next step applied',
-  CREATE_TASK: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_EMAIL: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT: 'Task created',
-  CREATE_NOTE: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_EMAIL: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT: 'Note created',
-  CREATE_LEAD_FROM_EXTERNAL_EMAIL: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT: 'Lead created',
-  CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION: 'Gmail draft created',
-};
 
 function getStatusClasses(status: AiSuggestionStatus) {
   const classes: Record<AiSuggestionStatus, string> = {
@@ -178,22 +161,22 @@ function hasGmailDraftCreated(suggestion: AiSuggestion) {
   );
 }
 
-function getAppliedLabels(suggestion: AiSuggestion) {
+function getAppliedLabels(suggestion: AiSuggestion, t: Translate) {
   const labels = new Set(
     getAppliedActionNames(suggestion)
-      .map((action) => appliedActionLabels[action])
+      .map((action) => getAppliedActionLabel(action, t))
       .filter(Boolean),
   );
 
   if (hasGmailDraftCreated(suggestion)) {
-    labels.add('Gmail draft created');
+    labels.add(t('aiSuggestions.completedActions.gmailDraftCreated'));
   }
 
   return Array.from(labels);
 }
 
-function hasCompletedAction(suggestion: AiSuggestion) {
-  return getAppliedLabels(suggestion).length > 0;
+function hasCompletedAction(suggestion: AiSuggestion, t: Translate) {
+  return getAppliedLabels(suggestion, t).length > 0;
 }
 
 function sortSuggestionsByCreatedAt(suggestions: AiSuggestion[]) {
@@ -202,10 +185,6 @@ function sortSuggestionsByCreatedAt(suggestions: AiSuggestion[]) {
       new Date(secondSuggestion.createdAt).getTime() -
       new Date(firstSuggestion.createdAt).getTime(),
   );
-}
-
-function getTypeLabel(type: AiSuggestionType) {
-  return typeLabels[type] ?? formatEnumLabel(type);
 }
 
 function getSuggestionContext(suggestion: AiSuggestion) {
@@ -245,16 +224,17 @@ function formatOrganizer(event: ExternalCalendarEvent) {
 }
 
 function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
-  const appliedLabels = getAppliedLabels(suggestion);
+  const { t } = useI18n();
+  const appliedLabels = getAppliedLabels(suggestion, t);
 
   return (
     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-wrap gap-2">
         <Badge className={getStatusClasses(suggestion.status)}>
-          {formatEnumLabel(suggestion.status)}
+          {getAiStatusLabel(suggestion.status, t)}
         </Badge>
         <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
-          {getTypeLabel(suggestion.type)}
+          {getAiTypeLabel(suggestion.type, t)}
         </Badge>
       </div>
 
@@ -287,7 +267,7 @@ function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
         href={`/dashboard/ai-suggestions/${suggestion.id}`}
         className="mt-3 inline-flex text-sm font-medium text-blue-700 transition hover:text-blue-900"
       >
-        View details
+        {t('common.actions.viewDetails')}
       </Link>
     </article>
   );
@@ -333,6 +313,7 @@ function SuggestionColumn({
 
 export default function AiWorkspacePage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
   const canRunSync = canUpdateCrm(user);
 
   const [data, setData] = useState<WorkspaceData>({
@@ -472,10 +453,10 @@ export default function AiWorkspacePage() {
       needsReview:
         pendingResult.status === 'fulfilled' ? pendingResult.value.data : [],
       readyForAction: reviewedSuggestions
-        .filter((suggestion) => !hasCompletedAction(suggestion))
+        .filter((suggestion) => !hasCompletedAction(suggestion, t))
         .slice(0, 8),
       completedSuggestions: reviewedSuggestions
-        .filter(hasCompletedAction)
+        .filter((suggestion) => hasCompletedAction(suggestion, t))
         .slice(0, 8),
       counts: {
         pending:
@@ -513,7 +494,7 @@ export default function AiWorkspacePage() {
     });
     setErrors(nextErrors);
     setIsLoading(false);
-  }, [token]);
+  }, [t, token]);
 
   useEffect(() => {
     void loadWorkspace();
@@ -556,18 +537,18 @@ export default function AiWorkspacePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Workspace"
-        title="Unified Review Hub"
-        description="A board-like workspace for AI review, safe sync controls, and synced input context. Cards navigate to detail pages; they do not apply CRM changes or send email."
+        eyebrow={t('aiWorkspace.eyebrow')}
+        title={t('aiWorkspace.title')}
+        description={t('aiWorkspace.subtitle')}
       />
 
       <section className="grid gap-3 md:grid-cols-5">
         {[
-          'AI suggestions require human review.',
-          'AI uses synced metadata/snippets only where applicable.',
-          'No email is sent automatically.',
-          'No Gmail draft is created automatically from this workspace.',
-          'No CRM records are created automatically.',
+          t('common.safety.humanReviewRequired'),
+          t('common.safety.metadataOnly'),
+          t('common.safety.noAutomaticEmailSending'),
+          t('common.safety.noAutomaticGmailDraft'),
+          t('common.safety.noAutomaticCrmRecords'),
         ].map((message) => (
           <div
             key={message}
@@ -601,7 +582,7 @@ export default function AiWorkspacePage() {
 
       {!isLoading && !hasAnyData && !Object.keys(errors).length ? (
         <EmptyState
-          title="No AI workspace data yet"
+          title={t('aiWorkspace.emptyStates.workspace')}
           description="Connect Google, sync email or calendar metadata, then generate AI suggestions for human review."
         />
       ) : null}
@@ -610,12 +591,12 @@ export default function AiWorkspacePage() {
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             {[
-              ['Pending review', data.counts.pending],
-              ['Accepted', data.counts.accepted],
-              ['Rejected', data.counts.rejected],
-              ['Reply drafts', data.counts.replyDrafts],
-              ['Email analysis', data.counts.emailAnalysis],
-              ['Calendar analysis', data.counts.calendarAnalysis],
+              [t('common.statuses.pendingReview'), data.counts.pending],
+              [t('common.statuses.accepted'), data.counts.accepted],
+              [t('common.statuses.rejected'), data.counts.rejected],
+              [t('common.types.emailReplyDraft'), data.counts.replyDrafts],
+              [t('common.types.emailAnalysis'), data.counts.emailAnalysis],
+              [t('common.types.calendarAnalysis'), data.counts.calendarAnalysis],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -637,21 +618,21 @@ export default function AiWorkspacePage() {
 
           <section className="grid gap-4 xl:grid-cols-3">
             <SuggestionColumn
-              title="Needs Review"
-              description="Pending AI suggestions waiting for a human decision."
-              emptyMessage="No pending suggestions."
+              title={t('aiWorkspace.sections.needsReview')}
+              description={t('aiWorkspace.sections.needsReviewDescription')}
+              emptyMessage={t('aiWorkspace.emptyStates.needsReview')}
               suggestions={data.needsReview}
             />
             <SuggestionColumn
-              title="Ready for Action"
-              description="Accepted suggestions that have no completed action yet."
-              emptyMessage="No accepted suggestions waiting for action."
+              title={t('aiWorkspace.sections.readyForAction')}
+              description={t('aiWorkspace.sections.readyForActionDescription')}
+              emptyMessage={t('aiWorkspace.emptyStates.ready')}
               suggestions={data.readyForAction}
             />
             <SuggestionColumn
-              title="Completed"
-              description="Suggestions with applied CRM actions or Gmail draft creation."
-              emptyMessage="No completed AI actions yet."
+              title={t('aiWorkspace.sections.completed')}
+              description={t('aiWorkspace.sections.completedDescription')}
+              emptyMessage={t('aiWorkspace.emptyStates.completed')}
               suggestions={data.completedSuggestions}
             />
           </section>
@@ -660,10 +641,10 @@ export default function AiWorkspacePage() {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">
-                  Quick Actions
+                  {t('aiWorkspace.sections.quickActions')}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Safe navigation and manual sync controls.
+                  {t('aiWorkspace.sections.quickActionsDescription')}
                 </p>
               </div>
 
@@ -672,19 +653,19 @@ export default function AiWorkspacePage() {
                   href="/dashboard/ai-suggestions"
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
                 >
-                  Open AI Suggestions Board
+                  {t('aiWorkspace.actions.openSuggestions')}
                 </Link>
                 <Link
                   href="/dashboard/external-sync/email-messages"
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
                 >
-                  Open Synced Emails
+                  {t('aiWorkspace.actions.openEmails')}
                 </Link>
                 <Link
                   href="/dashboard/external-sync/calendar-events"
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
                 >
-                  Open Synced Calendar
+                  {t('aiWorkspace.actions.openCalendar')}
                 </Link>
                 <button
                   type="button"
@@ -692,7 +673,9 @@ export default function AiWorkspacePage() {
                   disabled={syncingAction !== null || !canRunSync}
                   className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm font-medium text-blue-900 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {syncingAction === 'gmail' ? 'Syncing Gmail...' : 'Sync Gmail'}
+                  {syncingAction === 'gmail'
+                    ? t('aiWorkspace.actions.syncingGmail')
+                    : t('aiWorkspace.actions.syncGmail')}
                 </button>
                 <button
                   type="button"
@@ -701,8 +684,8 @@ export default function AiWorkspacePage() {
                   className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm font-medium text-blue-900 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {syncingAction === 'calendar'
-                    ? 'Syncing Calendar...'
-                    : 'Sync Calendar'}
+                    ? t('aiWorkspace.actions.syncingCalendar')
+                    : t('aiWorkspace.actions.syncCalendar')}
                 </button>
               </div>
             </article>
@@ -710,10 +693,10 @@ export default function AiWorkspacePage() {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">
-                  Recent Synced Inputs
+                  {t('aiWorkspace.sections.recentInputs')}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Latest email and calendar metadata available for AI review.
+                  {t('aiWorkspace.sections.recentInputsDescription')}
                 </p>
               </div>
 
@@ -721,13 +704,13 @@ export default function AiWorkspacePage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-semibold text-slate-950">
-                      Synced Emails
+                      {t('navigation.items.syncedEmails')}
                     </h3>
                     <Link
                       href="/dashboard/external-sync/email-messages"
                       className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                     >
-                      Open
+                      {t('common.actions.open')}
                     </Link>
                   </div>
 
@@ -739,7 +722,7 @@ export default function AiWorkspacePage() {
 
                   {!errors.emails && data.recentEmails.length === 0 ? (
                     <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-                      No synced emails yet.
+                      {t('aiWorkspace.emptyStates.emails')}
                     </div>
                   ) : null}
 
@@ -770,13 +753,13 @@ export default function AiWorkspacePage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-semibold text-slate-950">
-                      Synced Calendar
+                      {t('navigation.items.syncedCalendar')}
                     </h3>
                     <Link
                       href="/dashboard/external-sync/calendar-events"
                       className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                     >
-                      Open
+                      {t('common.actions.open')}
                     </Link>
                   </div>
 
@@ -789,7 +772,7 @@ export default function AiWorkspacePage() {
                   {!errors.calendar &&
                   data.upcomingCalendarEvents.length === 0 ? (
                     <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-                      No synced calendar events yet.
+                      {t('aiWorkspace.emptyStates.calendar')}
                     </div>
                   ) : null}
 
