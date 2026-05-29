@@ -360,3 +360,17 @@ Current board UX:
 - Notes Board has independent per-column pagination.
 - AI Workspace now uses a clearer board-like layout with Needs Review, Ready for Action, Completed, Quick Actions, and Recent Synced Inputs.
 - No backend, Prisma, API, email, Gmail, drag/drop mutation, or CRM automation behavior changed.
+
+
+## Latest completed phase
+
+Phase 17J.1 Dashboard Command Center Redesign is completed and validated.
+
+Current dashboard UX:
+- `/dashboard` is now a clearer Command Center.
+- Action Required appears first.
+- Dashboard highlights pending AI reviews, ready-for-action items, pending tasks, and next meeting.
+- Next meeting card shows countdown, meeting metadata, Google Calendar link, and Calendar Board link.
+- CRM Health, Quick Workspaces, External Sync Snapshot, Task Focus, and Recent Activity are organized into clearer sections.
+- Recent synced emails/calendar no longer dominate the page.
+- No backend, Prisma, API, email, Gmail draft, CRM apply, or automation behavior changed.

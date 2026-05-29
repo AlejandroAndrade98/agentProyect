@@ -5121,243 +5121,69 @@ Validation completed:
 - Notes Board renders correctly.
 - AI Workspace renders as a clearer board-like hub.
 
-Implement Phase 17I.8 frontend only.
+## Phase 17J.1, Dashboard Command Center Redesign
 
-Goal:
-Add a Synced Calendar Board / AI Calendar Board view and reorganize the dashboard sidebar navigation for a clearer workflow.
+Status: completed, validated in build/runtime, pending commit/push.
 
-Context:
-The project now has board-first navigation for:
-- Leads
-- Tasks
-- Notes
-- AI Suggestions
-- Synced Emails
+This phase redesigned the main dashboard into a clearer Command Center focused on action-required items, CRM health, quick workspace navigation, external sync status, and recent activity.
 
-Synced Calendar currently works as a list page:
-- Users can view synced Google Calendar metadata.
-- Users can manually sync Calendar.
-- Users can generate AI calendar analysis suggestions.
-- Existing suggestions persist visually as View analysis.
-- Accepted calendar suggestions can create CRM task/note/lead only from the AI Suggestion detail page.
-- No email is sent automatically.
-- No CRM records are created automatically from Synced Calendar.
+Frontend files updated:
 
-Desired UX:
-Turn Synced Calendar into an AI Calendar Board so users can understand which events still need AI processing, which need review, which are ready for action, and which are completed.
+- `apps/web/src/app/dashboard/page.tsx`
+- `apps/web/src/components/DashboardOverview.tsx`
 
-Also reorganize the sidebar navigation so the app feels more workflow-oriented.
+Dashboard behavior implemented:
 
-Rules:
-- Frontend only.
-- No backend changes.
-- No Prisma changes.
-- No API contract changes.
-- No email sending.
-- No Gmail send button.
-- No automatic Gmail draft creation.
-- No automatic CRM record creation.
-- No background jobs.
-- No drag/drop mutation for calendar events.
-- Do not commit or push.
+- Redesigned `/dashboard` into a clearer Command Center.
+- Added top-level quick links to:
+  - AI Workspace
+  - Lead Pipeline
+  - Tasks Board
 
-Part A: Synced Calendar Board
+- Added `Action Required` as the first major section, including:
+  - Pending AI reviews
+  - Ready for action
+  - Pending tasks
+  - Next meeting
 
-Routes:
-Current route:
-- /dashboard/external-sync/calendar-events
+- Added a highlighted next meeting block from synced Calendar data.
+- Next meeting block shows:
+  - countdown
+  - meeting title
+  - date/time
+  - location
+  - organizer
+  - last synced date
+  - link to Google Calendar when available
+  - link to Calendar Board
 
-Add:
-- /dashboard/external-sync/calendar-events/board
-- /dashboard/external-sync/calendar-events/list
+- Added compact sections:
+  - CRM Health
+  - Quick Workspaces
+  - External Sync Snapshot
+  - Task Focus
+  - Recent Activity
 
-Update:
-- /dashboard/external-sync/calendar-events should redirect to /dashboard/external-sync/calendar-events/board.
-- Move or reuse the current Synced Calendar list UI at /dashboard/external-sync/calendar-events/list.
-- Sidebar Synced Calendar can remain /dashboard/external-sync/calendar-events, so it lands on the board.
+- Recent emails and calendar data are now compact snapshots instead of dominating the dashboard.
 
-Board columns:
-Create an AI Calendar Board grouped by event processing state.
+Safety rules preserved:
 
-Suggested columns:
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail draft creation was added.
+- No CRM apply actions were added.
+- No automatic AI or CRM behavior was added.
+- Existing Gmail and Calendar sync actions were preserved as explicit user actions.
 
-1. New synced
-Calendar events with no existing AI analysis suggestion.
+Validation completed:
 
-2. Needs review
-Calendar events with ANALYZE_EXTERNAL_CALENDAR_EVENT suggestion in PENDING_REVIEW.
-
-3. Ready for action
-Calendar events with accepted suggestions but no completed action yet.
-
-4. Completed
-Calendar events where completed/applied metadata exists:
-- CRM task created
-- CRM note created
-- CRM lead created
-
-5. Rejected / Closed
-Calendar events where related suggestions are rejected or expired, if inferable safely.
-
-Classification priority:
-- Completed first
-- Ready for action
-- Needs review
-- Rejected / closed
-- New synced
-
-Use safe frontend inference only.
-Do not change backend/API contracts.
-
-Data:
-Reuse existing frontend helpers:
-- getExternalCalendarEvents
-- syncExternalCalendarEvents
-- getAiSuggestions
-- analyzeExternalCalendarEvent
-
-Do not create duplicate API helpers unless missing.
-
-Board cards:
-Each event card should show:
-- summary
-- start/end date
-- location if available
-- organizer if available
-- attendees count if available
-- synced date
-- status badges:
-  - Analysis pending
-  - Analysis accepted
-  - Analysis rejected
-  - Task created
-  - Note created
-  - Lead created
-- action links:
-  - Analyze event if no analysis suggestion exists
-  - View analysis if analysis suggestion exists
-  - Google Calendar link if htmlLink exists
-
-Important:
-The board may create AI calendar analysis suggestions, same as the existing Synced Calendar list.
-But it must NOT:
-- send emails
-- create Gmail drafts
-- create CRM records automatically
-- show CRM apply actions directly on board cards
-
-Per-column pagination:
-- Each board column should have independent pagination.
-- Use page size around 5 cards per column.
-- Show Page X of Y.
-- Previous / Next controls.
-- Empty state per column.
-
-Sync Calendar:
-Keep a safe Sync Calendar button on the board page.
-Behavior:
-- calls existing sync endpoint
-- shows loading state
-- shows success/error message
-- refreshes calendar data and suggestion maps after success
-
-List/board navigation:
-On board page:
-- Button: List view
-- Link to /dashboard/external-sync/calendar-events/list
-
-On list page:
-- Button: Board view
-- Link to /dashboard/external-sync/calendar-events/board
-
-Safety messaging:
-Add or preserve page-level safety copy:
-- AI uses synced calendar metadata only.
-- No email is sent automatically.
-- No CRM records are created automatically.
-- Generated suggestions require human review.
-
-Part B: Sidebar navigation reorganization
-
-Update DashboardLayout sidebar order to:
-
-1. Dashboard
-
-2. AI Workspace
-3. AI Suggestions
-4. Synced Emails
-5. Synced Calendar
-
-6. Leads
-7. Tasks
-8. Notes
-
-9. Companies
-10. Contacts
-11. Products
-
-12. Activity
-13. Settings
-
-Keep existing role/permission behavior.
-Keep active state working for nested routes.
-
-Sidebar links:
-- Dashboard -> /dashboard
-- AI Workspace -> /dashboard/ai-workspace
-- AI Suggestions -> /dashboard/ai-suggestions
-- Synced Emails -> /dashboard/external-sync/email-messages
-- Synced Calendar -> /dashboard/external-sync/calendar-events
-- Leads -> /dashboard/leads
-- Tasks -> /dashboard/tasks
-- Notes -> /dashboard/notes
-- Companies -> /dashboard/companies
-- Contacts -> /dashboard/contacts
-- Products -> /dashboard/products
-- Activity -> /dashboard/activity
-- Settings -> /dashboard/settings
-
-Do not remove existing navigation items unless they no longer exist.
-Do not change Platform Admin visibility rules if present.
-
-Preserve existing behavior:
-Do not break:
-- Current Synced Calendar list behavior.
-- Existing persisted suggestion state.
-- Analyze event action.
-- Links to AI Suggestion detail.
-- AI Suggestions board/list/detail.
-- Synced Emails board/list.
-- AI Workspace.
-- Gmail draft creation from accepted suggestions.
-- Calendar task/note/lead apply from detail page.
-- Dashboard.
-- CRM boards/lists.
-
-Validation:
-- git diff --check
-- corepack pnpm build
-
-Manual checks:
-- Open /dashboard/external-sync/calendar-events.
-- Confirm it lands on the Synced Calendar board.
-- Confirm board columns render.
-- Confirm calendar events are classified correctly.
-- Confirm per-column pagination works.
-- Confirm Sync Calendar works.
-- Confirm Analyze event creates suggestion and moves card/state appropriately.
-- Confirm View analysis opens detail page.
-- Confirm List view opens /dashboard/external-sync/calendar-events/list.
-- Confirm Board view returns to /dashboard/external-sync/calendar-events/board.
-- Confirm no Send email button exists.
-- Confirm no CRM record is created automatically from board cards.
-
-- Confirm sidebar order is updated.
-- Confirm active states still work.
-- Confirm nested routes still highlight the right section.
-
-Return:
-- files changed
-- summary
-- validation results
-- manual testing notes
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- Dashboard renders as a clearer Command Center.
+- Action Required appears first.
+- Next meeting block renders correctly.
+- Quick Workspace links work.
+- Sync Gmail and Sync Calendar actions remain explicit and safe.
