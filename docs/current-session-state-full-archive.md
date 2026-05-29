@@ -4407,3 +4407,98 @@ Validation completed:
 - Duplicate apply was blocked.
 - `AI_SUGGESTION_APPLIED` ActivityEvent was created.
 - No email, Gmail draft, lead, contact, company, or note was created automatically.
+
+## Phase 17G.2, Apply External Calendar Suggestion to CRM Note
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase aligned and completed the human-controlled apply action to create a CRM Note from an accepted external calendar AI suggestion.
+
+Backend behavior implemented:
+
+- Reused existing endpoint:
+  - `POST /api/ai-suggestions/:id/apply/external-calendar-note`
+
+- Calendar note apply action now uses:
+  - `CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Duplicate protection checks:
+  - `CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT`
+  - legacy `CREATE_NOTE_FROM_EXTERNAL_CALENDAR`
+
+- The action only works for accepted calendar suggestions:
+  - `ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `ACCEPTED` or `EDITED_AND_ACCEPTED`
+
+- Note creation remains explicit human action only.
+
+CRM Note behavior:
+
+- Creates a CRM Note only after the user clicks the apply action.
+- Note content includes safe synced calendar metadata:
+  - event summary
+  - organizer
+  - attendees when available
+  - start/end time
+  - location when available
+  - calendar link when available
+  - AI suggested note/reasoning when available
+  - external identifiers
+  - explicit human approval notice
+
+Suggestion metadata updates:
+
+- Stores applied action:
+  - `CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Stores:
+  - created note id
+  - appliedAt
+  - appliedByUserId
+  - `crmRecordsCreated = true`
+  - `emailSentAutomatically = false`
+  - `noteCreatedAutomatically = false`
+
+Activity Events:
+
+- Creates `AI_SUGGESTION_APPLIED`.
+- Activity metadata includes:
+  - aiSuggestionId
+  - aiSuggestionType
+  - appliedAction
+  - externalCalendarEventId
+  - noteId
+  - crmRecordsCreated = true
+  - emailSentAutomatically = false
+  - noteCreatedAutomatically = false
+
+Frontend behavior implemented:
+
+- AI Suggestion detail page detects both new and legacy calendar-note applied actions.
+- Shows applied state for external calendar note creation:
+  - `CRM note created`
+  - note id when available
+  - applied time/user when available
+  - explicit human action notice
+  - no automatic email notice
+
+Safety rules preserved:
+
+- No note is created automatically during analysis.
+- Creating a note requires explicit human action.
+- No email is sent automatically.
+- No Gmail draft is created.
+- No lead, contact, company, or task is created automatically.
+- Human-in-the-loop workflow remains enforced.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Calendar event analysis was created.
+- Calendar suggestion was accepted.
+- CRM Note was created only after explicit user action.
+- Applied state appeared in the AI Suggestion detail page.
+- Duplicate apply was blocked.
+- `AI_SUGGESTION_APPLIED` ActivityEvent was created.
+- No email, Gmail draft, lead, contact, company, or task was created automatically.
