@@ -4935,3 +4935,73 @@ Validation completed:
   - `/dashboard/tasks`
 - Leads and Tasks now use board-first navigation.
 - List views remain available as secondary views.
+
+
+## Phase 17I.4, AI Suggestions Board View
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a board-style view for AI Suggestions, giving users a visual way to review suggestions by status.
+
+Frontend files added/updated:
+
+- `apps/web/src/app/dashboard/ai-suggestions/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/board/page.tsx`
+
+Frontend behavior implemented:
+
+- Added route:
+  - `/dashboard/ai-suggestions/board`
+
+- Added `Board view` button on the AI Suggestions list page.
+- Added `List view` button on the AI Suggestions board page.
+
+Board columns implemented:
+
+- Pending Review
+- Accepted
+- Completed Actions
+- Rejected
+- Expired
+
+Board behavior:
+
+- Each column has independent pagination.
+- Suggestions are grouped by status and applied/completed state.
+- Completed Actions column is derived safely from accepted suggestions with applied actions or Gmail draft metadata.
+- Board cards show compact information:
+  - readable type/status
+  - confidence
+  - source context
+  - applied indicators
+  - detail link
+
+Applied indicators include:
+
+- Task created
+- Note created
+- Lead created
+- Gmail draft created
+- Next step applied
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail send button was added.
+- No Gmail draft creation action was added to board cards.
+- No CRM apply action was added to board cards.
+- No automatic CRM record creation was added.
+- No background jobs were added.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- `/dashboard/ai-suggestions/board` route was included in the build.
+- AI Suggestions board renders columns correctly.
+- Independent column pagination works.
+- Board cards link to AI Suggestion detail.
+- List view returns to `/dashboard/ai-suggestions`.

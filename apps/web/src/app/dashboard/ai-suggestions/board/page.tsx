@@ -1,0 +1,818 @@
+// FILE: apps/web/src/app/dashboard/ai-suggestions/board/page.tsx
+'use client';
+
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { useAuth } from '@/hooks/useAuth';
+import { ApiClientError, getAiSuggestions } from '@/lib/api-client';
+import { formatDateTime, formatEnumLabel, truncateText } from '@/lib/formatters';
+import type {
+  AiSuggestion,
+  AiSuggestionStatus,
+  AiSuggestionType,
+} from '@/types/ai-suggestions';
+
+const BOARD_PAGE_SIZE = 5;
+const ACCEPTED_POOL_PAGE_SIZE = 100;
+
+type StatusColumnKey = 'pending' | 'rejected' | 'expired';
+
+type StatusColumnState = {
+  items: AiSuggestion[];
+  total: number;
+  totalPages: number;
+  isLoading: boolean;
+  errorMessage: string | null;
+};
+
+const statusColumnConfig: Record<
+  StatusColumnKey,
+  {
+    title: string;
+    description: string;
+    emptyMessage: string;
+    status: AiSuggestionStatus;
+    headingClassName: string;
+  }
+> = {
+  pending: {
+    title: 'Pending Review',
+    description: 'Needs human review before anything can happen.',
+    emptyMessage: 'No pending suggestions',
+    status: 'PENDING_REVIEW',
+    headingClassName: 'text-amber-700',
+  },
+  rejected: {
+    title: 'Rejected',
+    description: 'Reviewed suggestions that were declined.',
+    emptyMessage: 'No rejected suggestions',
+    status: 'REJECTED',
+    headingClassName: 'text-rose-700',
+  },
+  expired: {
+    title: 'Expired',
+    description: 'Suggestions that are no longer active.',
+    emptyMessage: 'No expired suggestions',
+    status: 'EXPIRED',
+    headingClassName: 'text-slate-700',
+  },
+};
+
+const statusLabels: Record<AiSuggestionStatus, string> = {
+  PENDING_REVIEW: 'Pending review',
+  ACCEPTED: 'Accepted',
+  EDITED_AND_ACCEPTED: 'Edited and accepted',
+  REJECTED: 'Rejected',
+  EXPIRED: 'Expired',
+};
+
+const typeLabels: Partial<Record<AiSuggestionType, string>> = {
+  SUGGEST_NEXT_STEPS: 'Lead next steps',
+  ANALYZE_EXTERNAL_EMAIL: 'Email analysis',
+  GENERATE_EMAIL_REPLY_DRAFT: 'Email reply draft',
+  ANALYZE_EXTERNAL_CALENDAR_EVENT: 'Calendar analysis',
+  ANALYZE_MESSAGE: 'Message analysis',
+  GENERATE_REPLY: 'Reply generation',
+  EXTRACT_IMPORTANT_DATA: 'Data extraction',
+  SUMMARIZE_LEAD: 'Lead summary',
+};
+
+const appliedActionLabels: Record<string, string> = {
+  UPDATE_LEAD_NEXT_STEP: 'Next step applied',
+  CREATE_TASK: 'Task created',
+  CREATE_TASK_FROM_EXTERNAL_EMAIL: 'Task created',
+  CREATE_TASK_FROM_EXTERNAL_CALENDAR: 'Task created',
+  CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT: 'Task created',
+  CREATE_NOTE: 'Note created',
+  CREATE_NOTE_FROM_EXTERNAL_EMAIL: 'Note created',
+  CREATE_NOTE_FROM_EXTERNAL_CALENDAR: 'Note created',
+  CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT: 'Note created',
+  CREATE_LEAD_FROM_EXTERNAL_EMAIL: 'Lead created',
+  CREATE_LEAD_FROM_EXTERNAL_CALENDAR: 'Lead created',
+  CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT: 'Lead created',
+  CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION: 'Gmail draft created',
+};
+
+const emptyStatusColumnState: StatusColumnState = {
+  items: [],
+  total: 0,
+  totalPages: 1,
+  isLoading: true,
+  errorMessage: null,
+};
+
+function getStatusClasses(status: AiSuggestionStatus) {
+  const classes: Record<AiSuggestionStatus, string> = {
+    PENDING_REVIEW: 'bg-amber-50 text-amber-700 ring-amber-200',
+    ACCEPTED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    EDITED_AND_ACCEPTED: 'bg-blue-50 text-blue-700 ring-blue-200',
+    REJECTED: 'bg-rose-50 text-rose-700 ring-rose-200',
+    EXPIRED: 'bg-slate-100 text-slate-700 ring-slate-200',
+  };
+
+  return classes[status];
+}
+
+function getStatusLabel(status: AiSuggestionStatus) {
+  return statusLabels[status] ?? formatEnumLabel(status);
+}
+
+function getTypeLabel(type: AiSuggestionType) {
+  return typeLabels[type] ?? formatEnumLabel(type);
+}
+
+function getConfidenceLabel(suggestion: AiSuggestion) {
+  if (suggestion.confidenceScore === null) {
+    return 'Not set';
+  }
+
+  return `${Math.round(suggestion.confidenceScore * 100)}%`;
+}
+
+function getMetadataString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getAppliedActionNames(suggestion: AiSuggestion) {
+  const actions = suggestion.metadataJson?.appliedActions;
+
+  if (!Array.isArray(actions)) {
+    return [];
+  }
+
+  return actions.flatMap((appliedAction) => {
+    if (typeof appliedAction === 'string') {
+      return appliedAction;
+    }
+
+    if (
+      !appliedAction ||
+      typeof appliedAction !== 'object' ||
+      Array.isArray(appliedAction)
+    ) {
+      return [];
+    }
+
+    const action = (appliedAction as Record<string, unknown>).action;
+
+    return typeof action === 'string' ? action : [];
+  });
+}
+
+function hasAppliedAction(suggestion: AiSuggestion, action: string) {
+  return getAppliedActionNames(suggestion).includes(action);
+}
+
+function hasGmailDraftCreated(suggestion: AiSuggestion) {
+  return (
+    Boolean(getMetadataString(suggestion.metadataJson?.gmailDraftId)) ||
+    hasAppliedAction(
+      suggestion,
+      'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION',
+    )
+  );
+}
+
+function getAppliedLabels(suggestion: AiSuggestion) {
+  const labels = new Set(
+    getAppliedActionNames(suggestion)
+      .map((action) => appliedActionLabels[action])
+      .filter(Boolean),
+  );
+
+  if (hasGmailDraftCreated(suggestion)) {
+    labels.add('Gmail draft created');
+  }
+
+  return Array.from(labels);
+}
+
+function hasCompletedAction(suggestion: AiSuggestion) {
+  return getAppliedLabels(suggestion).length > 0;
+}
+
+function getReplyDraftSubject(suggestion: AiSuggestion) {
+  return (
+    getMetadataString(suggestion.metadataJson?.suggestedSubject) ??
+    suggestion.externalEmailMessage?.subject ??
+    'No subject'
+  );
+}
+
+function getEmailSender(suggestion: AiSuggestion) {
+  const senderName = getMetadataString(
+    suggestion.externalEmailMessage?.fromName,
+  );
+  const senderEmail = getMetadataString(
+    suggestion.externalEmailMessage?.fromEmail,
+  );
+
+  if (senderName && senderEmail) {
+    return `${senderName} <${senderEmail}>`;
+  }
+
+  return senderEmail ?? senderName ?? 'Unknown sender';
+}
+
+function getAttendeesCount(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+
+  return null;
+}
+
+function getSuggestionTitle(suggestion: AiSuggestion) {
+  if (suggestion.title) {
+    return suggestion.title;
+  }
+
+  if (suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT') {
+    return getReplyDraftSubject(suggestion);
+  }
+
+  if (suggestion.externalEmailMessage?.subject) {
+    return suggestion.externalEmailMessage.subject;
+  }
+
+  if (suggestion.externalCalendarEvent?.summary) {
+    return suggestion.externalCalendarEvent.summary;
+  }
+
+  return 'Untitled AI suggestion';
+}
+
+function getSourcePreview(suggestion: AiSuggestion) {
+  if (
+    suggestion.type === 'ANALYZE_EXTERNAL_EMAIL' ||
+    suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT'
+  ) {
+    const snippet =
+      truncateText(suggestion.externalEmailMessage?.snippet, 120) ||
+      truncateText(suggestion.outputText, 120) ||
+      'No snippet available.';
+
+    return (
+      <div className="space-y-1 text-xs leading-5 text-slate-600">
+        <p className="font-medium text-slate-800">
+          {suggestion.externalEmailMessage?.subject ?? 'No subject'}
+        </p>
+        <p>{getEmailSender(suggestion)}</p>
+        {suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT' ? (
+          <p>
+            Suggested subject:{' '}
+            <span className="font-medium text-slate-800">
+              {getReplyDraftSubject(suggestion)}
+            </span>
+          </p>
+        ) : null}
+        <p>{snippet}</p>
+      </div>
+    );
+  }
+
+  if (suggestion.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT') {
+    const event = suggestion.externalCalendarEvent;
+    const attendeesCount = getAttendeesCount(event?.attendeesJson);
+
+    return (
+      <div className="space-y-1 text-xs leading-5 text-slate-600">
+        <p className="font-medium text-slate-800">
+          {event?.summary ?? 'No title'}
+        </p>
+        <p>{formatDateTime(event?.startAt)}</p>
+        <p>{event?.organizerName || event?.organizerEmail || 'Unknown organizer'}</p>
+        <p>Attendees: {attendeesCount === null ? 'Not set' : attendeesCount}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 text-xs leading-5 text-slate-600">
+      <p className="font-medium text-slate-800">Lead recommendation</p>
+      <p>
+        {suggestion.leadId
+          ? `Lead ${suggestion.leadId}`
+          : suggestion.entityType && suggestion.entityId
+            ? `${formatEnumLabel(suggestion.entityType)} / ${suggestion.entityId}`
+            : 'No linked source context available.'}
+      </p>
+    </div>
+  );
+}
+
+function getTotalPages(total: number) {
+  return Math.max(1, Math.ceil(total / BOARD_PAGE_SIZE));
+}
+
+function paginateItems(items: AiSuggestion[], page: number) {
+  const startIndex = (page - 1) * BOARD_PAGE_SIZE;
+
+  return items.slice(startIndex, startIndex + BOARD_PAGE_SIZE);
+}
+
+function sortSuggestionsByCreatedAt(suggestions: AiSuggestion[]) {
+  return [...suggestions].sort(
+    (firstSuggestion, secondSuggestion) =>
+      new Date(secondSuggestion.createdAt).getTime() -
+      new Date(firstSuggestion.createdAt).getTime(),
+  );
+}
+
+function getSafeErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
+  const appliedLabels = getAppliedLabels(suggestion);
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Badge className={getStatusClasses(suggestion.status)}>
+            {getStatusLabel(suggestion.status)}
+          </Badge>
+          <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
+            {getTypeLabel(suggestion.type)}
+          </Badge>
+        </div>
+
+        <div>
+          <Link
+            href={`/dashboard/ai-suggestions/${suggestion.id}`}
+            className="text-sm font-semibold leading-5 text-slate-950 transition hover:text-blue-700"
+          >
+            {getSuggestionTitle(suggestion)}
+          </Link>
+          <div className="mt-2 space-y-1 text-xs text-slate-500">
+            <p>Confidence: {getConfidenceLabel(suggestion)}</p>
+            <p>Created {formatDateTime(suggestion.createdAt)}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          {getSourcePreview(suggestion)}
+        </div>
+
+        {appliedLabels.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {appliedLabels.map((label) => (
+              <Badge
+                key={label}
+                className="bg-emerald-50 text-emerald-700 ring-emerald-200"
+              >
+                {label}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
+        <Link
+          href={`/dashboard/ai-suggestions/${suggestion.id}`}
+          className="inline-flex text-xs font-medium text-blue-700 transition hover:text-blue-900"
+        >
+          View details
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+type BoardColumnProps = {
+  title: string;
+  description: string;
+  emptyMessage: string;
+  headingClassName: string;
+  items: AiSuggestion[];
+  total: number;
+  page: number;
+  totalPages: number;
+  isLoading: boolean;
+  errorMessage: string | null;
+  onPrevious: () => void;
+  onNext: () => void;
+  onRetry: () => void;
+};
+
+function BoardColumn({
+  title,
+  description,
+  emptyMessage,
+  headingClassName,
+  items,
+  total,
+  page,
+  totalPages,
+  isLoading,
+  errorMessage,
+  onPrevious,
+  onNext,
+  onRetry,
+}: BoardColumnProps) {
+  return (
+    <section className="flex min-h-[660px] flex-col rounded-2xl border border-slate-200 bg-slate-50">
+      <div className="border-b border-slate-200 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className={`text-sm font-semibold ${headingClassName}`}>
+              {title}
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {description}
+            </p>
+          </div>
+          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+            {total}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-3 p-3">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white"
+            />
+          ))
+        ) : null}
+
+        {!isLoading && errorMessage ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <p>{errorMessage}</p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {!isLoading && !errorMessage && items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
+            {emptyMessage}
+          </div>
+        ) : null}
+
+        {!isLoading && !errorMessage
+          ? items.map((suggestion) => (
+              <SuggestionCard key={suggestion.id} suggestion={suggestion} />
+            ))
+          : null}
+      </div>
+
+      <div className="border-t border-slate-200 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            disabled={page <= 1 || isLoading}
+            onClick={onPrevious}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+
+          <span className="text-xs text-slate-500">
+            Page {page} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            disabled={page >= totalPages || isLoading}
+            onClick={onNext}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function AiSuggestionsBoardPage() {
+  const { token } = useAuth();
+
+  const [statusPages, setStatusPages] = useState<Record<StatusColumnKey, number>>({
+    pending: 1,
+    rejected: 1,
+    expired: 1,
+  });
+  const [statusColumns, setStatusColumns] = useState<
+    Record<StatusColumnKey, StatusColumnState>
+  >({
+    pending: emptyStatusColumnState,
+    rejected: emptyStatusColumnState,
+    expired: emptyStatusColumnState,
+  });
+  const [acceptedItems, setAcceptedItems] = useState<AiSuggestion[]>([]);
+  const [completedItems, setCompletedItems] = useState<AiSuggestion[]>([]);
+  const [acceptedPage, setAcceptedPage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
+  const [isAcceptedLoading, setIsAcceptedLoading] = useState(true);
+  const [acceptedErrorMessage, setAcceptedErrorMessage] = useState<string | null>(
+    null,
+  );
+
+  const loadStatusColumn = useCallback(
+    async (key: StatusColumnKey, page: number) => {
+      if (!token) {
+        setStatusColumns((currentColumns) => ({
+          ...currentColumns,
+          [key]: {
+            ...currentColumns[key],
+            isLoading: false,
+          },
+        }));
+        return;
+      }
+
+      setStatusColumns((currentColumns) => ({
+        ...currentColumns,
+        [key]: {
+          ...currentColumns[key],
+          isLoading: true,
+          errorMessage: null,
+        },
+      }));
+
+      try {
+        const response = await getAiSuggestions(token, {
+          page,
+          pageSize: BOARD_PAGE_SIZE,
+          status: statusColumnConfig[key].status,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        });
+
+        setStatusColumns((currentColumns) => ({
+          ...currentColumns,
+          [key]: {
+            items: response.data,
+            total: response.meta.total,
+            totalPages: response.meta.totalPages || 1,
+            isLoading: false,
+            errorMessage: null,
+          },
+        }));
+      } catch (error) {
+        setStatusColumns((currentColumns) => ({
+          ...currentColumns,
+          [key]: {
+            ...currentColumns[key],
+            isLoading: false,
+            errorMessage: getSafeErrorMessage(
+              error,
+              `Could not load ${statusColumnConfig[key].title}.`,
+            ),
+          },
+        }));
+      }
+    },
+    [token],
+  );
+
+  const loadAcceptedColumns = useCallback(async () => {
+    if (!token) {
+      setIsAcceptedLoading(false);
+      return;
+    }
+
+    setIsAcceptedLoading(true);
+    setAcceptedErrorMessage(null);
+
+    try {
+      const [acceptedResponse, editedResponse] = await Promise.all([
+        getAiSuggestions(token, {
+          page: 1,
+          pageSize: ACCEPTED_POOL_PAGE_SIZE,
+          status: 'ACCEPTED',
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        }),
+        getAiSuggestions(token, {
+          page: 1,
+          pageSize: ACCEPTED_POOL_PAGE_SIZE,
+          status: 'EDITED_AND_ACCEPTED',
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        }),
+      ]);
+
+      const reviewedSuggestions = sortSuggestionsByCreatedAt([
+        ...acceptedResponse.data,
+        ...editedResponse.data,
+      ]);
+
+      setAcceptedItems(
+        reviewedSuggestions.filter((suggestion) => !hasCompletedAction(suggestion)),
+      );
+      setCompletedItems(reviewedSuggestions.filter(hasCompletedAction));
+    } catch (error) {
+      setAcceptedErrorMessage(
+        getSafeErrorMessage(error, 'Could not load accepted suggestions.'),
+      );
+    } finally {
+      setIsAcceptedLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    void loadStatusColumn('pending', statusPages.pending);
+  }, [loadStatusColumn, statusPages.pending]);
+
+  useEffect(() => {
+    void loadStatusColumn('rejected', statusPages.rejected);
+  }, [loadStatusColumn, statusPages.rejected]);
+
+  useEffect(() => {
+    void loadStatusColumn('expired', statusPages.expired);
+  }, [loadStatusColumn, statusPages.expired]);
+
+  useEffect(() => {
+    void loadAcceptedColumns();
+  }, [loadAcceptedColumns]);
+
+  const acceptedTotalPages = getTotalPages(acceptedItems.length);
+  const completedTotalPages = getTotalPages(completedItems.length);
+
+  useEffect(() => {
+    setAcceptedPage((currentPage) =>
+      Math.min(currentPage, acceptedTotalPages),
+    );
+  }, [acceptedTotalPages]);
+
+  useEffect(() => {
+    setCompletedPage((currentPage) =>
+      Math.min(currentPage, completedTotalPages),
+    );
+  }, [completedTotalPages]);
+
+  const visibleAcceptedItems = useMemo(
+    () => paginateItems(acceptedItems, acceptedPage),
+    [acceptedItems, acceptedPage],
+  );
+  const visibleCompletedItems = useMemo(
+    () => paginateItems(completedItems, completedPage),
+    [completedItems, completedPage],
+  );
+
+  function setStatusColumnPage(key: StatusColumnKey, nextPage: number) {
+    setStatusPages((currentPages) => ({
+      ...currentPages,
+      [key]: nextPage,
+    }));
+  }
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="AI Review"
+        title="AI Suggestions Board"
+        description="Review AI suggestions visually by status. Cards only open details; email sending, Gmail drafts, and CRM apply actions still require explicit human action on the detail page."
+        actions={
+          <>
+            <Link
+              href="/dashboard/ai-suggestions"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              List view
+            </Link>
+            <Link
+              href="/dashboard/ai-workspace"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              AI Workspace
+            </Link>
+          </>
+        }
+      />
+
+      <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
+        <div className="grid gap-3 md:grid-cols-4">
+          {[
+            'Human review required',
+            'No automatic email sending',
+            'No Gmail draft from board cards',
+            'No CRM records from board cards',
+          ].map((message) => (
+            <div
+              key={message}
+              className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm font-medium text-blue-800"
+            >
+              {message}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="overflow-x-auto pb-3">
+        <div className="grid min-w-[1700px] gap-4 xl:grid-cols-5">
+          <BoardColumn
+            title={statusColumnConfig.pending.title}
+            description={statusColumnConfig.pending.description}
+            emptyMessage={statusColumnConfig.pending.emptyMessage}
+            headingClassName={statusColumnConfig.pending.headingClassName}
+            items={statusColumns.pending.items}
+            total={statusColumns.pending.total}
+            page={statusPages.pending}
+            totalPages={statusColumns.pending.totalPages}
+            isLoading={statusColumns.pending.isLoading}
+            errorMessage={statusColumns.pending.errorMessage}
+            onPrevious={() =>
+              setStatusColumnPage('pending', statusPages.pending - 1)
+            }
+            onNext={() => setStatusColumnPage('pending', statusPages.pending + 1)}
+            onRetry={() => void loadStatusColumn('pending', statusPages.pending)}
+          />
+
+          <BoardColumn
+            title="Accepted"
+            description="Approved suggestions that still have no completed action."
+            emptyMessage="No accepted suggestions"
+            headingClassName="text-emerald-700"
+            items={visibleAcceptedItems}
+            total={acceptedItems.length}
+            page={acceptedPage}
+            totalPages={acceptedTotalPages}
+            isLoading={isAcceptedLoading}
+            errorMessage={acceptedErrorMessage}
+            onPrevious={() => setAcceptedPage((currentPage) => currentPage - 1)}
+            onNext={() => setAcceptedPage((currentPage) => currentPage + 1)}
+            onRetry={() => void loadAcceptedColumns()}
+          />
+
+          <BoardColumn
+            title="Completed Actions"
+            description="Accepted suggestions with applied CRM or Gmail draft actions."
+            emptyMessage="No completed actions"
+            headingClassName="text-blue-700"
+            items={visibleCompletedItems}
+            total={completedItems.length}
+            page={completedPage}
+            totalPages={completedTotalPages}
+            isLoading={isAcceptedLoading}
+            errorMessage={acceptedErrorMessage}
+            onPrevious={() => setCompletedPage((currentPage) => currentPage - 1)}
+            onNext={() => setCompletedPage((currentPage) => currentPage + 1)}
+            onRetry={() => void loadAcceptedColumns()}
+          />
+
+          <BoardColumn
+            title={statusColumnConfig.rejected.title}
+            description={statusColumnConfig.rejected.description}
+            emptyMessage={statusColumnConfig.rejected.emptyMessage}
+            headingClassName={statusColumnConfig.rejected.headingClassName}
+            items={statusColumns.rejected.items}
+            total={statusColumns.rejected.total}
+            page={statusPages.rejected}
+            totalPages={statusColumns.rejected.totalPages}
+            isLoading={statusColumns.rejected.isLoading}
+            errorMessage={statusColumns.rejected.errorMessage}
+            onPrevious={() =>
+              setStatusColumnPage('rejected', statusPages.rejected - 1)
+            }
+            onNext={() =>
+              setStatusColumnPage('rejected', statusPages.rejected + 1)
+            }
+            onRetry={() =>
+              void loadStatusColumn('rejected', statusPages.rejected)
+            }
+          />
+
+          <BoardColumn
+            title={statusColumnConfig.expired.title}
+            description={statusColumnConfig.expired.description}
+            emptyMessage={statusColumnConfig.expired.emptyMessage}
+            headingClassName={statusColumnConfig.expired.headingClassName}
+            items={statusColumns.expired.items}
+            total={statusColumns.expired.total}
+            page={statusPages.expired}
+            totalPages={statusColumns.expired.totalPages}
+            isLoading={statusColumns.expired.isLoading}
+            errorMessage={statusColumns.expired.errorMessage}
+            onPrevious={() =>
+              setStatusColumnPage('expired', statusPages.expired - 1)
+            }
+            onNext={() => setStatusColumnPage('expired', statusPages.expired + 1)}
+            onRetry={() => void loadStatusColumn('expired', statusPages.expired)}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
