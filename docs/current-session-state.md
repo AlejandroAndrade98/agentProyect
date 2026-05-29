@@ -232,3 +232,16 @@ Current AI Workspace flow:
 - No Gmail draft is created automatically from the workspace.
 - No CRM records are created automatically.
 - Human review remains required.
+
+## Latest completed phase
+
+Phase 17G.1 Apply External Calendar Suggestion to CRM Task is completed and validated.
+
+Current AI Calendar apply flow:
+- Users can analyze synced calendar events.
+- Calendar analysis suggestions require human review.
+- Accepted calendar suggestions can create CRM Tasks through explicit user action.
+- Created task state appears in the AI Suggestion detail page.
+- No task is created automatically during analysis.
+- No email is sent automatically.
+- No lead, contact, company, or note is created automatically.

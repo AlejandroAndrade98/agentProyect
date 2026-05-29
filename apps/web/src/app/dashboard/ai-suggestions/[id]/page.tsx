@@ -133,6 +133,7 @@ type AppliedActionName =
   | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
   | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
   | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
@@ -768,9 +769,27 @@ const externalEmailLeadApplied = hasAppliedAction(
   suggestion,
   'CREATE_LEAD_FROM_EXTERNAL_EMAIL',
 );
-const externalCalendarTaskApplied = hasAppliedAction(
-  suggestion,
-  'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+const externalCalendarTaskAction =
+  getAppliedActionRecord(
+    suggestion,
+    'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT',
+  ) ??
+  getAppliedActionRecord(
+    suggestion,
+    'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+  );
+const externalCalendarTaskApplied = Boolean(externalCalendarTaskAction);
+const externalCalendarTaskId =
+  getMetadataString(externalCalendarTaskAction?.recordId) ??
+  getMetadataString(
+    (externalCalendarTaskAction?.details as Record<string, unknown> | undefined)
+      ?.taskId,
+  );
+const externalCalendarTaskAppliedAt = getMetadataString(
+  externalCalendarTaskAction?.appliedAt,
+);
+const externalCalendarTaskAppliedByUserId = getMetadataString(
+  externalCalendarTaskAction?.appliedByUserId,
 );
 const externalCalendarNoteApplied = hasAppliedAction(
   suggestion,
@@ -1850,6 +1869,52 @@ const canCreateGmailDraft =
         </article>
       ) : null}
 
+        {isExternalCalendarSuggestion && externalCalendarTaskApplied ? (
+        <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-emerald-700">
+              External calendar action
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-emerald-950">
+              CRM task created
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-emerald-800">
+              Created by explicit human action. No email was sent automatically,
+              and no lead, contact, company, or note was created automatically.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <div>
+              <p className="font-medium text-emerald-950">Task ID</p>
+              <p className="mt-1 break-all text-emerald-800">
+                {externalCalendarTaskId ?? 'Created'}
+              </p>
+            </div>
+
+            {externalCalendarTaskAppliedAt ? (
+              <div>
+                <p className="font-medium text-emerald-950">Applied at</p>
+                <p className="mt-1 text-emerald-800">
+                  {formatDateTime(externalCalendarTaskAppliedAt)}
+                </p>
+              </div>
+            ) : null}
+
+            {externalCalendarTaskAppliedByUserId ? (
+              <div>
+                <p className="font-medium text-emerald-950">
+                  Applied by user ID
+                </p>
+                <p className="mt-1 break-all text-emerald-800">
+                  {externalCalendarTaskAppliedByUserId}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </article>
+      ) : null}
+
         {canApplyExternalCalendarTask && !externalCalendarTaskApplied ? (
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
@@ -1862,7 +1927,7 @@ const canCreateGmailDraft =
             <p className="mt-2 text-sm leading-6 text-slate-600">
               This creates one official CRM task from the accepted calendar
               review. It requires this explicit human click and does not send an
-              email.
+              email. No task is created automatically.
             </p>
           </div>
 
@@ -1875,7 +1940,8 @@ const canCreateGmailDraft =
                 <p className="mt-1 text-sm text-slate-500">
                   The task will include safe synced calendar metadata, AI
                   summary, reasoning, event identifiers, and a human approval
-                  notice. No company, contact, lead, or email will be created.
+                  notice. No company, contact, lead, note, or email will be
+                  created automatically.
                 </p>
               </div>
             </div>

@@ -126,6 +126,7 @@ type AppliedActionName =
   | 'CREATE_NOTE_FROM_EXTERNAL_EMAIL'
   | 'CREATE_TASK_FROM_EXTERNAL_EMAIL'
   | 'CREATE_LEAD_FROM_EXTERNAL_EMAIL'
+  | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_TASK_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_NOTE_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
@@ -2145,6 +2146,10 @@ export class AiSuggestionsService {
     if (
       this.hasAppliedAction(
         suggestion.metadataJson,
+        'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT',
+      ) ||
+      this.hasAppliedAction(
+        suggestion.metadataJson,
         'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
       )
     ) {
@@ -2204,23 +2209,33 @@ export class AiSuggestionsService {
           id: suggestion.id,
         },
         data: {
-          metadataJson: this.buildAppliedMetadata({
-            metadataJson: suggestion.metadataJson,
-            action: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
-            currentUser,
-            appliedAt,
-            recordType: EntityType.TASK,
-            recordId: task.id,
-            details: {
-              title,
-              priority,
-              dueDate: dueDate?.toISOString() ?? null,
-              externalCalendarEventId: suggestion.externalCalendarEventId,
-              externalEventId: calendarEvent?.externalEventId ?? null,
-              externalCalendarId: calendarEvent?.externalCalendarId ?? null,
-              emailSentAutomatically: false,
-            },
-          }),
+          metadataJson: {
+            ...(this.buildAppliedMetadata({
+              metadataJson: suggestion.metadataJson,
+              action: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT',
+              currentUser,
+              appliedAt,
+              recordType: EntityType.TASK,
+              recordId: task.id,
+              details: {
+                taskId: task.id,
+                title,
+                priority,
+                dueDate: dueDate?.toISOString() ?? null,
+                externalCalendarEventId: suggestion.externalCalendarEventId,
+                externalEventId: calendarEvent?.externalEventId ?? null,
+                externalCalendarId: calendarEvent?.externalCalendarId ?? null,
+                crmRecordsCreated: true,
+                emailSentAutomatically: false,
+                taskCreatedAutomatically: false,
+              },
+            }) as Record<string, unknown>),
+            appliedAt: appliedAt.toISOString(),
+            appliedByUserId: currentUser.id,
+            crmRecordsCreated: true,
+            emailSentAutomatically: false,
+            taskCreatedAutomatically: false,
+          },
         },
         include: this.getSuggestionInclude(),
       });
@@ -2242,15 +2257,17 @@ export class AiSuggestionsService {
           metadataJson: {
             aiSuggestionId: suggestion.id,
             aiSuggestionType: suggestion.type,
-            appliedAction: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR',
+            appliedAction: 'CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT',
             externalCalendarEventId: suggestion.externalCalendarEventId,
             externalEventId: calendarEvent?.externalEventId ?? null,
             externalCalendarId: calendarEvent?.externalCalendarId ?? null,
             taskId: task.id,
             appliedToCrm: true,
+            crmRecordsCreated: true,
             canApplyAutomatically: false,
             canSendEmailAutomatically: false,
             emailSentAutomatically: false,
+            taskCreatedAutomatically: false,
           },
         }),
       });
@@ -2887,6 +2904,7 @@ export class AiSuggestionsService {
         '(unknown)'
       }`,
       `Organizer email: ${calendarEvent?.organizerEmail ?? '(unknown)'}`,
+      `Calendar link: ${calendarEvent?.htmlLink ?? '(none)'}`,
       `Synced at: ${calendarEvent?.syncedAt?.toISOString() ?? '(unknown)'}`,
       `External calendar event id: ${externalCalendarEventId}`,
       `External provider event id: ${calendarEvent?.externalEventId ?? '(unknown)'}`,
@@ -2895,6 +2913,7 @@ export class AiSuggestionsService {
       '',
       'AI review context:',
       output.summary ? `Summary: ${output.summary}` : null,
+      output.suggestedNote ? `Suggested note: ${output.suggestedNote}` : null,
       output.reasoningSummary ? `Reasoning: ${output.reasoningSummary}` : null,
       '',
       'Human approval: This task was created by explicit human action from an accepted AI suggestion. No company, contact, or lead was created automatically. No email was sent automatically.',

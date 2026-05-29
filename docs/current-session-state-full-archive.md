@@ -4315,3 +4315,95 @@ Validation completed:
 - Sync Gmail works and refreshes data.
 - Sync Calendar works and refreshes data.
 - Existing AI Suggestions, Synced Emails, and Synced Calendar pages still work.
+
+## Phase 17G.1, Apply External Calendar Suggestion to CRM Task
+
+Status: completed, validated in build/runtime, pending commit/push.
+
+This phase added a human-controlled apply action to create a CRM Task from an accepted external calendar AI suggestion.
+
+Backend behavior implemented:
+
+- Reused existing endpoint:
+  - `POST /api/ai-suggestions/:id/apply/external-calendar-task`
+
+- Calendar task apply action now uses:
+  - `CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Duplicate protection checks:
+  - `CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT`
+  - legacy `CREATE_TASK_FROM_EXTERNAL_CALENDAR`
+
+- The action only works for accepted calendar suggestions:
+  - `ANALYZE_EXTERNAL_CALENDAR_EVENT`
+  - `ACCEPTED` or `EDITED_AND_ACCEPTED`
+
+- Task creation remains explicit human action only.
+
+CRM Task behavior:
+
+- Creates a CRM Task only after the user clicks the apply action.
+- Task is assigned to the current user.
+- Task description includes safe synced calendar metadata:
+  - event summary
+  - organizer
+  - start/end time
+  - location when available
+  - calendar link when available
+  - AI suggested note/reasoning when available
+
+Suggestion metadata updates:
+
+- Stores applied action:
+  - `CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT`
+
+- Stores:
+  - created task id
+  - appliedAt
+  - appliedByUserId
+  - `crmRecordsCreated = true`
+  - `emailSentAutomatically = false`
+  - `taskCreatedAutomatically = false`
+
+Activity Events:
+
+- Creates `AI_SUGGESTION_APPLIED`.
+- Activity metadata includes:
+  - aiSuggestionId
+  - aiSuggestionType
+  - appliedAction
+  - externalCalendarEventId
+  - taskId
+  - crmRecordsCreated = true
+  - emailSentAutomatically = false
+  - taskCreatedAutomatically = false
+
+Frontend behavior implemented:
+
+- AI Suggestion detail page now supports applied state for external calendar task creation.
+- Shows:
+  - `CRM task created`
+  - task id when available
+  - explicit human action notice
+  - no automatic email notice
+
+Safety rules preserved:
+
+- No task is created automatically during analysis.
+- Creating a task requires explicit human action.
+- No email is sent automatically.
+- No Gmail draft is created.
+- No lead, contact, company, or note is created automatically.
+- Human-in-the-loop workflow remains enforced.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm build` passed.
+- Calendar event analysis was created.
+- Calendar suggestion was accepted.
+- CRM Task was created only after explicit user action.
+- Applied state appeared in the AI Suggestion detail page.
+- Duplicate apply was blocked.
+- `AI_SUGGESTION_APPLIED` ActivityEvent was created.
+- No email, Gmail draft, lead, contact, company, or note was created automatically.
