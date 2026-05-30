@@ -88,6 +88,8 @@ const syncStatusKeys: Record<string, string> = {
   ERROR: 'common.syncStatuses.error',
   INITIAL_SYNC_RUNNING: 'common.syncStatuses.initialSyncRunning',
   INITIAL_SYNC_PENDING: 'common.syncStatuses.initialSyncPending',
+  NOT_STARTED: 'common.syncStatuses.notStarted',
+  PAUSED: 'common.syncStatuses.paused',
 };
 
 const activityTypeKeys: Record<string, string> = {
@@ -109,6 +111,58 @@ const entityTypeKeys: Record<string, string> = {
   LEAD: 'crm.enums.entityTypes.lead',
   TASK: 'crm.enums.entityTypes.task',
   NOTE: 'crm.enums.entityTypes.note',
+};
+
+const organizationStatusKeys: Record<string, string> = {
+  TRIAL: 'settings.statuses.trial',
+  ACTIVE: 'settings.statuses.active',
+  SUSPENDED: 'settings.statuses.suspended',
+  CANCELLED: 'settings.statuses.cancelled',
+};
+
+const accountTypeKeys: Record<string, string> = {
+  INDIVIDUAL: 'settings.connectedAccounts.accountTypes.individual',
+  COMPANY: 'settings.connectedAccounts.accountTypes.company',
+};
+
+const organizationRoleKeys: Record<string, string> = {
+  SUPER_ADMIN: 'settings.users.roles.superAdmin',
+  OWNER: 'settings.users.roles.owner',
+  ADMIN: 'settings.users.roles.admin',
+  SALES: 'settings.users.roles.sales',
+  VIEWER: 'settings.users.roles.viewer',
+};
+
+const invitationStatusKeys: Record<string, string> = {
+  PENDING: 'settings.users.invitationStatuses.pending',
+  ACCEPTED: 'settings.users.invitationStatuses.accepted',
+  REVOKED: 'settings.users.invitationStatuses.revoked',
+  EXPIRED: 'settings.users.invitationStatuses.expired',
+};
+
+const aiUsageStatusKeys: Record<string, string> = {
+  SUCCESS: 'settings.aiUsage.statuses.success',
+  FAILED: 'settings.aiUsage.statuses.failed',
+  BLOCKED: 'settings.aiUsage.statuses.blocked',
+};
+
+const connectedAccountStatusKeys: Record<string, string> = {
+  CONNECTED: 'settings.connectedAccounts.statuses.connected',
+  DISCONNECT_REQUESTED: 'settings.connectedAccounts.statuses.disconnectRequested',
+  DISCONNECTED: 'settings.connectedAccounts.statuses.disconnected',
+  REVOKED: 'settings.connectedAccounts.statuses.revoked',
+  ERROR: 'settings.connectedAccounts.statuses.error',
+  PENDING: 'settings.connectedAccounts.statuses.pending',
+};
+
+const connectedAccountProviderKeys: Record<string, string> = {
+  GOOGLE: 'settings.connectedAccounts.providers.google',
+  MICROSOFT: 'settings.connectedAccounts.providers.microsoft',
+};
+
+const connectedAccountCapabilityKeys: Record<string, string> = {
+  EMAIL: 'settings.connectedAccounts.capabilitiesLabels.email',
+  CALENDAR: 'settings.connectedAccounts.capabilitiesLabels.calendar',
 };
 
 export function getAiStatusLabel(status: AiSuggestionStatus, t: Translate) {
@@ -171,4 +225,55 @@ export function getEntityTypeLabel(type: string, t: Translate) {
   const key = entityTypeKeys[type];
 
   return key ? t(key) : formatEnumLabel(type);
+}
+
+export function getOrganizationStatusLabel(status: string, t: Translate) {
+  const key = organizationStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
+}
+
+export function getAccountTypeLabel(accountType: string, t: Translate) {
+  const key = accountTypeKeys[accountType];
+
+  return key ? t(key) : formatEnumLabel(accountType);
+}
+
+export function getOrganizationRoleLabel(role: string, t: Translate) {
+  const key = organizationRoleKeys[role];
+
+  return key ? t(key) : formatEnumLabel(role);
+}
+
+export function getInvitationStatusLabel(status: string, t: Translate) {
+  const key = invitationStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
+}
+
+export function getAiUsageStatusLabel(status: string, t: Translate) {
+  const key = aiUsageStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
+}
+
+export function getConnectedAccountStatusLabel(status: string, t: Translate) {
+  const key = connectedAccountStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
+}
+
+export function getConnectedAccountProviderLabel(provider: string, t: Translate) {
+  const key = connectedAccountProviderKeys[provider];
+
+  return key ? t(key) : formatEnumLabel(provider);
+}
+
+export function getConnectedAccountCapabilityLabel(
+  capability: string,
+  t: Translate,
+) {
+  const key = connectedAccountCapabilityKeys[capability];
+
+  return key ? t(key) : formatEnumLabel(capability);
 }

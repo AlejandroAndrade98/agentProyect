@@ -9,16 +9,21 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAccountTypeLabel,
+  getOrganizationStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   getCurrentOrganization,
   updateCurrentOrganization,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import type { CurrentOrganizationResponse } from '@/types/organization-settings';
 import type { OrganizationStatus } from '@/types/platform';
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+function formatNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 function getStatusClasses(status: OrganizationStatus) {
@@ -52,6 +57,12 @@ function StatCard({
 
 export default function OrganizationSettingsPage() {
   const { token } = useAuth();
+  const { locale, t } = useI18n();
+  const dateFormatOptions = {
+    locale,
+    fallback: t('common.emptyStates.notSet'),
+    invalidFallback: t('common.errors.invalidDate'),
+  };
 
   const [organization, setOrganization] =
     useState<CurrentOrganizationResponse | null>(null);
@@ -95,12 +106,12 @@ export default function OrganizationSettingsPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load organization settings.');
+        setErrorMessage(t('settings.organization.loadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     loadOrganization();
@@ -128,14 +139,14 @@ export default function OrganizationSettingsPage() {
       });
 
       setOrganization(response);
-      setSuccessMessage('Organization settings updated.');
+      setSuccessMessage(t('settings.organization.updated'));
     } catch (error) {
       if (error instanceof ApiClientError) {
         setErrorMessage(error.message);
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update organization settings.');
+        setErrorMessage(t('settings.organization.updateFailed'));
       }
     } finally {
       setIsSaving(false);
@@ -145,14 +156,14 @@ export default function OrganizationSettingsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Organization Settings"
-        description="Manage your organization profile and workspace preferences."
+        title={t('settings.organization.title')}
+        description={t('settings.organization.subtitle')}
         actions={
           <Link
             href="/dashboard/settings"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Back to settings
+            {t('settings.back')}
           </Link>
         }
       />
@@ -174,11 +185,11 @@ export default function OrganizationSettingsPage() {
               <div>
                 <div className="flex flex-wrap gap-2">
                   <Badge className={getStatusClasses(organization.status)}>
-                    {formatEnumLabel(organization.status)}
+                    {getOrganizationStatusLabel(organization.status, t)}
                   </Badge>
 
                   <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                    {formatEnumLabel(organization.accountType)}
+                    {getAccountTypeLabel(organization.accountType, t)}
                   </Badge>
 
                   <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
@@ -191,53 +202,69 @@ export default function OrganizationSettingsPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  /{organization.slug} · Created{' '}
-                  {formatDateTime(organization.createdAt)}
+                  /{organization.slug} | {t('settings.organization.created')}{' '}
+                  {formatDateTime(organization.createdAt, dateFormatOptions)}
                 </p>
 
                 {organization.statusReason ? (
                   <p className="mt-3 text-sm text-slate-600">
-                    Status reason: {organization.statusReason}
+                    {t('settings.organization.statusReason')}:{' '}
+                    {organization.statusReason}
                   </p>
                 ) : null}
               </div>
 
               <div className="grid gap-1 text-sm text-slate-600 lg:text-right">
-                <span>Billing: {organization.billingEmail ?? 'Not set'}</span>
-                <span>Support: {organization.supportEmail ?? 'Not set'}</span>
-                <span>Timezone: {organization.timezone}</span>
-                <span>Locale: {organization.locale}</span>
+                <span>
+                  {t('settings.organization.billing')}:{' '}
+                  {organization.billingEmail ?? t('common.emptyStates.notSet')}
+                </span>
+                <span>
+                  {t('settings.organization.support')}:{' '}
+                  {organization.supportEmail ?? t('common.emptyStates.notSet')}
+                </span>
+                <span>
+                  {t('settings.organization.timezone')}: {organization.timezone}
+                </span>
+                <span>
+                  {t('settings.organization.locale')}: {organization.locale}
+                </span>
               </div>
             </div>
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              title="Users"
-              value={formatNumber(organization._count.users)}
-              description={`Max users: ${formatNumber(organization.maxUsers)}`}
+              title={t('settings.organization.users')}
+              value={formatNumber(organization._count.users, locale)}
+              description={`${t('settings.organization.maxUsers')}: ${formatNumber(
+                organization.maxUsers,
+                locale,
+              )}`}
             />
 
             <StatCard
-              title="Leads"
-              value={formatNumber(organization._count.leads)}
-              description={`Max active leads: ${formatNumber(
+              title={t('settings.organization.leads')}
+              value={formatNumber(organization._count.leads, locale)}
+              description={`${t('settings.organization.maxActiveLeads')}: ${formatNumber(
                 organization.maxActiveLeads,
+                locale,
               )}`}
             />
 
             <StatCard
-              title="AI credits balance"
-              value={formatNumber(organization.aiCreditsBalance)}
-              description={`Monthly limit: ${formatNumber(
+              title={t('settings.organization.aiCreditsBalance')}
+              value={formatNumber(organization.aiCreditsBalance, locale)}
+              description={`${t('settings.organization.monthlyLimit')}: ${formatNumber(
                 organization.aiMonthlyCreditsLimit,
+                locale,
               )}`}
             />
 
             <StatCard
-              title="AI usage records"
-              value={formatNumber(organization._count.aiUsageRecords)}
-              description="Tracked AI usage records in this organization."
+              title={t('settings.organization.aiUsageRecords')}
+              value={formatNumber(organization._count.aiUsageRecords, locale)}
+              description={t('settings.organization.trackedRecordsDescription')}
             />
           </section>
 
@@ -246,13 +273,13 @@ export default function OrganizationSettingsPage() {
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           >
             <h3 className="text-lg font-semibold text-slate-950">
-              Editable organization profile
+              {t('settings.organization.editableProfile')}
             </h3>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Name
+                  {t('settings.organization.name')}
                 </span>
                 <input
                   value={form.name}
@@ -268,7 +295,7 @@ export default function OrganizationSettingsPage() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Industry
+                  {t('settings.organization.industry')}
                 </span>
                 <input
                   value={form.industry}
@@ -284,7 +311,7 @@ export default function OrganizationSettingsPage() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Billing email
+                  {t('settings.organization.billingEmail')}
                 </span>
                 <input
                   value={form.billingEmail}
@@ -300,7 +327,7 @@ export default function OrganizationSettingsPage() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Support email
+                  {t('settings.organization.supportEmail')}
                 </span>
                 <input
                   value={form.supportEmail}
@@ -316,7 +343,7 @@ export default function OrganizationSettingsPage() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Timezone
+                  {t('settings.organization.timezone')}
                 </span>
                 <input
                   value={form.timezone}
@@ -332,7 +359,7 @@ export default function OrganizationSettingsPage() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Locale
+                  {t('settings.organization.locale')}
                 </span>
                 <input
                   value={form.locale}
@@ -352,7 +379,9 @@ export default function OrganizationSettingsPage() {
               disabled={isSaving}
               className="mt-5 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSaving ? 'Saving...' : 'Save organization settings'}
+              {isSaving
+                ? t('settings.organization.saving')
+                : t('settings.organization.save')}
             </button>
           </form>
         </>

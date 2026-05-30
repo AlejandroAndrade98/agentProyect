@@ -9,6 +9,8 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getAiUsageStatusLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getAiUsageRecords,
@@ -34,12 +36,12 @@ function canViewOrganizationUsage(role?: string) {
   return role === 'SUPER_ADMIN' || role === 'OWNER' || role === 'ADMIN';
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+function formatNumber(value: number, locale = 'en-US') {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
-function formatUsd(value: number) {
-  return new Intl.NumberFormat('en-US', {
+function formatUsd(value: number, locale = 'en-US') {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 4,
@@ -87,11 +89,15 @@ function ProgressCard({
   used,
   limit,
   remainingLabel,
+  limitLabel,
+  locale,
 }: {
   title: string;
   used: number;
   limit: number;
   remainingLabel: string;
+  limitLabel: string;
+  locale: string;
 }) {
   const percent = getPercent(used, limit);
 
@@ -101,7 +107,7 @@ function ProgressCard({
         <div>
           <p className="text-sm font-medium text-slate-500">{title}</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {formatNumber(used)}
+            {formatNumber(used, locale)}
           </p>
         </div>
 
@@ -118,7 +124,7 @@ function ProgressCard({
       </div>
 
       <p className="mt-3 text-sm text-slate-500">
-        Limit: {formatNumber(limit)} · {remainingLabel}
+        {limitLabel}: {formatNumber(limit, locale)} | {remainingLabel}
       </p>
     </article>
   );
@@ -126,6 +132,7 @@ function ProgressCard({
 
 export default function AiUsagePage() {
   const { token, user } = useAuth();
+  const { locale, t } = useI18n();
 
   const [myUsage, setMyUsage] = useState<MyAiUsageResponse | null>(null);
   const [organizationUsage, setOrganizationUsage] =
@@ -177,34 +184,43 @@ export default function AiUsagePage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load AI usage.');
+        setErrorMessage(t('settings.aiUsage.loadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [canSeeOrganization, page, status, token]);
+  }, [canSeeOrganization, page, status, token, t]);
 
   useEffect(() => {
     loadUsage();
   }, [loadUsage]);
 
+  const dateFormatOptions = {
+    locale,
+    fallback: t('common.emptyStates.notSet'),
+    invalidFallback: t('common.errors.invalidDate'),
+  };
+
   const periodLabel = myUsage
-    ? `${formatDateTime(myUsage.period.startDate)} to ${formatDateTime(
+    ? `${formatDateTime(myUsage.period.startDate, dateFormatOptions)} ${t(
+        'settings.aiUsage.to',
+      )} ${formatDateTime(
         myUsage.period.endDate,
+        dateFormatOptions,
       )}`
-    : 'Current month';
+    : t('settings.aiUsage.currentMonth');
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title="AI Usage"
-        description="Monitor AI credits, personal limits, organization usage, and usage history."
+        title={t('settings.aiUsage.title')}
+        description={t('settings.aiUsage.subtitle')}
         actions={
           <Link
             href="/dashboard/settings"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Back to settings
+            {t('settings.back')}
           </Link>
         }
       />
@@ -217,42 +233,50 @@ export default function AiUsagePage() {
         <>
           <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
             <p className="text-sm font-medium text-blue-900">
-              Current period
+              {t('settings.aiUsage.currentPeriod')}
             </p>
             <p className="mt-1 text-sm text-blue-800">{periodLabel}</p>
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <ProgressCard
-              title="My AI credits used"
+              title={t('settings.aiUsage.myCreditsUsed')}
               used={myUsage.user.creditsUsed}
               limit={myUsage.user.monthlyCreditsLimit}
+              limitLabel={t('common.labels.limit')}
+              locale={locale}
               remainingLabel={`${formatNumber(
                 myUsage.user.creditsRemaining,
-              )} remaining`}
+                locale,
+              )} ${t('settings.aiUsage.remaining')}`}
             />
 
             <UsageCard
-              title="My AI requests"
-              value={formatNumber(myUsage.user.requestsCount)}
+              title={t('settings.aiUsage.myRequests')}
+              value={formatNumber(myUsage.user.requestsCount, locale)}
               description={`${formatNumber(
                 myUsage.user.totalTokens,
-              )} total tokens this month.`}
+                locale,
+              )} ${t('settings.aiUsage.totalTokensThisMonth')}`}
             />
 
             <UsageCard
-              title="Organization balance"
-              value={formatNumber(myUsage.organization.creditsBalance)}
-              description="Available AI credits in the organization pool."
+              title={t('settings.aiUsage.organizationBalance')}
+              value={formatNumber(myUsage.organization.creditsBalance, locale)}
+              description={t('settings.aiUsage.organizationBalanceDescription')}
             />
 
             <UsageCard
-              title="AI status"
-              value={myUsage.organization.aiEnabled ? 'Enabled' : 'Disabled'}
+              title={t('settings.aiUsage.aiStatus')}
+              value={
+                myUsage.organization.aiEnabled
+                  ? t('settings.aiUsage.enabled')
+                  : t('settings.aiUsage.disabled')
+              }
               description={
                 myUsage.user.aiEnabled
-                  ? 'Your user can request AI suggestions.'
-                  : 'AI is disabled for your user.'
+                  ? t('settings.aiUsage.userCanRequest')
+                  : t('settings.aiUsage.userAiDisabled')
               }
             />
           </section>
@@ -261,56 +285,63 @@ export default function AiUsagePage() {
             <section className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-blue-700">
-                  Organization AI Usage
+                  {t('settings.aiUsage.organizationTitle')}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                  Team consumption
+                  {t('settings.aiUsage.teamConsumption')}
                 </h2>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <ProgressCard
-                  title="Organization monthly credits"
+                  title={t('settings.aiUsage.organizationMonthlyCredits')}
                   used={organizationUsage.summary.creditsUsed}
                   limit={
                     organizationUsage.organization.aiMonthlyCreditsLimit
                   }
+                  limitLabel={t('common.labels.limit')}
+                  locale={locale}
                   remainingLabel={`${formatNumber(
                     organizationUsage.organization.creditsRemainingMonthly,
-                  )} monthly credits remaining`}
+                    locale,
+                  )} ${t('settings.aiUsage.monthlyCreditsRemaining')}`}
                 />
 
                 <UsageCard
-                  title="Organization requests"
+                  title={t('settings.aiUsage.organizationRequests')}
                   value={formatNumber(
                     organizationUsage.summary.requestsCount,
+                    locale,
                   )}
                   description={`${formatNumber(
                     organizationUsage.summary.totalTokens,
-                  )} total tokens this month.`}
+                    locale,
+                  )} ${t('settings.aiUsage.totalTokensThisMonth')}`}
                 />
 
                 <UsageCard
-                  title="Estimated AI cost"
+                  title={t('settings.aiUsage.estimatedCost')}
                   value={formatUsd(
                     organizationUsage.summary.estimatedCostUsd,
+                    locale,
                   )}
-                  description="Estimated provider cost for tracked usage."
+                  description={t('settings.aiUsage.estimatedCostDescription')}
                 />
 
                 <UsageCard
-                  title="Credits balance"
+                  title={t('settings.aiUsage.creditsBalance')}
                   value={formatNumber(
                     organizationUsage.organization.aiCreditsBalance,
+                    locale,
                   )}
-                  description="Current available organization credit pool."
+                  description={t('settings.aiUsage.creditsBalanceDescription')}
                 />
               </div>
 
               <div className="grid gap-4 xl:grid-cols-2">
                 <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="font-semibold text-slate-950">
-                    Usage by feature
+                    {t('settings.aiUsage.usageByFeature')}
                   </h3>
 
                   <div className="mt-4 space-y-3">
@@ -325,18 +356,21 @@ export default function AiUsagePage() {
                               {formatEnumLabel(feature.feature)}
                             </p>
                             <p className="text-sm font-medium text-slate-700">
-                              {formatNumber(feature.creditsUsed)} credits
+                              {formatNumber(feature.creditsUsed, locale)}{' '}
+                              {t('common.labels.credits')}
                             </p>
                           </div>
                           <p className="mt-1 text-sm text-slate-500">
-                            {formatNumber(feature.requestsCount)} request(s) ·{' '}
-                            {formatNumber(feature.totalTokens)} tokens
+                            {formatNumber(feature.requestsCount, locale)}{' '}
+                            {t('settings.aiUsage.requests')} |{' '}
+                            {formatNumber(feature.totalTokens, locale)}{' '}
+                            {t('common.labels.tokens')}
                           </p>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-slate-500">
-                        No feature usage this month.
+                        {t('settings.aiUsage.noFeatureUsage')}
                       </p>
                     )}
                   </div>
@@ -344,7 +378,7 @@ export default function AiUsagePage() {
 
                 <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="font-semibold text-slate-950">
-                    Usage by user
+                    {t('settings.aiUsage.usageByUser')}
                   </h3>
 
                   <div className="mt-4 space-y-3">
@@ -356,21 +390,25 @@ export default function AiUsagePage() {
                         >
                           <div className="flex justify-between gap-4">
                             <p className="font-medium text-slate-950">
-                              {usage.user?.name ?? 'Unknown user'}
+                              {usage.user?.name ??
+                                t('settings.aiUsage.unknownUser')}
                             </p>
                             <p className="text-sm font-medium text-slate-700">
-                              {formatNumber(usage.creditsUsed)} credits
+                              {formatNumber(usage.creditsUsed, locale)}{' '}
+                              {t('common.labels.credits')}
                             </p>
                           </div>
                           <p className="mt-1 text-sm text-slate-500">
-                            {usage.user?.email ?? 'No email'} ·{' '}
-                            {formatNumber(usage.requestsCount)} request(s)
+                            {usage.user?.email ??
+                              t('settings.aiUsage.noEmail')}{' '}
+                            | {formatNumber(usage.requestsCount, locale)}{' '}
+                            {t('settings.aiUsage.requests')}
                           </p>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-slate-500">
-                        No user usage this month.
+                        {t('settings.aiUsage.noUserUsage')}
                       </p>
                     )}
                   </div>
@@ -383,16 +421,16 @@ export default function AiUsagePage() {
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
                 <p className="text-sm font-medium text-blue-700">
-                  Usage Records
+                  {t('settings.aiUsage.records')}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                  AI usage history
+                  {t('settings.aiUsage.history')}
                 </h2>
               </div>
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Status
+                  {t('common.labels.status')}
                 </span>
                 <select
                   value={status}
@@ -404,7 +442,9 @@ export default function AiUsagePage() {
                 >
                   {statusOptions.map((option) => (
                     <option key={option || 'all'} value={option}>
-                      {option ? formatEnumLabel(option) : 'All statuses'}
+                      {option
+                        ? getAiUsageStatusLabel(option, t)
+                        : t('settings.users.allStatuses')}
                     </option>
                   ))}
                 </select>
@@ -413,8 +453,8 @@ export default function AiUsagePage() {
 
             {records.length === 0 ? (
               <EmptyState
-                title="No AI usage records"
-                description="Generate AI suggestions to start tracking usage."
+                title={t('settings.aiUsage.noRecords')}
+                description={t('settings.aiUsage.noRecordsDescription')}
               />
             ) : (
               <div className="space-y-3">
@@ -427,7 +467,7 @@ export default function AiUsagePage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2">
                           <Badge className={getStatusClasses(record.status)}>
-                            {formatEnumLabel(record.status)}
+                            {getAiUsageStatusLabel(record.status, t)}
                           </Badge>
 
                           <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
@@ -436,11 +476,12 @@ export default function AiUsagePage() {
                         </div>
 
                         <p className="font-semibold text-slate-950">
-                          {record.aiSuggestion?.title ?? 'AI usage record'}
+                          {record.aiSuggestion?.title ??
+                            t('settings.aiUsage.record')}
                         </p>
 
                         <p className="text-sm text-slate-500">
-                          {formatDateTime(record.createdAt)}
+                          {formatDateTime(record.createdAt, dateFormatOptions)}
                         </p>
 
                         {record.errorMessage ? (
@@ -450,19 +491,26 @@ export default function AiUsagePage() {
                         ) : null}
 
                         <p className="text-sm text-slate-500">
-                          Provider: {record.provider ?? 'Not set'} · Model:{' '}
-                          {record.model ?? 'Not set'}
+                          {t('common.labels.provider')}:{' '}
+                          {record.provider ?? t('common.emptyStates.notSet')}{' '}
+                          | {t('common.labels.model')}:{' '}
+                          {record.model ?? t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div className="grid gap-2 text-right text-sm text-slate-600">
                         <span>
-                          Credits: {formatNumber(record.creditsUsed)}
+                          {t('common.labels.credits')}:{' '}
+                          {formatNumber(record.creditsUsed, locale)}
                         </span>
                         <span>
-                          Tokens: {formatNumber(record.totalTokens)}
+                          {t('common.labels.tokens')}:{' '}
+                          {formatNumber(record.totalTokens, locale)}
                         </span>
-                        <span>Cost: {formatUsd(record.estimatedCostUsd)}</span>
+                        <span>
+                          {t('common.labels.cost')}:{' '}
+                          {formatUsd(record.estimatedCostUsd, locale)}
+                        </span>
                       </div>
                     </div>
                   </article>
@@ -475,11 +523,12 @@ export default function AiUsagePage() {
                     onClick={() => setPage((currentPage) => currentPage - 1)}
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t('common.pagination.previous')}
                   </button>
 
                   <span className="text-sm text-slate-500">
-                    Page {page} of {totalPages}
+                    {t('common.pagination.page')} {page}{' '}
+                    {t('common.pagination.of')} {totalPages}
                   </span>
 
                   <button
@@ -488,7 +537,7 @@ export default function AiUsagePage() {
                     onClick={() => setPage((currentPage) => currentPage + 1)}
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t('common.pagination.next')}
                   </button>
                 </div>
               </div>

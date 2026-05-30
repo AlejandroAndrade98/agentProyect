@@ -134,7 +134,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             Sales AI
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-            Platform
+            {t('navigation.items.platform')}
           </h1>
         </div>
 

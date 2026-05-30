@@ -1,4 +1,8 @@
+'use client';
+
 import type { ReactNode } from 'react';
+
+import { useI18n } from '@/i18n/useI18n';
 
 type PageHeaderProps = {
   eyebrow?: string;
@@ -8,16 +12,18 @@ type PageHeaderProps = {
 };
 
 export function PageHeader({
-  eyebrow = 'CRM Management',
+  eyebrow,
   title,
   description,
   actions,
 }: PageHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-          {eyebrow}
+          {eyebrow ?? t('shared.crmManagement')}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
           {title}

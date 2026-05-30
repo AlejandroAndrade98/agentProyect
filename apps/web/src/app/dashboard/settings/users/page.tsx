@@ -10,6 +10,11 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getInvitationStatusLabel,
+  getOrganizationRoleLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   createOrganizationInvitation,
   deactivateOrganizationUser,
@@ -18,7 +23,7 @@ import {
   reactivateOrganizationUser,
   revokeOrganizationInvitation,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import type {
   OrganizationInvitation,
   OrganizationInvitationStatus,
@@ -49,21 +54,6 @@ const invitationStatusOptions: Array<OrganizationInvitationStatus | ''> = [
   'ACCEPTED',
   'REVOKED',
   'EXPIRED',
-];
-
-const activeOptions = [
-  {
-    label: 'All statuses',
-    value: '',
-  },
-  {
-    label: 'Active',
-    value: 'true',
-  },
-  {
-    label: 'Inactive',
-    value: 'false',
-  },
 ];
 
 function getRoleClasses(role: OrganizationUserRole) {
@@ -144,6 +134,26 @@ function canManageTargetUser(
 
 export default function OrganizationUsersSettingsPage() {
   const { token, user } = useAuth();
+  const { locale, t } = useI18n();
+  const dateFormatOptions = {
+    locale,
+    fallback: t('common.emptyStates.notSet'),
+    invalidFallback: t('common.errors.invalidDate'),
+  };
+  const activeOptions = [
+    {
+      label: t('settings.users.allStatuses'),
+      value: '',
+    },
+    {
+      label: t('settings.statuses.active'),
+      value: 'true',
+    },
+    {
+      label: t('settings.statuses.inactive'),
+      value: 'false',
+    },
+  ];
 
   const [users, setUsers] = useState<OrganizationUser[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
@@ -236,12 +246,12 @@ export default function OrganizationUsersSettingsPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load organization users.');
+        setErrorMessage(t('settings.users.loadUsersFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [isActive, page, role, search, token]);
+  }, [isActive, page, role, search, token, t]);
 
   const loadInvitations = useCallback(async () => {
     if (!token) {
@@ -270,12 +280,12 @@ export default function OrganizationUsersSettingsPage() {
       } else if (error instanceof Error) {
         setInvitationErrorMessage(error.message);
       } else {
-        setInvitationErrorMessage('Could not load organization invitations.');
+        setInvitationErrorMessage(t('settings.users.loadInvitationsFailed'));
       }
     } finally {
       setIsLoadingInvitations(false);
     }
-  }, [invitationPage, invitationSearch, invitationStatus, token]);
+  }, [invitationPage, invitationSearch, invitationStatus, token, t]);
 
   useEffect(() => {
     loadUsers();
@@ -311,7 +321,7 @@ export default function OrganizationUsersSettingsPage() {
       setLastAcceptanceToken(response.acceptanceToken);
       setLastInvitationEmail(response.invitation.email);
       setLastInvitationId(response.invitation.id);
-      setSuccessMessage('Invitation created.');
+      setSuccessMessage(t('settings.users.invitationCreated'));
       setInvitationPage(1);
       await loadInvitations();
     } catch (error) {
@@ -320,7 +330,7 @@ export default function OrganizationUsersSettingsPage() {
       } else if (error instanceof Error) {
         setInvitationErrorMessage(error.message);
       } else {
-        setInvitationErrorMessage('Could not create invitation.');
+        setInvitationErrorMessage(t('settings.users.createInvitationFailed'));
       }
     } finally {
       setIsSubmittingInvitation(false);
@@ -337,7 +347,7 @@ export default function OrganizationUsersSettingsPage() {
 
     try {
       await revokeOrganizationInvitation(token, invitationId);
-      setSuccessMessage('Invitation revoked.');
+      setSuccessMessage(t('settings.users.invitationRevoked'));
 
       if (lastInvitationId === invitationId) {
         setLastAcceptanceToken(null);
@@ -352,7 +362,7 @@ export default function OrganizationUsersSettingsPage() {
       } else if (error instanceof Error) {
         setInvitationErrorMessage(error.message);
       } else {
-        setInvitationErrorMessage('Could not revoke invitation.');
+        setInvitationErrorMessage(t('settings.users.revokeInvitationFailed'));
       }
     }
   }
@@ -368,7 +378,7 @@ async function handleDeactivateUser(userId: string) {
 
   try {
     await deactivateOrganizationUser(token, userId);
-    setSuccessMessage('User deactivated.');
+    setSuccessMessage(t('settings.users.userDeactivated'));
     await loadUsers();
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -376,7 +386,7 @@ async function handleDeactivateUser(userId: string) {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not deactivate user.');
+      setErrorMessage(t('settings.users.deactivateFailed'));
     }
   } finally {
     setUpdatingUserId(null);
@@ -394,7 +404,7 @@ async function handleReactivateUser(userId: string) {
 
   try {
     await reactivateOrganizationUser(token, userId);
-    setSuccessMessage('User reactivated.');
+    setSuccessMessage(t('settings.users.userReactivated'));
     await loadUsers();
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -402,7 +412,7 @@ async function handleReactivateUser(userId: string) {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not reactivate user.');
+      setErrorMessage(t('settings.users.reactivateFailed'));
     }
   } finally {
     setUpdatingUserId(null);
@@ -412,14 +422,14 @@ async function handleReactivateUser(userId: string) {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Organization Users"
-        description="Review users, roles, access status, and invitations in your organization."
+        title={t('settings.users.title')}
+        description={t('settings.users.subtitle')}
         actions={
           <Link
             href="/dashboard/settings"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Back to settings
+            {t('settings.back')}
           </Link>
         }
       />
@@ -432,16 +442,15 @@ async function handleReactivateUser(userId: string) {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">
-          Invite user
+          {t('settings.users.inviteUser')}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Create a pending invitation. Email delivery will be added later, so the
-          acceptance token is shown for development.
+          {t('settings.users.inviteDescription')}
         </p>
 
         {invitableRoles.length === 0 ? (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            You do not have permission to invite users.
+            {t('settings.users.noInvitePermission')}
           </p>
         ) : (
           <form
@@ -450,7 +459,7 @@ async function handleReactivateUser(userId: string) {
           >
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-700">
-                Email
+                {t('common.labels.email')}
               </span>
               <input
                 type="email"
@@ -469,7 +478,7 @@ async function handleReactivateUser(userId: string) {
 
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-700">
-                Role
+                {t('common.labels.role')}
               </span>
               <select
                 value={invitationForm.role}
@@ -483,7 +492,7 @@ async function handleReactivateUser(userId: string) {
               >
                 {invitableRoles.map((option) => (
                   <option key={option} value={option}>
-                    {formatEnumLabel(option)}
+                    {getOrganizationRoleLabel(option, t)}
                   </option>
                 ))}
               </select>
@@ -495,7 +504,9 @@ async function handleReactivateUser(userId: string) {
                 disabled={isSubmittingInvitation}
                 className="w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
               >
-                {isSubmittingInvitation ? 'Inviting...' : 'Create invitation'}
+                {isSubmittingInvitation
+                  ? t('settings.users.creatingInvitation')
+                  : t('settings.users.createInvitation')}
               </button>
             </div>
           </form>
@@ -504,14 +515,17 @@ async function handleReactivateUser(userId: string) {
         {lastAcceptanceToken ? (
           <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm font-medium text-blue-900">
-              Development acceptance token for {lastInvitationEmail}
+              {t('settings.users.devTokenFor').replace(
+                '{email}',
+                lastInvitationEmail ?? '',
+              )}
             </p>
             <p className="mt-2 break-all rounded-xl bg-white p-3 font-mono text-xs text-blue-900">
               {lastAcceptanceToken}
             </p>
             <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-blue-800">
-                Later this will be sent by email as an invitation link.
+                {t('settings.users.tokenEmailLater')}
               </p>
 
               <button
@@ -523,7 +537,7 @@ async function handleReactivateUser(userId: string) {
                 }}
                 className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
               >
-                Hide token
+                {t('settings.users.hideToken')}
               </button>
             </div>
           </div>
@@ -540,7 +554,7 @@ async function handleReactivateUser(userId: string) {
         <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Search invitations
+              {t('settings.users.searchInvitations')}
             </span>
             <input
               value={invitationSearch}
@@ -548,14 +562,14 @@ async function handleReactivateUser(userId: string) {
                 setInvitationSearch(event.target.value);
                 setInvitationPage(1);
               }}
-              placeholder="Search by invited email"
+              placeholder={t('settings.users.searchInvitationsPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
 
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Invitation status
+              {t('settings.users.invitationStatus')}
             </span>
             <select
               value={invitationStatus}
@@ -569,7 +583,9 @@ async function handleReactivateUser(userId: string) {
             >
               {invitationStatusOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? formatEnumLabel(option) : 'All statuses'}
+                  {option
+                    ? getInvitationStatusLabel(option, t)
+                    : t('settings.users.allStatuses')}
                 </option>
               ))}
             </select>
@@ -581,8 +597,8 @@ async function handleReactivateUser(userId: string) {
 
           {!isLoadingInvitations && invitations.length === 0 ? (
             <EmptyState
-              title="No invitations found"
-              description="Create an invitation to add a new user to this organization."
+              title={t('settings.users.noInvitations')}
+              description={t('settings.users.noInvitationsDescription')}
             />
           ) : null}
 
@@ -601,11 +617,11 @@ async function handleReactivateUser(userId: string) {
                             invitation.status,
                           )}
                         >
-                          {formatEnumLabel(invitation.status)}
+                          {getInvitationStatusLabel(invitation.status, t)}
                         </Badge>
 
                         <Badge className={getRoleClasses(invitation.role)}>
-                          {formatEnumLabel(invitation.role)}
+                          {getOrganizationRoleLabel(invitation.role, t)}
                         </Badge>
                       </div>
 
@@ -614,30 +630,47 @@ async function handleReactivateUser(userId: string) {
                       </h3>
 
                       <p className="mt-1 text-sm text-slate-500">
-                        Invited by:{' '}
+                        {t('settings.users.invitedBy')}:{' '}
                         {invitation.invitedBy
                           ? `${invitation.invitedBy.name} (${invitation.invitedBy.email})`
-                          : 'Unknown'}
+                          : t('settings.users.unknown')}
                       </p>
 
                       {invitation.acceptedBy ? (
                         <p className="mt-1 text-sm text-slate-500">
-                          Accepted by: {invitation.acceptedBy.name} (
+                          {t('settings.users.acceptedBy')}:{' '}
+                          {invitation.acceptedBy.name} (
                           {invitation.acceptedBy.email})
                         </p>
                       ) : null}
                     </div>
 
                     <div className="grid gap-2 text-sm text-slate-600 lg:text-right">
-                      <span>Created: {formatDateTime(invitation.createdAt)}</span>
-                      <span>Expires: {formatDateTime(invitation.expiresAt)}</span>
+                      <span>
+                        {t('common.labels.created')}:{' '}
+                        {formatDateTime(invitation.createdAt, dateFormatOptions)}
+                      </span>
+                      <span>
+                        {t('settings.users.expires')}:{' '}
+                        {formatDateTime(invitation.expiresAt, dateFormatOptions)}
+                      </span>
                       {invitation.acceptedAt ? (
                         <span>
-                          Accepted: {formatDateTime(invitation.acceptedAt)}
+                          {t('settings.users.accepted')}:{' '}
+                          {formatDateTime(
+                            invitation.acceptedAt,
+                            dateFormatOptions,
+                          )}
                         </span>
                       ) : null}
                       {invitation.revokedAt ? (
-                        <span>Revoked: {formatDateTime(invitation.revokedAt)}</span>
+                        <span>
+                          {t('settings.users.revoked')}:{' '}
+                          {formatDateTime(
+                            invitation.revokedAt,
+                            dateFormatOptions,
+                          )}
+                        </span>
                       ) : null}
 
                       {invitation.status === 'PENDING' ? (
@@ -646,7 +679,7 @@ async function handleReactivateUser(userId: string) {
                           onClick={() => handleRevokeInvitation(invitation.id)}
                           className="mt-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50"
                         >
-                          Revoke
+                          {t('settings.users.revoke')}
                         </button>
                       ) : null}
                     </div>
@@ -663,11 +696,12 @@ async function handleReactivateUser(userId: string) {
                   }
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.pagination.previous')}
                 </button>
 
                 <span className="text-sm text-slate-500">
-                  Page {invitationPage} of {invitationTotalPages}
+                  {t('common.pagination.page')} {invitationPage}{' '}
+                  {t('common.pagination.of')} {invitationTotalPages}
                 </span>
 
                 <button
@@ -678,7 +712,7 @@ async function handleReactivateUser(userId: string) {
                   }
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('common.pagination.next')}
                 </button>
               </div>
             </div>
@@ -690,7 +724,7 @@ async function handleReactivateUser(userId: string) {
         <div className="grid gap-4 lg:grid-cols-[1fr_220px_220px]">
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Search users
+              {t('settings.users.searchUsers')}
             </span>
             <input
               value={search}
@@ -698,13 +732,15 @@ async function handleReactivateUser(userId: string) {
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search by name or email"
+              placeholder={t('settings.users.searchUsersPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Role</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('common.labels.role')}
+            </span>
             <select
               value={role}
               onChange={(event) => {
@@ -715,14 +751,18 @@ async function handleReactivateUser(userId: string) {
             >
               {roleOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? formatEnumLabel(option) : 'All roles'}
+                  {option
+                    ? getOrganizationRoleLabel(option, t)
+                    : t('settings.users.allRoles')}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Status</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('common.labels.status')}
+            </span>
             <select
               value={isActive}
               onChange={(event) => {
@@ -750,8 +790,8 @@ async function handleReactivateUser(userId: string) {
           {!isLoading && !errorMessage ? (
             users.length === 0 ? (
               <EmptyState
-                title="No users found"
-                description="Try changing your filters or search terms."
+                title={t('settings.users.noUsers')}
+                description={t('settings.users.noUsersDescription')}
               />
             ) : (
               <section className="space-y-3">
@@ -764,7 +804,7 @@ async function handleReactivateUser(userId: string) {
                       <div>
                         <div className="flex flex-wrap gap-2">
                           <Badge className={getRoleClasses(orgUser.role)}>
-                            {formatEnumLabel(orgUser.role)}
+                            {getOrganizationRoleLabel(orgUser.role, t)}
                           </Badge>
 
                           <Badge
@@ -774,7 +814,9 @@ async function handleReactivateUser(userId: string) {
                                 : 'bg-rose-50 text-rose-700 ring-rose-200'
                             }
                           >
-                            {orgUser.isActive ? 'Active' : 'Inactive'}
+                            {orgUser.isActive
+                              ? t('settings.statuses.active')
+                              : t('settings.statuses.inactive')}
                           </Badge>
                         </div>
 
@@ -788,8 +830,14 @@ async function handleReactivateUser(userId: string) {
                       </div>
 
                     <div className="grid gap-2 text-sm text-slate-600 lg:text-right">
-                      <span>Created: {formatDateTime(orgUser.createdAt)}</span>
-                      <span>Updated: {formatDateTime(orgUser.updatedAt)}</span>
+                      <span>
+                        {t('common.labels.created')}:{' '}
+                        {formatDateTime(orgUser.createdAt, dateFormatOptions)}
+                      </span>
+                      <span>
+                        {t('crm.common.updated')}:{' '}
+                        {formatDateTime(orgUser.updatedAt, dateFormatOptions)}
+                      </span>
 
                       {canManageTargetUser(user, orgUser) ? (
                         orgUser.isActive ? (
@@ -799,7 +847,9 @@ async function handleReactivateUser(userId: string) {
                             onClick={() => handleDeactivateUser(orgUser.id)}
                             className="mt-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {updatingUserId === orgUser.id ? 'Updating...' : 'Deactivate'}
+                            {updatingUserId === orgUser.id
+                              ? t('common.actions.updating')
+                              : t('settings.users.deactivate')}
                           </button>
                         ) : (
                           <button
@@ -808,7 +858,9 @@ async function handleReactivateUser(userId: string) {
                             onClick={() => handleReactivateUser(orgUser.id)}
                             className="mt-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {updatingUserId === orgUser.id ? 'Updating...' : 'Reactivate'}
+                            {updatingUserId === orgUser.id
+                              ? t('common.actions.updating')
+                              : t('settings.users.reactivate')}
                           </button>
                         )
                       ) : null}
@@ -824,11 +876,12 @@ async function handleReactivateUser(userId: string) {
                     onClick={() => setPage((currentPage) => currentPage - 1)}
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Previous
+                    {t('common.pagination.previous')}
                   </button>
 
                   <span className="text-sm text-slate-500">
-                    Page {page} of {totalPages}
+                    {t('common.pagination.page')} {page}{' '}
+                    {t('common.pagination.of')} {totalPages}
                   </span>
 
                   <button
@@ -837,7 +890,7 @@ async function handleReactivateUser(userId: string) {
                     onClick={() => setPage((currentPage) => currentPage + 1)}
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Next
+                    {t('common.pagination.next')}
                   </button>
                 </div>
               </section>

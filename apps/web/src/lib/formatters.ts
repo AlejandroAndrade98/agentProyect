@@ -6,47 +6,81 @@ export function formatEnumLabel(value: string) {
     .join(' ');
 }
 
-export function formatDate(value: string | null | undefined) {
+type DateFormatOptions = {
+  locale?: string;
+  fallback?: string;
+  invalidFallback?: string;
+};
+
+type MoneyFormatOptions = {
+  locale?: string;
+  fallback?: string;
+};
+
+export function formatDate(
+  value: string | null | undefined,
+  options: DateFormatOptions = {},
+) {
+  const {
+    locale = 'en',
+    fallback = 'Not set',
+    invalidFallback = 'Invalid date',
+  } = options;
+
   if (!value) {
-    return 'Not set';
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return 'Invalid date';
+    return invalidFallback;
   }
 
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   }).format(date);
 }
 
-export function formatDateTime(value: string | null | undefined) {
+export function formatDateTime(
+  value: string | null | undefined,
+  options: DateFormatOptions = {},
+) {
+  const {
+    locale = 'en-US',
+    fallback = 'Not set',
+    invalidFallback = 'Invalid date',
+  } = options;
+
   if (!value) {
-    return 'Not set';
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return 'Invalid date';
+    return invalidFallback;
   }
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
 }
 
-export function formatMoney(value: number | null | undefined) {
+export function formatMoney(
+  value: number | null | undefined,
+  options: MoneyFormatOptions = {},
+) {
+  const { locale = 'en', fallback = 'Not set' } = options;
+
   if (value === null || value === undefined) {
-    return 'Not set';
+    return fallback;
   }
 
-  return new Intl.NumberFormat('en', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,

@@ -1,9 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getConnectedAccountCapabilityLabel,
+  getConnectedAccountProviderLabel,
+  getConnectedAccountStatusLabel,
+  getSyncStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   createDevConnectedAccount,
@@ -26,23 +34,26 @@ import { startGoogleOAuth } from '@/lib/api-client';
 const providerOptions: ConnectedAccountProvider[] = ['GOOGLE', 'MICROSOFT'];
 const capabilityOptions: ConnectedAccountCapability[] = ['EMAIL', 'CALENDAR'];
 
-function formatDateTime(value: string | null) {
+function formatConnectedDateTime(
+  value: string | null,
+  locale: string,
+  fallback: string,
+  invalidFallback: string,
+) {
   if (!value) {
-    return 'Not available';
+    return fallback;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return invalidFallback;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value));
-}
-
-function formatEnumLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  }).format(date);
 }
 
 function getStatusClass(status: ConnectedAccount['status']) {
@@ -85,6 +96,7 @@ function isFinalStatus(status: ConnectedAccount['status']) {
 
 export default function ConnectedAccountsSettingsPage() {
   const { user, token } = useAuth();
+  const { locale, t } = useI18n();
 
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,11 +145,11 @@ export default function ConnectedAccountsSettingsPage() {
 
       setAccounts(response.data);
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     void loadAccounts();
@@ -147,9 +159,9 @@ export default function ConnectedAccountsSettingsPage() {
   const params = new URLSearchParams(window.location.search);
 
   if (params.get('connected') === 'google') {
-    setSuccessMessage('Google account connected successfully.');
+    setSuccessMessage(t('settings.connectedAccounts.googleConnected'));
   }
-  }, []);
+  }, [t]);
 
   function toggleCapability(capability: ConnectedAccountCapability) {
     setCapabilities((current) => {
@@ -181,13 +193,13 @@ export default function ConnectedAccountsSettingsPage() {
         capabilities,
       });
 
-      setSuccessMessage('Development connected account created.');
+      setSuccessMessage(t('settings.connectedAccounts.devConnected'));
       setEmail('');
       setDisplayName('');
       setCapabilities(['EMAIL', 'CALENDAR']);
       await loadAccounts();
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -204,10 +216,10 @@ export default function ConnectedAccountsSettingsPage() {
 
     try {
       await requestConnectedAccountDisconnect(token, accountId);
-      setSuccessMessage('Disconnect requested.');
+      setSuccessMessage(t('settings.connectedAccounts.disconnectRequested'));
       await loadAccounts();
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t));
     } finally {
       setActionId(null);
     }
@@ -224,10 +236,10 @@ export default function ConnectedAccountsSettingsPage() {
 
     try {
       await disconnectConnectedAccount(token, accountId);
-      setSuccessMessage('Connected account disconnected.');
+      setSuccessMessage(t('settings.connectedAccounts.disconnectedSuccess'));
       await loadAccounts();
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t));
     } finally {
       setActionId(null);
     }
@@ -235,7 +247,7 @@ export default function ConnectedAccountsSettingsPage() {
 
 async function handleStartGoogleOAuth() {
   if (!token) {
-    setErrorMessage('Missing access token');
+    setErrorMessage(t('common.errors.missingAccessToken'));
     return;
   }
 
@@ -250,27 +262,38 @@ async function handleStartGoogleOAuth() {
 
     window.location.assign(response.authorizationUrl);
   } catch (error) {
-    setErrorMessage(getErrorMessage(error));
+    setErrorMessage(getErrorMessage(error, t));
   } finally {
     setIsStartingGoogleOAuth(false);
   }
 }
 
+  const dateFallback = t('settings.connectedAccounts.notAvailable');
+  const invalidDateFallback = t('common.errors.invalidDate');
+  const formatAccountDate = (value: string | null) =>
+    formatConnectedDateTime(value, locale, dateFallback, invalidDateFallback);
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Connected Accounts"
-        description="Manage Gmail, Outlook, email, and calendar account connections prepared for future secure sync and AI review workflows."
+        title={t('settings.connectedAccounts.title')}
+        description={t('settings.connectedAccounts.subtitle')}
+        actions={
+          <Link
+            href="/dashboard/settings"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            {t('settings.back')}
+          </Link>
+        }
       />
 
       <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <p className="text-sm font-semibold text-blue-800">
-          Foundation mode
+          {t('settings.connectedAccounts.foundationMode')}
         </p>
         <p className="mt-2 text-sm leading-6 text-blue-700">
-          Real Google OAuth is now available for Gmail and Google Calendar connection.
-          Email sync, calendar sync, AI email analysis, and email drafts are
-          intentionally not implemented yet.
+          {t('settings.connectedAccounts.foundationDescription')}
         </p>
       </section>
 
@@ -291,14 +314,13 @@ async function handleStartGoogleOAuth() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-blue-700">
-                Real OAuth connection
+                {t('settings.connectedAccounts.realOAuth')}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                Connect Google account
+                {t('settings.connectedAccounts.connectGoogleAccount')}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Connect Gmail and Google Calendar using the real Google OAuth flow.
-                Email sync, calendar sync, AI analysis, and drafts are still pending.
+                {t('settings.connectedAccounts.connectGoogleDescription')}
               </p>
             </div>
 
@@ -308,7 +330,9 @@ async function handleStartGoogleOAuth() {
               disabled={isStartingGoogleOAuth}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isStartingGoogleOAuth ? 'Starting Google...' : 'Connect Google'}
+              {isStartingGoogleOAuth
+                ? t('settings.connectedAccounts.startingGoogle')
+                : t('settings.connectedAccounts.connectGoogle')}
             </button>
           </div>
         </section>
@@ -318,19 +342,16 @@ async function handleStartGoogleOAuth() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              Development connection
+              {t('settings.connectedAccounts.developmentConnection')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Connect a simulated account
+              {t('settings.connectedAccounts.connectSimulated')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              This creates a local development account only. It does not connect
-              to Google or Microsoft yet.
+              {t('settings.connectedAccounts.simulatedDescription')}
             </p>
             <p className="mt-2 text-sm leading-6 text-blue-700">
-              Real Google OAuth is now available for Gmail and Google Calendar connection.
-              Email sync, calendar sync, AI email analysis, and email drafts are intentionally
-              not implemented yet.
+              {t('settings.connectedAccounts.foundationDescription')}
             </p>
           </div>
 
@@ -340,7 +361,7 @@ async function handleStartGoogleOAuth() {
           >
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-700">
-                Provider
+                {t('common.labels.provider')}
               </span>
               <select
                 value={provider}
@@ -351,7 +372,7 @@ async function handleStartGoogleOAuth() {
               >
                 {providerOptions.map((option) => (
                   <option key={option} value={option}>
-                    {formatEnumLabel(option)}
+                    {getConnectedAccountProviderLabel(option, t)}
                   </option>
                 ))}
               </select>
@@ -359,7 +380,7 @@ async function handleStartGoogleOAuth() {
 
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-700">
-                Email
+                {t('common.labels.email')}
               </span>
               <input
                 required
@@ -373,19 +394,19 @@ async function handleStartGoogleOAuth() {
 
             <label className="space-y-2 md:col-span-2">
               <span className="text-sm font-medium text-slate-700">
-                Display name
+                {t('settings.connectedAccounts.displayName')}
               </span>
               <input
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Work Gmail"
+                placeholder={t('settings.connectedAccounts.displayNamePlaceholder')}
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
             </label>
 
             <div className="space-y-3 md:col-span-2">
               <p className="text-sm font-medium text-slate-700">
-                Capabilities
+                {t('settings.connectedAccounts.capabilities')}
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -399,7 +420,7 @@ async function handleStartGoogleOAuth() {
                       checked={capabilities.includes(capability)}
                       onChange={() => toggleCapability(capability)}
                     />
-                    {formatEnumLabel(capability)}
+                    {getConnectedAccountCapabilityLabel(capability, t)}
                   </label>
                 ))}
               </div>
@@ -411,7 +432,9 @@ async function handleStartGoogleOAuth() {
                 disabled={isSubmitting}
                 className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? 'Creating...' : 'Create dev connection'}
+                {isSubmitting
+                  ? t('common.actions.creating')
+                  : t('settings.connectedAccounts.createDevConnection')}
               </button>
             </div>
           </form>
@@ -421,12 +444,10 @@ async function handleStartGoogleOAuth() {
       {currentUserAccount ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <p className="text-sm font-semibold text-amber-800">
-            One connected account per user
+            {t('settings.connectedAccounts.oneAccountTitle')}
           </p>
           <p className="mt-2 text-sm leading-6 text-amber-700">
-            Your user already has a connected account record. Reconnect and
-            account replacement flows are intentionally deferred to a future
-            phase.
+            {t('settings.connectedAccounts.oneAccountDescription')}
           </p>
         </section>
       ) : null}
@@ -435,11 +456,10 @@ async function handleStartGoogleOAuth() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">
-              Accounts
+              {t('settings.connectedAccounts.accounts')}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Connected accounts are scoped to your organization and user
-              permissions.
+              {t('settings.connectedAccounts.accountsDescription')}
             </p>
           </div>
 
@@ -448,21 +468,21 @@ async function handleStartGoogleOAuth() {
             onClick={() => void loadAccounts()}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
           >
-            Refresh
+            {t('common.actions.refresh')}
           </button>
         </div>
 
         {isLoading ? (
           <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-            Loading connected accounts...
+            {t('settings.connectedAccounts.loading')}
           </div>
         ) : accounts.length === 0 ? (
           <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <h3 className="text-base font-semibold text-slate-900">
-              No connected accounts yet
+              {t('settings.connectedAccounts.none')}
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              Create a development connection to validate the foundation.
+              {t('settings.connectedAccounts.noneDescription')}
             </p>
           </div>
         ) : (
@@ -493,7 +513,7 @@ async function handleStartGoogleOAuth() {
                             account.status,
                           )}`}
                         >
-                          {formatEnumLabel(account.status)}
+                          {getConnectedAccountStatusLabel(account.status, t)}
                         </span>
                       </div>
 
@@ -503,7 +523,10 @@ async function handleStartGoogleOAuth() {
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-                          {formatEnumLabel(account.provider)}
+                          {getConnectedAccountProviderLabel(
+                            account.provider,
+                            t,
+                          )}
                         </span>
 
                         {account.capabilities.map((capability) => (
@@ -511,43 +534,47 @@ async function handleStartGoogleOAuth() {
                             key={capability}
                             className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
                           >
-                            {formatEnumLabel(capability)}
+                            {getConnectedAccountCapabilityLabel(capability, t)}
                           </span>
                         ))}
                       </div>
 
                       <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                         <div>
-                          <dt className="font-medium text-slate-700">User</dt>
+                          <dt className="font-medium text-slate-700">
+                            {t('settings.connectedAccounts.user')}
+                          </dt>
                           <dd className="mt-1 text-slate-500">
-                            {account.user.name} · {account.user.email}
+                            {account.user.name} | {account.user.email}
                           </dd>
                         </div>
 
                         <div>
                           <dt className="font-medium text-slate-700">
-                            Connected at
+                            {t('settings.connectedAccounts.connectedAt')}
                           </dt>
                           <dd className="mt-1 text-slate-500">
-                            {formatDateTime(account.connectedAt)}
+                            {formatAccountDate(account.connectedAt)}
                           </dd>
                         </div>
 
                         <div>
                           <dt className="font-medium text-slate-700">
-                            Disconnect requested
+                            {t(
+                              'settings.connectedAccounts.disconnectRequestedAt',
+                            )}
                           </dt>
                           <dd className="mt-1 text-slate-500">
-                            {formatDateTime(account.disconnectRequestedAt)}
+                            {formatAccountDate(account.disconnectRequestedAt)}
                           </dd>
                         </div>
 
                         <div>
                           <dt className="font-medium text-slate-700">
-                            Disconnected at
+                            {t('settings.connectedAccounts.disconnectedAt')}
                           </dt>
                           <dd className="mt-1 text-slate-500">
-                            {formatDateTime(account.disconnectedAt)}
+                            {formatAccountDate(account.disconnectedAt)}
                           </dd>
                         </div>
                       </dl>
@@ -563,7 +590,7 @@ async function handleStartGoogleOAuth() {
                           disabled={actionId === account.id}
                           className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Request disconnect
+                          {t('settings.connectedAccounts.requestDisconnect')}
                         </button>
                       ) : null}
 
@@ -574,7 +601,7 @@ async function handleStartGoogleOAuth() {
                           disabled={actionId === account.id}
                           className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Admin disconnect
+                          {t('settings.connectedAccounts.adminDisconnect')}
                         </button>
                       ) : null}
                     </div>
@@ -582,7 +609,7 @@ async function handleStartGoogleOAuth() {
 
                   <div className="mt-5 border-t border-slate-100 pt-5">
                     <h4 className="text-sm font-semibold text-slate-800">
-                      Sync states
+                      {t('settings.connectedAccounts.syncStates')}
                     </h4>
 
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -593,7 +620,10 @@ async function handleStartGoogleOAuth() {
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-slate-900">
-                              {formatEnumLabel(syncState.capability)}
+                              {getConnectedAccountCapabilityLabel(
+                                syncState.capability,
+                                t,
+                              )}
                             </p>
 
                             <span
@@ -601,24 +631,26 @@ async function handleStartGoogleOAuth() {
                                 syncState.status,
                               )}`}
                             >
-                              {formatEnumLabel(syncState.status)}
+                              {getSyncStatusLabel(syncState.status, t)}
                             </span>
                           </div>
 
                           <dl className="mt-3 space-y-2 text-xs text-slate-500">
                             <div>
                               <dt className="font-medium text-slate-700">
-                                Sync from
+                                {t('settings.connectedAccounts.syncFrom')}
                               </dt>
-                              <dd>{formatDateTime(syncState.syncFrom)}</dd>
+                              <dd>{formatAccountDate(syncState.syncFrom)}</dd>
                             </div>
 
                             <div>
                               <dt className="font-medium text-slate-700">
-                                Last successful sync
+                                {t(
+                                  'settings.connectedAccounts.lastSuccessfulSync',
+                                )}
                               </dt>
                               <dd>
-                                {formatDateTime(
+                                {formatAccountDate(
                                   syncState.lastSuccessfulSyncAt,
                                 )}
                               </dd>
@@ -638,7 +670,7 @@ async function handleStartGoogleOAuth() {
   );
 }
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, t: (key: string) => string) {
   if (error instanceof ApiClientError) {
     return error.message;
   }
@@ -647,5 +679,5 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Unexpected error';
+  return t('common.errors.unexpected');
 }

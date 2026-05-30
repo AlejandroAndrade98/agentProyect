@@ -5463,3 +5463,18 @@ Current i18n coverage:
 - Shared display helpers cover CRM statuses, priorities, sources, importance, sync statuses, activity types, and entity labels.
 - Dynamic API data, AI-generated output, backend enum values, routes, and API payloads remain unchanged.
 - No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17K.5 i18n for Settings, Auth and Shared Leftovers is completed and validated.
+
+Current i18n coverage:
+- Settings pages are translated.
+- Organization settings are translated.
+- Users settings are translated.
+- AI Usage settings are translated.
+- Connected Accounts settings are translated.
+- Login is translated.
+- Accept Invitation is translated.
+- Shared UI leftovers such as PageHeader, LongTextCard, DashboardLayout, and formatter fallbacks are i18n-ready.
+- No backend, Prisma, API, route, auth logic, invitation logic, OAuth, email, Gmail, CRM automation, or background job behavior changed.
