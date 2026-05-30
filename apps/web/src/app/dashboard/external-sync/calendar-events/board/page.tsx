@@ -10,13 +10,19 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAiStatusLabel,
+  getAppliedActionLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   analyzeExternalCalendarEvent,
   ApiClientError,
   getAiSuggestions,
   getExternalCalendarEvents,
   syncExternalCalendarEvents,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel, truncateText } from '@/lib/formatters';
+import { formatDateTime, truncateText } from '@/lib/formatters';
 import { canUpdateCrm } from '@/lib/permissions';
 import type { AiSuggestion, AiSuggestionStatus } from '@/types/ai-suggestions';
 import type { ExternalCalendarEvent } from '@/types/external-sync';
@@ -47,40 +53,40 @@ const BOARD_PAGE_SIZE = 5;
 const columnConfig: Record<
   CalendarColumnKey,
   {
-    title: string;
-    description: string;
-    emptyMessage: string;
+    titleKey: string;
+    descriptionKey: string;
+    emptyMessageKey: string;
     headingClassName: string;
   }
 > = {
   new: {
-    title: 'New Synced',
-    description: 'No AI calendar analysis suggestion yet.',
-    emptyMessage: 'No new synced calendar events',
+    titleKey: 'externalSync.board.newSynced',
+    descriptionKey: 'syncedCalendar.columns.newDescription',
+    emptyMessageKey: 'syncedCalendar.columns.noNew',
     headingClassName: 'text-slate-700',
   },
   'needs-review': {
-    title: 'Needs Review',
-    description: 'AI calendar analysis is pending human review.',
-    emptyMessage: 'No calendar events need review',
+    titleKey: 'externalSync.board.needsReview',
+    descriptionKey: 'syncedCalendar.columns.needsReviewDescription',
+    emptyMessageKey: 'syncedCalendar.columns.noNeedsReview',
     headingClassName: 'text-amber-700',
   },
   ready: {
-    title: 'Ready for Action',
-    description: 'Accepted analysis with no completed CRM action yet.',
-    emptyMessage: 'No calendar events ready for action',
+    titleKey: 'externalSync.board.readyForAction',
+    descriptionKey: 'syncedCalendar.columns.readyDescription',
+    emptyMessageKey: 'syncedCalendar.columns.noReady',
     headingClassName: 'text-emerald-700',
   },
   completed: {
-    title: 'Completed',
-    description: 'CRM task, note, or lead action metadata exists.',
-    emptyMessage: 'No completed calendar actions',
+    titleKey: 'externalSync.board.completed',
+    descriptionKey: 'syncedCalendar.columns.completedDescription',
+    emptyMessageKey: 'syncedCalendar.columns.noCompleted',
     headingClassName: 'text-blue-700',
   },
   closed: {
-    title: 'Rejected / Closed',
-    description: 'Analysis was rejected or expired.',
-    emptyMessage: 'No rejected or closed calendar events',
+    titleKey: 'externalSync.board.rejectedClosed',
+    descriptionKey: 'syncedCalendar.columns.closedDescription',
+    emptyMessageKey: 'syncedCalendar.columns.noClosed',
     headingClassName: 'text-rose-700',
   },
 };
@@ -92,15 +98,6 @@ const columnKeys: CalendarColumnKey[] = [
   'completed',
   'closed',
 ];
-
-const appliedActionLabels: Record<string, string> = {
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR_EVENT: 'Task created',
-  CREATE_TASK_FROM_EXTERNAL_CALENDAR: 'Task created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR_EVENT: 'Note created',
-  CREATE_NOTE_FROM_EXTERNAL_CALENDAR: 'Note created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT: 'Lead created',
-  CREATE_LEAD_FROM_EXTERNAL_CALENDAR: 'Lead created',
-};
 
 function getInitialColumnPages() {
   return columnKeys.reduce((accumulator, key) => {
@@ -134,12 +131,16 @@ function getCalendarActionState(
   );
 }
 
-function formatOrganizer(event: ExternalCalendarEvent) {
+function formatOrganizer(event: ExternalCalendarEvent, t: Translate) {
   if (event.organizerName && event.organizerEmail) {
     return `${event.organizerName} <${event.organizerEmail}>`;
   }
 
-  return event.organizerEmail ?? event.organizerName ?? 'Unknown organizer';
+  return (
+    event.organizerEmail ??
+    event.organizerName ??
+    t('common.emptyStates.unknownOrganizer')
+  );
 }
 
 function getAttendeesCount(attendeesJson: unknown) {
@@ -192,11 +193,11 @@ function getAppliedActionNames(suggestion: AiSuggestion | undefined) {
   });
 }
 
-function getAppliedLabels(suggestion: AiSuggestion | undefined) {
+function getAppliedLabels(t: Translate, suggestion: AiSuggestion | undefined) {
   const labels = new Set<string>();
 
   getAppliedActionNames(suggestion).forEach((action) => {
-    const label = appliedActionLabels[action];
+    const label = getAppliedActionLabel(action, t);
 
     if (label) {
       labels.add(label);
@@ -204,26 +205,37 @@ function getAppliedLabels(suggestion: AiSuggestion | undefined) {
   });
 
   if (getMetadataString(suggestion?.metadataJson?.taskId)) {
-    labels.add('Task created');
+    labels.add(t('aiSuggestions.completedActions.taskCreated'));
   }
 
   if (getMetadataString(suggestion?.metadataJson?.noteId)) {
-    labels.add('Note created');
+    labels.add(t('aiSuggestions.completedActions.noteCreated'));
   }
 
   if (getMetadataString(suggestion?.metadataJson?.leadId)) {
-    labels.add('Lead created');
+    labels.add(t('aiSuggestions.completedActions.leadCreated'));
   }
 
   return Array.from(labels);
 }
 
-function getFriendlyActionError(error: unknown) {
+function hasAppliedActions(suggestion: AiSuggestion | undefined) {
+  return (
+    getAppliedActionNames(suggestion).some((action) =>
+      Boolean(getAppliedActionLabel(action, (key) => key)),
+    ) ||
+    Boolean(getMetadataString(suggestion?.metadataJson?.taskId)) ||
+    Boolean(getMetadataString(suggestion?.metadataJson?.noteId)) ||
+    Boolean(getMetadataString(suggestion?.metadataJson?.leadId))
+  );
+}
+
+function getFriendlyActionError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
     if (error.status === 409) {
-      return 'An AI suggestion already exists for this calendar event. Open it from the existing suggestion link.';
+      return t('externalSync.errors.existingCalendarSuggestion');
     }
 
     if (
@@ -231,7 +243,7 @@ function getFriendlyActionError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -240,14 +252,14 @@ function getFriendlyActionError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing calendar events.';
+      return t('externalSync.errors.connectGoogleCalendar');
     }
   }
 
-  return 'Could not complete this AI action. Please try again.';
+  return t('externalSync.errors.calendarActionFailed');
 }
 
-function getFriendlySyncError(error: unknown) {
+function getFriendlySyncError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
@@ -256,7 +268,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -265,7 +277,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing calendar events.';
+      return t('externalSync.errors.connectGoogleCalendar');
     }
 
     return error.message;
@@ -275,14 +287,14 @@ function getFriendlySyncError(error: unknown) {
     return error.message;
   }
 
-  return 'Could not sync calendar events. Please try again.';
+  return t('externalSync.errors.syncCalendarFailed');
 }
 
 function classifyCalendarEvent(
   event: ExternalCalendarEvent,
   analysisSuggestion: AiSuggestion | undefined,
 ): ClassifiedCalendarEvent {
-  const hasCompleted = getAppliedLabels(analysisSuggestion).length > 0;
+  const hasCompleted = hasAppliedActions(analysisSuggestion);
   const isAccepted =
     analysisSuggestion &&
     ['ACCEPTED', 'EDITED_AND_ACCEPTED'].includes(analysisSuggestion.status);
@@ -334,18 +346,19 @@ function CalendarEventCard({
   onAnalyze,
 }: CalendarEventCardProps) {
   const { event, analysisSuggestion } = item;
+  const { t } = useI18n();
   const attendeesCount = getAttendeesCount(event.attendeesJson);
-  const appliedLabels = getAppliedLabels(analysisSuggestion);
+  const appliedLabels = getAppliedLabels(t, analysisSuggestion);
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="space-y-3">
         <div>
           <h3 className="break-words text-sm font-semibold leading-5 text-slate-950">
-            {event.summary ?? 'No title'}
+            {event.summary ?? t('common.emptyStates.noTitle')}
           </h3>
           <p className="mt-1 break-words text-xs leading-5 text-slate-600">
-            Organizer: {formatOrganizer(event)}
+            {t('externalSync.labels.organizer')}: {formatOrganizer(event, t)}
           </p>
         </div>
 
@@ -357,19 +370,35 @@ function CalendarEventCard({
 
         <div className="space-y-1 text-xs text-slate-500">
           <p>
-            Start:{' '}
-            {event.startAt ? formatDateTime(event.startAt) : 'Not set'}
+            {t('externalSync.labels.start')}:{' '}
+            {event.startAt
+              ? formatDateTime(event.startAt)
+              : t('common.emptyStates.notSet')}
           </p>
-          <p>End: {event.endAt ? formatDateTime(event.endAt) : 'Not set'}</p>
-          <p>Location: {event.location ?? 'Not set'}</p>
-          <p>Attendees: {attendeesCount ?? 'Not set'}</p>
-          <p>Synced: {formatDateTime(event.syncedAt)}</p>
+          <p>
+            {t('externalSync.labels.end')}:{' '}
+            {event.endAt
+              ? formatDateTime(event.endAt)
+              : t('common.emptyStates.notSet')}
+          </p>
+          <p>
+            {t('externalSync.labels.location')}:{' '}
+            {event.location ?? t('common.emptyStates.notSet')}
+          </p>
+          <p>
+            {t('externalSync.labels.attendees')}:{' '}
+            {attendeesCount ?? t('common.emptyStates.notSet')}
+          </p>
+          <p>
+            {t('externalSync.labels.synced')}: {formatDateTime(event.syncedAt)}
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {analysisSuggestion ? (
             <Badge className={getStatusClasses(analysisSuggestion.status)}>
-              Analysis: {formatEnumLabel(analysisSuggestion.status)}
+              {t('externalSync.labels.analysis')}:{' '}
+              {getAiStatusLabel(analysisSuggestion.status, t)}
             </Badge>
           ) : null}
 
@@ -395,7 +424,7 @@ function CalendarEventCard({
               href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
               className="rounded-xl bg-slate-950 px-3 py-2 text-center text-xs font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              View analysis
+              {t('externalSync.actions.viewAnalysis')}
             </Link>
           ) : (
             <button
@@ -404,7 +433,9 @@ function CalendarEventCard({
               disabled={!canRunWriteActions || actionState.isAnalyzing}
               className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {actionState.isAnalyzing ? 'Analyzing...' : 'Analyze event'}
+              {actionState.isAnalyzing
+                ? t('externalSync.actions.analyzing')
+                : t('externalSync.actions.analyzeEvent')}
             </button>
           )}
 
@@ -415,7 +446,7 @@ function CalendarEventCard({
               rel="noreferrer"
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Open in Google Calendar
+              {t('externalSync.actions.openInGoogleCalendar')}
             </a>
           ) : null}
         </div>
@@ -426,6 +457,7 @@ function CalendarEventCard({
 
 export default function ExternalCalendarEventsBoardPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [events, setEvents] = useState<ExternalCalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -499,12 +531,12 @@ export default function ExternalCalendarEventsBoardPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load AI calendar board.');
+        setErrorMessage(t('externalSync.errors.loadCalendarBoardFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [loadExistingCalendarSuggestions, token]);
+  }, [loadExistingCalendarSuggestions, t, token]);
 
   useEffect(() => {
     void loadBoard();
@@ -535,11 +567,15 @@ export default function ExternalCalendarEventsBoardPage() {
       const stored = result.eventsStored ?? 0;
 
       setSyncMessage(
-        `Calendar sync completed. Fetched ${fetched} event(s), stored ${stored} event(s).`,
+        `${t('syncedCalendar.messages.syncCompleted')} ${t(
+          'syncedCalendar.messages.fetched',
+        )} ${fetched} ${t('syncedCalendar.messages.events')} ${t(
+          'syncedCalendar.messages.stored',
+        )} ${stored} ${t('syncedCalendar.messages.events')}`,
       );
       await loadBoard();
     } catch (error) {
-      setSyncErrorMessage(getFriendlySyncError(error));
+      setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setIsSyncing(false);
     }
@@ -588,7 +624,7 @@ export default function ExternalCalendarEventsBoardPage() {
       updateEventActionState(calendarEventId, (current) => ({
         ...current,
         isAnalyzing: false,
-        errorMessage: getFriendlyActionError(error),
+        errorMessage: getFriendlyActionError(error, t),
         ...(existingSuggestion
           ? { analysisSuggestionId: existingSuggestion.id }
           : {}),
@@ -635,16 +671,16 @@ export default function ExternalCalendarEventsBoardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Calendar"
-        title="Synced Calendar Board"
-        description="Track synced Google Calendar metadata by AI processing state. Board cards can create AI analysis suggestions for review, but they never create CRM records or send emails automatically."
+        eyebrow={t('syncedCalendar.eyebrow')}
+        title={t('syncedCalendar.boardTitle')}
+        description={t('syncedCalendar.boardSubtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/external-sync/calendar-events/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
             <button
               type="button"
@@ -652,7 +688,9 @@ export default function ExternalCalendarEventsBoardPage() {
               disabled={isSyncing || !canRunWriteActions}
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncing ? 'Syncing Calendar...' : 'Sync Calendar'}
+              {isSyncing
+                ? t('externalSync.actions.syncingCalendar')
+                : t('externalSync.actions.syncCalendar')}
             </button>
           </div>
         }
@@ -660,11 +698,11 @@ export default function ExternalCalendarEventsBoardPage() {
 
       <section className="grid gap-3 md:grid-cols-5">
         {[
-          'AI uses synced calendar metadata only.',
-          'No email is sent automatically.',
-          'No CRM records are created automatically.',
-          'Generated suggestions require human review.',
-          'CRM actions happen only from reviewed suggestion details.',
+          t('externalSync.safety.calendarMetadataOnly'),
+          t('externalSync.safety.noEmailSent'),
+          t('externalSync.safety.noCrmRecords'),
+          t('externalSync.safety.generatedSuggestionsRequireReview'),
+          t('externalSync.safety.crmActionsFromDetails'),
         ].map((message) => (
           <div
             key={message}
@@ -689,8 +727,7 @@ export default function ExternalCalendarEventsBoardPage() {
 
       {!canRunWriteActions ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Your role can view synced calendar events, but CRM write permissions
-          are required to sync Calendar or create AI suggestions.
+          {t('syncedCalendar.messages.readOnlyRole')}
         </div>
       ) : null}
 
@@ -700,8 +737,8 @@ export default function ExternalCalendarEventsBoardPage() {
 
       {!isLoading && !errorMessage && totalEvents === 0 ? (
         <EmptyState
-          title="No synced calendar events found"
-          description="Run a manual Calendar sync to review synced event metadata in the AI calendar board."
+          title={t('syncedCalendar.emptyStates.noneFound')}
+          description={t('syncedCalendar.emptyStates.boardDescription')}
         />
       ) : null}
 
@@ -726,10 +763,10 @@ export default function ExternalCalendarEventsBoardPage() {
                         <h2
                           className={`text-sm font-semibold ${config.headingClassName}`}
                         >
-                          {config.title}
+                          {t(config.titleKey)}
                         </h2>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          {config.description}
+                          {t(config.descriptionKey)}
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
@@ -741,7 +778,7 @@ export default function ExternalCalendarEventsBoardPage() {
                   <div className="flex-1 space-y-3 p-3">
                     {visibleItems.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
-                        {config.emptyMessage}
+                        {t(config.emptyMessageKey)}
                       </div>
                     ) : null}
 
@@ -774,11 +811,12 @@ export default function ExternalCalendarEventsBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Previous
+                        {t('common.pagination.previous')}
                       </button>
 
                       <span className="text-xs text-slate-500">
-                        Page {page} of {totalPages}
+                        {t('common.pagination.page')} {page}{' '}
+                        {t('common.pagination.of')} {totalPages}
                       </span>
 
                       <button
@@ -792,7 +830,7 @@ export default function ExternalCalendarEventsBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {t('common.pagination.next')}
                       </button>
                     </div>
                   </div>

@@ -10,6 +10,11 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAiStatusLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   analyzeExternalCalendarEvent,
   ApiClientError,
   getAiSuggestions,
@@ -54,12 +59,16 @@ function getCalendarActionState(
   );
 }
 
-function formatOrganizer(event: ExternalCalendarEvent) {
+function formatOrganizer(event: ExternalCalendarEvent, t: Translate) {
   if (event.organizerName && event.organizerEmail) {
     return `${event.organizerName} <${event.organizerEmail}>`;
   }
 
-  return event.organizerEmail ?? event.organizerName ?? 'Unknown organizer';
+  return (
+    event.organizerEmail ??
+    event.organizerName ??
+    t('common.emptyStates.unknownOrganizer')
+  );
 }
 
 function getAttendeesCount(attendeesJson: unknown) {
@@ -79,12 +88,12 @@ function getAttendeesCount(attendeesJson: unknown) {
   return null;
 }
 
-function getFriendlyActionError(error: unknown) {
+function getFriendlyActionError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
     if (error.status === 409) {
-      return 'An AI suggestion already exists for this calendar event. Open it from the existing suggestion link.';
+      return t('externalSync.errors.existingCalendarSuggestion');
     }
 
     if (
@@ -92,7 +101,7 @@ function getFriendlyActionError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -101,14 +110,14 @@ function getFriendlyActionError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing calendar events.';
+      return t('externalSync.errors.connectGoogleCalendar');
     }
   }
 
-  return 'Could not complete this AI action. Please try again.';
+  return t('externalSync.errors.calendarActionFailed');
 }
 
-function getFriendlySyncError(error: unknown) {
+function getFriendlySyncError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
@@ -117,7 +126,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -126,7 +135,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing calendar events.';
+      return t('externalSync.errors.connectGoogleCalendar');
     }
 
     return error.message;
@@ -136,11 +145,12 @@ function getFriendlySyncError(error: unknown) {
     return error.message;
   }
 
-  return 'Could not sync calendar events. Please try again.';
+  return t('externalSync.errors.syncCalendarFailed');
 }
 
 export default function ExternalCalendarEventsPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [events, setEvents] = useState<ExternalCalendarEvent[]>([]);
   const [page, setPage] = useState(1);
@@ -218,12 +228,12 @@ export default function ExternalCalendarEventsPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load synced calendar events.');
+        setErrorMessage(t('externalSync.errors.loadCalendarFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, token]);
+  }, [page, searchQuery, t, token]);
 
   useEffect(() => {
     loadEvents();
@@ -274,13 +284,17 @@ export default function ExternalCalendarEventsPage() {
       const stored = result.eventsStored ?? 0;
 
       setSyncMessage(
-        `Calendar sync completed. Fetched ${fetched} event(s), stored ${stored} event(s).`,
+        `${t('syncedCalendar.messages.syncCompleted')} ${t(
+          'syncedCalendar.messages.fetched',
+        )} ${fetched} ${t('syncedCalendar.messages.events')} ${t(
+          'syncedCalendar.messages.stored',
+        )} ${stored} ${t('syncedCalendar.messages.events')}`,
       );
       setPage(1);
       await loadEvents();
       await loadExistingCalendarSuggestions();
     } catch (error) {
-      setSyncErrorMessage(getFriendlySyncError(error));
+      setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setIsSyncing(false);
     }
@@ -329,7 +343,7 @@ export default function ExternalCalendarEventsPage() {
       updateEventActionState(calendarEventId, (current) => ({
         ...current,
         isAnalyzing: false,
-        errorMessage: getFriendlyActionError(error),
+        errorMessage: getFriendlyActionError(error, t),
         ...(existingSuggestion
           ? { analysisSuggestionId: existingSuggestion.id }
           : {}),
@@ -340,16 +354,16 @@ export default function ExternalCalendarEventsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Calendar"
-        title="Synced Calendar Events"
-        description="View synced Google Calendar metadata and create AI calendar analysis suggestions for human review."
+        eyebrow={t('syncedCalendar.eyebrow')}
+        title={t('syncedCalendar.title')}
+        description={t('syncedCalendar.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/external-sync/calendar-events/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Board view
+              {t('common.actions.boardView')}
             </Link>
             <button
               type="button"
@@ -357,7 +371,9 @@ export default function ExternalCalendarEventsPage() {
               disabled={isSyncing || !canRunWriteActions}
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncing ? 'Syncing Calendar...' : 'Sync Calendar'}
+              {isSyncing
+                ? t('externalSync.actions.syncingCalendar')
+                : t('externalSync.actions.syncCalendar')}
             </button>
           </div>
         }
@@ -365,11 +381,11 @@ export default function ExternalCalendarEventsPage() {
 
       <section className="grid gap-3 md:grid-cols-5">
         {[
-          'AI uses synced calendar metadata only.',
-          'No emails are sent automatically.',
-          'No CRM records are created automatically.',
-          'No tasks or notes are created automatically.',
-          'Generated suggestions must be reviewed by a human.',
+          t('externalSync.safety.calendarMetadataOnly'),
+          t('externalSync.safety.noEmailsSent'),
+          t('externalSync.safety.noCrmRecords'),
+          t('externalSync.safety.noTasksOrNotes'),
+          t('externalSync.safety.generatedSuggestionsHumanReview'),
         ].map((message) => (
           <div
             key={message}
@@ -394,8 +410,7 @@ export default function ExternalCalendarEventsPage() {
 
       {!canRunWriteActions ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Your role can view synced calendar events, but CRM write permissions
-          are required to sync Calendar or create AI suggestions.
+          {t('syncedCalendar.messages.readOnlyRole')}
         </div>
       ) : null}
 
@@ -406,12 +421,12 @@ export default function ExternalCalendarEventsPage() {
         >
           <label className="flex-1 space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Search synced calendar events
+              {t('syncedCalendar.list.searchLabel')}
             </span>
             <input
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Search summary, location, organizer, or description"
+              placeholder={t('syncedCalendar.list.searchPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
@@ -420,7 +435,7 @@ export default function ExternalCalendarEventsPage() {
             type="submit"
             className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
           >
-            Search
+            {t('common.actions.search')}
           </button>
 
           <button
@@ -429,7 +444,7 @@ export default function ExternalCalendarEventsPage() {
             disabled={!hasSearch && !searchDraft}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Clear
+            {t('common.actions.clear')}
           </button>
         </form>
       </section>
@@ -440,8 +455,8 @@ export default function ExternalCalendarEventsPage() {
 
       {!isLoading && !errorMessage && events.length === 0 ? (
         <EmptyState
-          title="No synced calendar events found"
-          description="Run a manual Calendar sync or adjust your search to review synced calendar metadata."
+          title={t('syncedCalendar.emptyStates.noneFound')}
+          description={t('syncedCalendar.emptyStates.listDescription')}
         />
       ) : null}
 
@@ -449,9 +464,12 @@ export default function ExternalCalendarEventsPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>
-              Showing page {page} of {totalPages}
+              {t('common.pagination.showingPage')} {page}{' '}
+              {t('common.pagination.of')} {totalPages}
             </span>
-            <span>{totalEvents} synced calendar event(s)</span>
+            <span>
+              {totalEvents} {t('syncedCalendar.list.total')}
+            </span>
           </div>
 
           {events.map((event) => {
@@ -497,10 +515,11 @@ export default function ExternalCalendarEventsPage() {
 
                     <div>
                       <h2 className="break-words text-lg font-semibold text-slate-950">
-                        {event.summary ?? 'No title'}
+                        {event.summary ?? t('common.emptyStates.noTitle')}
                       </h2>
                       <p className="mt-1 break-words text-sm text-slate-600">
-                        Organizer: {formatOrganizer(event)}
+                        {t('externalSync.labels.organizer')}:{' '}
+                        {formatOrganizer(event, t)}
                       </p>
                     </div>
 
@@ -512,38 +531,48 @@ export default function ExternalCalendarEventsPage() {
 
                     <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
                       <div>
-                        <p className="font-medium text-slate-950">Start</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.start')}
+                        </p>
                         <p className="mt-1 text-slate-600">
-                          {event.startAt ? formatDateTime(event.startAt) : 'Not set'}
+                          {event.startAt
+                            ? formatDateTime(event.startAt)
+                            : t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">End</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.end')}
+                        </p>
                         <p className="mt-1 text-slate-600">
-                          {event.endAt ? formatDateTime(event.endAt) : 'Not set'}
+                          {event.endAt
+                            ? formatDateTime(event.endAt)
+                            : t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">Location</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.location')}
+                        </p>
                         <p className="mt-1 break-words text-slate-600">
-                          {event.location ?? 'Not set'}
+                          {event.location ?? t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div>
                         <p className="font-medium text-slate-950">
-                          Attendees
+                          {t('externalSync.labels.attendees')}
                         </p>
                         <p className="mt-1 text-slate-600">
-                          {attendeesCount ?? 'Not set'}
+                          {attendeesCount ?? t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div>
                         <p className="font-medium text-slate-950">
-                          Synced at
+                          {t('externalSync.labels.syncedAt')}
                         </p>
                         <p className="mt-1 text-slate-600">
                           {formatDateTime(event.syncedAt)}
@@ -552,7 +581,7 @@ export default function ExternalCalendarEventsPage() {
 
                       <div>
                         <p className="font-medium text-slate-950">
-                          Calendar ID
+                          {t('externalSync.labels.calendarId')}
                         </p>
                         <p className="mt-1 break-all text-slate-500">
                           {event.externalCalendarId}
@@ -560,16 +589,20 @@ export default function ExternalCalendarEventsPage() {
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">Event ID</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.eventId')}
+                        </p>
                         <p className="mt-1 break-all text-slate-500">
                           {event.externalEventId}
                         </p>
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">iCal UID</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.icalUid')}
+                        </p>
                         <p className="mt-1 break-all text-slate-500">
-                          {event.iCalUid ?? 'Not set'}
+                          {event.iCalUid ?? t('common.emptyStates.notSet')}
                         </p>
                       </div>
                     </div>
@@ -581,7 +614,7 @@ export default function ExternalCalendarEventsPage() {
                         rel="noreferrer"
                         className="inline-flex rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        Open calendar event
+                        {t('externalSync.actions.openCalendarEvent')}
                       </a>
                     ) : null}
 
@@ -597,7 +630,7 @@ export default function ExternalCalendarEventsPage() {
                           href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
                           className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
                         >
-                          View analysis
+                          {t('externalSync.actions.viewAnalysis')}
                         </Link>
 
                         <Badge
@@ -605,7 +638,11 @@ export default function ExternalCalendarEventsPage() {
                             analysisSuggestion.status as AiSuggestionStatus,
                           )}
                         >
-                          Analysis: {formatEnumLabel(analysisSuggestion.status)}
+                          {t('externalSync.labels.analysis')}:{' '}
+                          {getAiStatusLabel(
+                            analysisSuggestion.status as AiSuggestionStatus,
+                            t,
+                          )}
                         </Badge>
                       </div>
                     ) : null}
@@ -617,7 +654,7 @@ export default function ExternalCalendarEventsPage() {
                         href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
                         className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
                       >
-                        View analysis
+                        {t('externalSync.actions.viewAnalysis')}
                       </Link>
                     ) : (
                       <button
@@ -627,8 +664,8 @@ export default function ExternalCalendarEventsPage() {
                         className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {actionState.isAnalyzing
-                          ? 'Analyzing...'
-                          : 'Analyze event'}
+                          ? t('externalSync.actions.analyzing')
+                          : t('externalSync.actions.analyzeEvent')}
                       </button>
                     )}
                   </div>
@@ -644,11 +681,12 @@ export default function ExternalCalendarEventsPage() {
               onClick={() => setPage((currentPage) => currentPage - 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Previous
+              {t('common.pagination.previous')}
             </button>
 
             <span className="text-sm text-slate-500">
-              Page {page} of {totalPages}
+              {t('common.pagination.page')} {page}{' '}
+              {t('common.pagination.of')} {totalPages}
             </span>
 
             <button
@@ -657,7 +695,7 @@ export default function ExternalCalendarEventsPage() {
               onClick={() => setPage((currentPage) => currentPage + 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Next
+              {t('common.pagination.next')}
             </button>
           </div>
         </section>

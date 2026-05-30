@@ -10,6 +10,11 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAiStatusLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   analyzeExternalEmailMessage,
   ApiClientError,
   generateExternalEmailReplyDraft,
@@ -46,12 +51,12 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function formatSender(email: ExternalEmailMessage) {
+function formatSender(email: ExternalEmailMessage, t: Translate) {
   if (email.fromName && email.fromEmail) {
     return `${email.fromName} <${email.fromEmail}>`;
   }
 
-  return email.fromEmail ?? email.fromName ?? 'Unknown sender';
+  return email.fromEmail ?? email.fromName ?? t('common.emptyStates.unknownSender');
 }
 
 function getEmailActionState(
@@ -66,12 +71,12 @@ function getEmailActionState(
   );
 }
 
-function getFriendlyActionError(error: unknown) {
+function getFriendlyActionError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
     if (error.status === 409) {
-      return 'An AI suggestion already exists for this email. Open it from the existing suggestion link.';
+      return t('externalSync.errors.existingEmailSuggestion');
     }
 
     if (
@@ -79,7 +84,7 @@ function getFriendlyActionError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -88,14 +93,14 @@ function getFriendlyActionError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing emails.';
+      return t('externalSync.errors.connectGoogleEmails');
     }
   }
 
-  return 'Could not complete this AI action. Please try again.';
+  return t('externalSync.errors.emailActionFailed');
 }
 
-function getFriendlySyncError(error: unknown) {
+function getFriendlySyncError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
@@ -104,7 +109,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -113,7 +118,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing emails.';
+      return t('externalSync.errors.connectGoogleEmails');
     }
 
     return error.message;
@@ -123,11 +128,12 @@ function getFriendlySyncError(error: unknown) {
     return error.message;
   }
 
-  return 'Could not sync Gmail messages. Please try again.';
+  return t('externalSync.errors.syncEmailsFailed');
 }
 
 export default function ExternalEmailMessagesPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [emails, setEmails] = useState<ExternalEmailMessage[]>([]);
   const [page, setPage] = useState(1);
@@ -226,12 +232,12 @@ export default function ExternalEmailMessagesPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load synced emails.');
+        setErrorMessage(t('externalSync.errors.loadEmailsFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, token]);
+  }, [page, searchQuery, t, token]);
 
   useEffect(() => {
     loadEmails();
@@ -282,13 +288,17 @@ export default function ExternalEmailMessagesPage() {
       const stored = result.messagesStored ?? 0;
 
       setSyncMessage(
-        `Gmail sync completed. Fetched ${fetched} message(s), stored ${stored} message(s).`,
+        `${t('syncedEmails.messages.syncCompleted')} ${t(
+          'syncedEmails.messages.fetched',
+        )} ${fetched} ${t('syncedEmails.messages.messages')} ${t(
+          'syncedEmails.messages.stored',
+        )} ${stored} ${t('syncedEmails.messages.messages')}`,
       );
       setPage(1);
       await loadEmails();
       await loadExistingEmailSuggestions();
     } catch (error) {
-      setSyncErrorMessage(getFriendlySyncError(error));
+      setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setIsSyncing(false);
     }
@@ -351,7 +361,7 @@ export default function ExternalEmailMessagesPage() {
       updateEmailActionState(emailId, (current) => ({
         ...current,
         loadingAction: null,
-        errorMessage: getFriendlyActionError(error),
+        errorMessage: getFriendlyActionError(error, t),
         ...(existingSuggestion && actionName === 'analyze'
           ? { analyzeSuggestionId: existingSuggestion.id }
           : {}),
@@ -365,16 +375,16 @@ export default function ExternalEmailMessagesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Inbox"
-        title="Synced Emails"
-        description="View synced Gmail metadata and create AI suggestions for human review."
+        eyebrow={t('syncedEmails.eyebrow')}
+        title={t('syncedEmails.title')}
+        description={t('syncedEmails.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/external-sync/email-messages/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Board view
+              {t('common.actions.boardView')}
             </Link>
             <button
               type="button"
@@ -382,7 +392,9 @@ export default function ExternalEmailMessagesPage() {
               disabled={isSyncing || !canRunWriteActions}
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncing ? 'Syncing Gmail...' : 'Sync Gmail'}
+              {isSyncing
+                ? t('externalSync.actions.syncingGmail')
+                : t('externalSync.actions.syncGmail')}
             </button>
           </div>
         }
@@ -390,11 +402,11 @@ export default function ExternalEmailMessagesPage() {
 
       <section className="grid gap-3 md:grid-cols-5">
         {[
-          'AI uses synced email metadata/snippet only.',
-          'No email is sent automatically.',
-          'No Gmail draft is created automatically.',
-          'No CRM records are created automatically.',
-          'Generated suggestions must be reviewed by a human.',
+          t('externalSync.safety.emailMetadataOnly'),
+          t('externalSync.safety.noEmailSent'),
+          t('externalSync.safety.noGmailDraft'),
+          t('externalSync.safety.noCrmRecords'),
+          t('externalSync.safety.generatedSuggestionsHumanReview'),
         ].map((message) => (
           <div
             key={message}
@@ -419,8 +431,7 @@ export default function ExternalEmailMessagesPage() {
 
       {!canRunWriteActions ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Your role can view synced emails, but CRM write permissions are required
-          to sync Gmail or create AI suggestions.
+          {t('syncedEmails.messages.readOnlyRole')}
         </div>
       ) : null}
 
@@ -431,12 +442,12 @@ export default function ExternalEmailMessagesPage() {
         >
           <label className="flex-1 space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Search synced emails
+              {t('syncedEmails.list.searchLabel')}
             </span>
             <input
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Search subject, sender, or snippet"
+              placeholder={t('syncedEmails.list.searchPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
@@ -445,7 +456,7 @@ export default function ExternalEmailMessagesPage() {
             type="submit"
             className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
           >
-            Search
+            {t('common.actions.search')}
           </button>
 
           <button
@@ -454,7 +465,7 @@ export default function ExternalEmailMessagesPage() {
             disabled={!hasSearch && !searchDraft}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Clear
+            {t('common.actions.clear')}
           </button>
         </form>
       </section>
@@ -465,8 +476,8 @@ export default function ExternalEmailMessagesPage() {
 
       {!isLoading && !errorMessage && emails.length === 0 ? (
         <EmptyState
-          title="No synced emails found"
-          description="Run a manual Gmail sync or adjust your search to review synced email metadata."
+          title={t('syncedEmails.emptyStates.noneFound')}
+          description={t('syncedEmails.emptyStates.listDescription')}
         />
       ) : null}
 
@@ -474,9 +485,12 @@ export default function ExternalEmailMessagesPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>
-              Showing page {page} of {totalPages}
+              {t('common.pagination.showingPage')} {page}{' '}
+              {t('common.pagination.of')} {totalPages}
             </span>
-            <span>{totalEmails} synced email(s)</span>
+            <span>
+              {totalEmails} {t('syncedEmails.list.total')}
+            </span>
           </div>
 
           {emails.map((email) => {
@@ -524,31 +538,33 @@ export default function ExternalEmailMessagesPage() {
 
                     <div>
                       <h2 className="break-words text-lg font-semibold text-slate-950">
-                        {email.subject ?? 'No subject'}
+                        {email.subject ?? t('common.emptyStates.noSubject')}
                       </h2>
                       <p className="mt-1 break-words text-sm text-slate-600">
-                        From: {formatSender(email)}
+                        {t('externalSync.labels.from')}: {formatSender(email, t)}
                       </p>
                     </div>
 
                     <p className="line-clamp-3 max-w-4xl text-sm leading-6 text-slate-600">
-                      {email.snippet ?? 'No snippet available.'}
+                      {email.snippet ?? t('common.emptyStates.noSnippet')}
                     </p>
 
                     <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
                       <div>
                         <p className="font-medium text-slate-950">
-                          Internal date
+                          {t('externalSync.labels.internalDate')}
                         </p>
                         <p className="mt-1 text-slate-600">
                           {email.internalDate
                             ? formatDateTime(email.internalDate)
-                            : 'Not set'}
+                            : t('common.emptyStates.notSet')}
                         </p>
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">Synced at</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.syncedAt')}
+                        </p>
                         <p className="mt-1 text-slate-600">
                           {formatDateTime(email.syncedAt)}
                         </p>
@@ -556,7 +572,7 @@ export default function ExternalEmailMessagesPage() {
 
                       <div>
                         <p className="font-medium text-slate-950">
-                          Message ID
+                          {t('externalSync.labels.messageId')}
                         </p>
                         <p className="mt-1 break-all text-slate-500">
                           {email.externalMessageId}
@@ -564,9 +580,12 @@ export default function ExternalEmailMessagesPage() {
                       </div>
 
                       <div>
-                        <p className="font-medium text-slate-950">Thread ID</p>
+                        <p className="font-medium text-slate-950">
+                          {t('externalSync.labels.threadId')}
+                        </p>
                         <p className="mt-1 break-all text-slate-500">
-                          {email.externalThreadId ?? 'Not threaded'}
+                          {email.externalThreadId ??
+                            t('syncedEmails.messages.notThreaded')}
                         </p>
                       </div>
                     </div>
@@ -584,7 +603,7 @@ export default function ExternalEmailMessagesPage() {
                             href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
                             className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
                           >
-                            View analysis
+                            {t('externalSync.actions.viewAnalysis')}
                           </Link>
                         ) : null}
 
@@ -594,7 +613,11 @@ export default function ExternalEmailMessagesPage() {
                               analysisSuggestion.status as AiSuggestionStatus,
                             )}
                           >
-                            Analysis: {formatEnumLabel(analysisSuggestion.status)}
+                            {t('externalSync.labels.analysis')}:{' '}
+                            {getAiStatusLabel(
+                              analysisSuggestion.status as AiSuggestionStatus,
+                              t,
+                            )}
                           </Badge>
                         ) : null}
 
@@ -603,7 +626,7 @@ export default function ExternalEmailMessagesPage() {
                             href={`/dashboard/ai-suggestions/${replyDraftSuggestion.id}`}
                             className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
                           >
-                            View reply draft
+                            {t('externalSync.actions.viewReplyDraft')}
                           </Link>
                         ) : null}
 
@@ -613,8 +636,11 @@ export default function ExternalEmailMessagesPage() {
                               replyDraftSuggestion.status as AiSuggestionStatus,
                             )}
                           >
-                            Reply draft:{' '}
-                            {formatEnumLabel(replyDraftSuggestion.status)}
+                            {t('externalSync.labels.replyDraft')}:{' '}
+                            {getAiStatusLabel(
+                              replyDraftSuggestion.status as AiSuggestionStatus,
+                              t,
+                            )}
                           </Badge>
                         ) : null}
                       </div>
@@ -627,7 +653,7 @@ export default function ExternalEmailMessagesPage() {
                         href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
                         className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        View analysis
+                        {t('externalSync.actions.viewAnalysis')}
                       </Link>
                     ) : (
                       <button
@@ -636,7 +662,9 @@ export default function ExternalEmailMessagesPage() {
                         disabled={!canRunWriteActions || isAnyActionLoading}
                         className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isAnalyzeLoading ? 'Analyzing...' : 'Analyze email'}
+                        {isAnalyzeLoading
+                          ? t('externalSync.actions.analyzing')
+                          : t('externalSync.actions.analyzeEmail')}
                       </button>
                     )}
 
@@ -645,7 +673,7 @@ export default function ExternalEmailMessagesPage() {
                         href={`/dashboard/ai-suggestions/${replyDraftSuggestion.id}`}
                         className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
                       >
-                        View reply draft
+                        {t('externalSync.actions.viewReplyDraft')}
                       </Link>
                     ) : (
                       <button
@@ -657,8 +685,8 @@ export default function ExternalEmailMessagesPage() {
                         className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isReplyDraftLoading
-                          ? 'Generating...'
-                          : 'Generate reply draft'}
+                          ? t('externalSync.actions.generating')
+                          : t('externalSync.actions.generateReplyDraft')}
                       </button>
                     )}
                   </div>
@@ -674,11 +702,12 @@ export default function ExternalEmailMessagesPage() {
               onClick={() => setPage((currentPage) => currentPage - 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Previous
+              {t('common.pagination.previous')}
             </button>
 
             <span className="text-sm text-slate-500">
-              Page {page} of {totalPages}
+              {t('common.pagination.page')} {page}{' '}
+              {t('common.pagination.of')} {totalPages}
             </span>
 
             <button
@@ -687,7 +716,7 @@ export default function ExternalEmailMessagesPage() {
               onClick={() => setPage((currentPage) => currentPage + 1)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Next
+              {t('common.pagination.next')}
             </button>
           </div>
         </section>

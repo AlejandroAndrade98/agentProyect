@@ -10,6 +10,12 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getAiStatusLabel,
+  getAppliedActionLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   analyzeExternalEmailMessage,
   ApiClientError,
   generateExternalEmailReplyDraft,
@@ -17,7 +23,7 @@ import {
   getExternalEmailMessages,
   syncExternalEmailMessages,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel, truncateText } from '@/lib/formatters';
+import { formatDateTime, truncateText } from '@/lib/formatters';
 import { canUpdateCrm } from '@/lib/permissions';
 import type { AiSuggestion, AiSuggestionStatus } from '@/types/ai-suggestions';
 import type { ExternalEmailMessage } from '@/types/external-sync';
@@ -51,40 +57,40 @@ const BOARD_PAGE_SIZE = 5;
 const columnConfig: Record<
   EmailColumnKey,
   {
-    title: string;
-    description: string;
-    emptyMessage: string;
+    titleKey: string;
+    descriptionKey: string;
+    emptyMessageKey: string;
     headingClassName: string;
   }
 > = {
   new: {
-    title: 'New Synced',
-    description: 'No AI analysis or reply draft suggestion yet.',
-    emptyMessage: 'No new synced emails',
+    titleKey: 'externalSync.board.newSynced',
+    descriptionKey: 'syncedEmails.columns.newDescription',
+    emptyMessageKey: 'syncedEmails.columns.noNew',
     headingClassName: 'text-slate-700',
   },
   'needs-review': {
-    title: 'Needs Review',
-    description: 'At least one AI suggestion is pending human review.',
-    emptyMessage: 'No emails need review',
+    titleKey: 'externalSync.board.needsReview',
+    descriptionKey: 'syncedEmails.columns.needsReviewDescription',
+    emptyMessageKey: 'syncedEmails.columns.noNeedsReview',
     headingClassName: 'text-amber-700',
   },
   ready: {
-    title: 'Ready for Action',
-    description: 'Accepted suggestions with no completed action yet.',
-    emptyMessage: 'No emails ready for action',
+    titleKey: 'externalSync.board.readyForAction',
+    descriptionKey: 'syncedEmails.columns.readyDescription',
+    emptyMessageKey: 'syncedEmails.columns.noReady',
     headingClassName: 'text-emerald-700',
   },
   completed: {
-    title: 'Completed',
-    description: 'CRM or Gmail draft action metadata exists.',
-    emptyMessage: 'No completed email actions',
+    titleKey: 'externalSync.board.completed',
+    descriptionKey: 'syncedEmails.columns.completedDescription',
+    emptyMessageKey: 'syncedEmails.columns.noCompleted',
     headingClassName: 'text-blue-700',
   },
   closed: {
-    title: 'Rejected / Closed',
-    description: 'Related suggestions are rejected or expired.',
-    emptyMessage: 'No rejected or closed emails',
+    titleKey: 'externalSync.board.rejectedClosed',
+    descriptionKey: 'syncedEmails.columns.closedDescription',
+    emptyMessageKey: 'syncedEmails.columns.noClosed',
     headingClassName: 'text-rose-700',
   },
 };
@@ -96,13 +102,6 @@ const columnKeys: EmailColumnKey[] = [
   'completed',
   'closed',
 ];
-
-const appliedActionLabels: Record<string, string> = {
-  CREATE_TASK_FROM_EXTERNAL_EMAIL: 'Task created',
-  CREATE_NOTE_FROM_EXTERNAL_EMAIL: 'Note created',
-  CREATE_LEAD_FROM_EXTERNAL_EMAIL: 'Lead created',
-  CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION: 'Gmail draft created',
-};
 
 function getInitialColumnPages() {
   return columnKeys.reduce((accumulator, key) => {
@@ -124,12 +123,12 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function formatSender(email: ExternalEmailMessage) {
+function formatSender(email: ExternalEmailMessage, t: Translate) {
   if (email.fromName && email.fromEmail) {
     return `${email.fromName} <${email.fromEmail}>`;
   }
 
-  return email.fromEmail ?? email.fromName ?? 'Unknown sender';
+  return email.fromEmail ?? email.fromName ?? t('common.emptyStates.unknownSender');
 }
 
 function getMetadataString(value: unknown) {
@@ -171,12 +170,24 @@ function hasGmailDraftCreated(suggestion: AiSuggestion | undefined) {
   );
 }
 
-function getAppliedLabels(...suggestions: Array<AiSuggestion | undefined>) {
+function hasAppliedActions(...suggestions: Array<AiSuggestion | undefined>) {
+  return suggestions.some(
+    (suggestion) =>
+      getAppliedActionNames(suggestion).some((action) =>
+        Boolean(getAppliedActionLabel(action, (key) => key)),
+      ) || hasGmailDraftCreated(suggestion),
+  );
+}
+
+function getAppliedLabels(
+  t: Translate,
+  ...suggestions: Array<AiSuggestion | undefined>
+) {
   const labels = new Set<string>();
 
   suggestions.forEach((suggestion) => {
     getAppliedActionNames(suggestion).forEach((action) => {
-      const label = appliedActionLabels[action];
+      const label = getAppliedActionLabel(action, t);
 
       if (label) {
         labels.add(label);
@@ -184,7 +195,7 @@ function getAppliedLabels(...suggestions: Array<AiSuggestion | undefined>) {
     });
 
     if (hasGmailDraftCreated(suggestion)) {
-      labels.add('Gmail draft created');
+      labels.add(t('aiSuggestions.completedActions.gmailDraftCreated'));
     }
   });
 
@@ -203,12 +214,12 @@ function getEmailActionState(
   );
 }
 
-function getFriendlyActionError(error: unknown) {
+function getFriendlyActionError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
     if (error.status === 409) {
-      return 'An AI suggestion already exists for this email. Open it from the existing suggestion link.';
+      return t('externalSync.errors.existingEmailSuggestion');
     }
 
     if (
@@ -216,7 +227,7 @@ function getFriendlyActionError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -225,14 +236,14 @@ function getFriendlyActionError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing emails.';
+      return t('externalSync.errors.connectGoogleEmails');
     }
   }
 
-  return 'Could not complete this AI action. Please try again.';
+  return t('externalSync.errors.emailActionFailed');
 }
 
-function getFriendlySyncError(error: unknown) {
+function getFriendlySyncError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
@@ -241,7 +252,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -250,7 +261,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing emails.';
+      return t('externalSync.errors.connectGoogleEmails');
     }
 
     return error.message;
@@ -260,7 +271,7 @@ function getFriendlySyncError(error: unknown) {
     return error.message;
   }
 
-  return 'Could not sync Gmail messages. Please try again.';
+  return t('externalSync.errors.syncEmailsFailed');
 }
 
 function classifyEmail(
@@ -272,7 +283,7 @@ function classifyEmail(
     Boolean,
   ) as AiSuggestion[];
   const hasCompleted = suggestions.some(
-    (suggestion) => getAppliedLabels(suggestion).length > 0,
+    (suggestion) => hasAppliedActions(suggestion),
   );
   const hasAccepted = suggestions.some((suggestion) =>
     ['ACCEPTED', 'EDITED_AND_ACCEPTED'].includes(suggestion.status),
@@ -330,10 +341,12 @@ function EmailCard({
   onAction,
 }: EmailCardProps) {
   const { email, analysisSuggestion, replyDraftSuggestion } = item;
+  const { t } = useI18n();
   const isAnalyzeLoading = actionState.loadingAction === 'analyze';
   const isReplyDraftLoading = actionState.loadingAction === 'reply-draft';
   const isAnyActionLoading = actionState.loadingAction !== null;
   const appliedLabels = getAppliedLabels(
+    t,
     analysisSuggestion,
     replyDraftSuggestion,
   );
@@ -343,35 +356,41 @@ function EmailCard({
       <div className="space-y-3">
         <div>
           <h3 className="break-words text-sm font-semibold leading-5 text-slate-950">
-            {email.subject ?? 'No subject'}
+            {email.subject ?? t('common.emptyStates.noSubject')}
           </h3>
           <p className="mt-1 break-words text-xs leading-5 text-slate-600">
-            {formatSender(email)}
+            {formatSender(email, t)}
           </p>
         </div>
 
         <p className="text-xs leading-5 text-slate-500">
-          {truncateText(email.snippet, 140) || 'No snippet available.'}
+          {truncateText(email.snippet, 140) || t('common.emptyStates.noSnippet')}
         </p>
 
         <div className="space-y-1 text-xs text-slate-500">
           <p>
-            Internal:{' '}
-            {email.internalDate ? formatDateTime(email.internalDate) : 'Not set'}
+            {t('externalSync.labels.internal')}:{' '}
+            {email.internalDate
+              ? formatDateTime(email.internalDate)
+              : t('common.emptyStates.notSet')}
           </p>
-          <p>Synced: {formatDateTime(email.syncedAt)}</p>
+          <p>
+            {t('externalSync.labels.synced')}: {formatDateTime(email.syncedAt)}
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {analysisSuggestion ? (
             <Badge className={getStatusClasses(analysisSuggestion.status)}>
-              Analysis: {formatEnumLabel(analysisSuggestion.status)}
+              {t('externalSync.labels.analysis')}:{' '}
+              {getAiStatusLabel(analysisSuggestion.status, t)}
             </Badge>
           ) : null}
 
           {replyDraftSuggestion ? (
             <Badge className={getStatusClasses(replyDraftSuggestion.status)}>
-              Reply draft: {formatEnumLabel(replyDraftSuggestion.status)}
+              {t('externalSync.labels.replyDraft')}:{' '}
+              {getAiStatusLabel(replyDraftSuggestion.status, t)}
             </Badge>
           ) : null}
 
@@ -397,7 +416,7 @@ function EmailCard({
               href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              View analysis
+              {t('externalSync.actions.viewAnalysis')}
             </Link>
           ) : (
             <button
@@ -406,7 +425,9 @@ function EmailCard({
               disabled={!canRunWriteActions || isAnyActionLoading}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isAnalyzeLoading ? 'Analyzing...' : 'Analyze email'}
+              {isAnalyzeLoading
+                ? t('externalSync.actions.analyzing')
+                : t('externalSync.actions.analyzeEmail')}
             </button>
           )}
 
@@ -415,7 +436,7 @@ function EmailCard({
               href={`/dashboard/ai-suggestions/${replyDraftSuggestion.id}`}
               className="rounded-xl bg-slate-950 px-3 py-2 text-center text-xs font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              View reply draft
+              {t('externalSync.actions.viewReplyDraft')}
             </Link>
           ) : (
             <button
@@ -424,7 +445,9 @@ function EmailCard({
               disabled={!canRunWriteActions || isAnyActionLoading}
               className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isReplyDraftLoading ? 'Generating...' : 'Generate reply draft'}
+              {isReplyDraftLoading
+                ? t('externalSync.actions.generating')
+                : t('externalSync.actions.generateReplyDraft')}
             </button>
           )}
         </div>
@@ -435,6 +458,7 @@ function EmailCard({
 
 export default function ExternalEmailMessagesBoardPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [emails, setEmails] = useState<ExternalEmailMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -529,12 +553,12 @@ export default function ExternalEmailMessagesBoardPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load AI inbox board.');
+        setErrorMessage(t('externalSync.errors.loadEmailBoardFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [loadExistingEmailSuggestions, token]);
+  }, [loadExistingEmailSuggestions, t, token]);
 
   useEffect(() => {
     void loadBoard();
@@ -565,11 +589,15 @@ export default function ExternalEmailMessagesBoardPage() {
       const stored = result.messagesStored ?? 0;
 
       setSyncMessage(
-        `Gmail sync completed. Fetched ${fetched} message(s), stored ${stored} message(s).`,
+        `${t('syncedEmails.messages.syncCompleted')} ${t(
+          'syncedEmails.messages.fetched',
+        )} ${fetched} ${t('syncedEmails.messages.messages')} ${t(
+          'syncedEmails.messages.stored',
+        )} ${stored} ${t('syncedEmails.messages.messages')}`,
       );
       await loadBoard();
     } catch (error) {
-      setSyncErrorMessage(getFriendlySyncError(error));
+      setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setIsSyncing(false);
     }
@@ -632,7 +660,7 @@ export default function ExternalEmailMessagesBoardPage() {
       updateEmailActionState(emailId, (current) => ({
         ...current,
         loadingAction: null,
-        errorMessage: getFriendlyActionError(error),
+        errorMessage: getFriendlyActionError(error, t),
         ...(existingSuggestion && actionName === 'analyze'
           ? { analyzeSuggestionId: existingSuggestion.id }
           : {}),
@@ -683,16 +711,16 @@ export default function ExternalEmailMessagesBoardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="AI Inbox"
-        title="Synced Emails Board"
-        description="Track synced Gmail metadata by AI processing state. Board cards can create AI suggestions for review, but they never send emails, create Gmail drafts, or create CRM records automatically."
+        eyebrow={t('syncedEmails.eyebrow')}
+        title={t('syncedEmails.boardTitle')}
+        description={t('syncedEmails.boardSubtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/external-sync/email-messages/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
             <button
               type="button"
@@ -700,7 +728,9 @@ export default function ExternalEmailMessagesBoardPage() {
               disabled={isSyncing || !canRunWriteActions}
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncing ? 'Syncing Gmail...' : 'Sync Gmail'}
+              {isSyncing
+                ? t('externalSync.actions.syncingGmail')
+                : t('externalSync.actions.syncGmail')}
             </button>
           </div>
         }
@@ -708,11 +738,11 @@ export default function ExternalEmailMessagesBoardPage() {
 
       <section className="grid gap-3 md:grid-cols-5">
         {[
-          'AI uses synced email metadata/snippet only.',
-          'No email is sent automatically.',
-          'No Gmail draft is created automatically.',
-          'No CRM records are created automatically.',
-          'Generated suggestions must be reviewed by a human.',
+          t('externalSync.safety.emailMetadataOnly'),
+          t('externalSync.safety.noEmailSent'),
+          t('externalSync.safety.noGmailDraft'),
+          t('externalSync.safety.noCrmRecords'),
+          t('externalSync.safety.generatedSuggestionsHumanReview'),
         ].map((message) => (
           <div
             key={message}
@@ -737,8 +767,7 @@ export default function ExternalEmailMessagesBoardPage() {
 
       {!canRunWriteActions ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Your role can view synced emails, but CRM write permissions are required
-          to sync Gmail or create AI suggestions.
+          {t('syncedEmails.messages.readOnlyRole')}
         </div>
       ) : null}
 
@@ -748,8 +777,8 @@ export default function ExternalEmailMessagesBoardPage() {
 
       {!isLoading && !errorMessage && totalEmails === 0 ? (
         <EmptyState
-          title="No synced emails found"
-          description="Run a manual Gmail sync to review synced email metadata in the AI inbox board."
+          title={t('syncedEmails.emptyStates.noneFound')}
+          description={t('syncedEmails.emptyStates.boardDescription')}
         />
       ) : null}
 
@@ -774,10 +803,10 @@ export default function ExternalEmailMessagesBoardPage() {
                         <h2
                           className={`text-sm font-semibold ${config.headingClassName}`}
                         >
-                          {config.title}
+                          {t(config.titleKey)}
                         </h2>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          {config.description}
+                          {t(config.descriptionKey)}
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
@@ -789,7 +818,7 @@ export default function ExternalEmailMessagesBoardPage() {
                   <div className="flex-1 space-y-3 p-3">
                     {visibleItems.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
-                        {config.emptyMessage}
+                        {t(config.emptyMessageKey)}
                       </div>
                     ) : null}
 
@@ -822,11 +851,12 @@ export default function ExternalEmailMessagesBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Previous
+                        {t('common.pagination.previous')}
                       </button>
 
                       <span className="text-xs text-slate-500">
-                        Page {page} of {totalPages}
+                        {t('common.pagination.page')} {page}{' '}
+                        {t('common.pagination.of')} {totalPages}
                       </span>
 
                       <button
@@ -840,7 +870,7 @@ export default function ExternalEmailMessagesBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {t('common.pagination.next')}
                       </button>
                     </div>
                   </div>
