@@ -29,6 +29,21 @@
       "applying": "Aplicando...",
       "applied": "Aplicada"
     },
+    "pagination": {
+      "page": "Página",
+      "of": "de",
+      "showingPage": "Mostrando página",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "emptyStates": {
+      "notSet": "No definido",
+      "noSubject": "Sin asunto",
+      "noTitle": "Sin título",
+      "noSnippet": "No hay fragmento disponible.",
+      "unknownSender": "Remitente desconocido",
+      "unknownOrganizer": "Organizador desconocido"
+    },
     "statuses": {
       "pendingReview": "Pendiente de revisión",
       "accepted": "Aceptada",
@@ -148,6 +163,151 @@
       "calendar": "Aún no hay eventos de calendario sincronizados."
     }
   },
+  "externalSync": {
+    "actions": {
+      "syncGmail": "Sincronizar Gmail",
+      "syncingGmail": "Sincronizando Gmail...",
+      "syncCalendar": "Sincronizar calendario",
+      "syncingCalendar": "Sincronizando calendario...",
+      "analyzeEmail": "Analizar correo",
+      "analyzeEvent": "Analizar evento",
+      "analyzing": "Analizando...",
+      "generateReplyDraft": "Generar borrador de respuesta",
+      "generating": "Generando...",
+      "viewAnalysis": "Ver análisis",
+      "viewReplyDraft": "Ver borrador",
+      "openInGoogleCalendar": "Abrir en Google Calendar",
+      "openCalendarEvent": "Abrir evento de calendario"
+    },
+    "board": {
+      "newSynced": "Nuevos sincronizados",
+      "needsReview": "Requiere revisión",
+      "readyForAction": "Listos para acción",
+      "completed": "Completados",
+      "rejectedClosed": "Rechazados / Cerrados"
+    },
+    "labels": {
+      "sender": "Remitente",
+      "from": "De",
+      "organizer": "Organizador",
+      "attendees": "Asistentes",
+      "location": "Ubicación",
+      "syncedAt": "Sincronizado el",
+      "synced": "Sincronizado",
+      "internalDate": "Fecha interna",
+      "internal": "Interna",
+      "analysis": "Análisis",
+      "replyDraft": "Borrador de respuesta",
+      "start": "Inicio",
+      "end": "Fin",
+      "messageId": "ID de mensaje",
+      "threadId": "ID de conversación",
+      "calendarId": "ID de calendario",
+      "eventId": "ID de evento",
+      "icalUid": "iCal UID"
+    },
+    "safety": {
+      "emailMetadataOnly": "La IA usa solo metadatos y fragmentos del correo sincronizado.",
+      "calendarMetadataOnly": "La IA usa solo metadatos del calendario sincronizado.",
+      "noEmailSent": "No se envía ningún correo automáticamente.",
+      "noEmailsSent": "No se envía ningún correo automáticamente.",
+      "noGmailDraft": "No se crea ningún borrador de Gmail automáticamente.",
+      "noCrmRecords": "No se crean registros CRM automáticamente.",
+      "noTasksOrNotes": "No se crean tareas ni notas automáticamente.",
+      "humanReviewRequired": "Revisión humana requerida.",
+      "generatedSuggestionsHumanReview": "Las sugerencias generadas deben ser revisadas por una persona.",
+      "generatedSuggestionsRequireReview": "Las sugerencias generadas requieren revisión humana.",
+      "crmActionsFromDetails": "Las acciones CRM ocurren solo desde el detalle de una sugerencia revisada."
+    },
+    "errors": {
+      "existingEmailSuggestion": "Ya existe una sugerencia de IA para este correo. Ábrela desde el enlace de la sugerencia existente.",
+      "existingCalendarSuggestion": "Ya existe una sugerencia de IA para este evento de calendario. Ábrela desde el enlace de la sugerencia existente.",
+      "googlePermissions": "Vuelve a conectar Google para conceder los permisos requeridos.",
+      "connectGoogleEmails": "Conecta o vuelve a conectar Google antes de sincronizar correos.",
+      "connectGoogleCalendar": "Conecta o vuelve a conectar Google antes de sincronizar eventos de calendario.",
+      "emailActionFailed": "No se pudo completar esta acción de IA. Inténtalo de nuevo.",
+      "calendarActionFailed": "No se pudo completar esta acción de IA. Inténtalo de nuevo.",
+      "syncEmailsFailed": "No se pudieron sincronizar los mensajes de Gmail. Inténtalo de nuevo.",
+      "syncCalendarFailed": "No se pudieron sincronizar los eventos del calendario. Inténtalo de nuevo.",
+      "loadEmailBoardFailed": "No se pudo cargar el tablero de bandeja de IA.",
+      "loadCalendarBoardFailed": "No se pudo cargar el tablero de calendario de IA.",
+      "loadEmailsFailed": "No se pudieron cargar los correos sincronizados.",
+      "loadCalendarFailed": "No se pudieron cargar los eventos de calendario sincronizados."
+    }
+  },
+  "syncedEmails": {
+    "eyebrow": "Bandeja de IA",
+    "title": "Correos sincronizados",
+    "boardTitle": "Tablero de correos sincronizados",
+    "subtitle": "Consulta metadatos sincronizados de Gmail y crea sugerencias de IA para revisión humana.",
+    "boardSubtitle": "Sigue los metadatos sincronizados de Gmail por estado de procesamiento de IA. Las tarjetas pueden crear sugerencias de IA para revisión, pero nunca envían correos, crean borradores de Gmail ni crean registros CRM automáticamente.",
+    "columns": {
+      "newDescription": "Aún no hay análisis de IA ni sugerencia de borrador de respuesta.",
+      "needsReviewDescription": "Al menos una sugerencia de IA está pendiente de revisión humana.",
+      "readyDescription": "Sugerencias aceptadas sin acción completada todavía.",
+      "completedDescription": "Existen metadatos de acción CRM o borrador de Gmail.",
+      "closedDescription": "Las sugerencias relacionadas fueron rechazadas o expiraron.",
+      "noNew": "No hay correos sincronizados nuevos",
+      "noNeedsReview": "No hay correos que requieran revisión",
+      "noReady": "No hay correos listos para acción",
+      "noCompleted": "No hay acciones de correo completadas",
+      "noClosed": "No hay correos rechazados o cerrados"
+    },
+    "list": {
+      "searchLabel": "Buscar correos sincronizados",
+      "searchPlaceholder": "Buscar por asunto, remitente o fragmento",
+      "total": "correo(s) sincronizado(s)"
+    },
+    "emptyStates": {
+      "noneFound": "No se encontraron correos sincronizados",
+      "boardDescription": "Ejecuta una sincronización manual de Gmail para revisar metadatos de correo sincronizados en el tablero de bandeja de IA.",
+      "listDescription": "Ejecuta una sincronización manual de Gmail o ajusta tu búsqueda para revisar metadatos de correo sincronizados."
+    },
+    "messages": {
+      "syncCompleted": "Sincronización de Gmail completada.",
+      "fetched": "Obtenidos",
+      "stored": "guardados",
+      "messages": "mensaje(s).",
+      "readOnlyRole": "Tu rol puede ver correos sincronizados, pero se requieren permisos de escritura CRM para sincronizar Gmail o crear sugerencias de IA.",
+      "notThreaded": "Sin conversación"
+    }
+  },
+  "syncedCalendar": {
+    "eyebrow": "Calendario de IA",
+    "title": "Eventos de calendario sincronizados",
+    "boardTitle": "Tablero de calendario sincronizado",
+    "subtitle": "Consulta metadatos sincronizados de Google Calendar y crea sugerencias de análisis de calendario con IA para revisión humana.",
+    "boardSubtitle": "Sigue los metadatos sincronizados de Google Calendar por estado de procesamiento de IA. Las tarjetas pueden crear sugerencias de análisis de IA para revisión, pero nunca crean registros CRM ni envían correos automáticamente.",
+    "columns": {
+      "newDescription": "Aún no hay sugerencia de análisis de calendario con IA.",
+      "needsReviewDescription": "El análisis de calendario con IA está pendiente de revisión humana.",
+      "readyDescription": "Análisis aceptado sin acción CRM completada todavía.",
+      "completedDescription": "Existen metadatos de acción para tarea, nota o prospecto CRM.",
+      "closedDescription": "El análisis fue rechazado o expiró.",
+      "noNew": "No hay eventos de calendario sincronizados nuevos",
+      "noNeedsReview": "No hay eventos de calendario que requieran revisión",
+      "noReady": "No hay eventos de calendario listos para acción",
+      "noCompleted": "No hay acciones de calendario completadas",
+      "noClosed": "No hay eventos de calendario rechazados o cerrados"
+    },
+    "list": {
+      "searchLabel": "Buscar eventos de calendario sincronizados",
+      "searchPlaceholder": "Buscar por resumen, ubicación, organizador o descripción",
+      "total": "evento(s) de calendario sincronizado(s)"
+    },
+    "emptyStates": {
+      "noneFound": "No se encontraron eventos de calendario sincronizados",
+      "boardDescription": "Ejecuta una sincronización manual de calendario para revisar metadatos de eventos sincronizados en el tablero de calendario de IA.",
+      "listDescription": "Ejecuta una sincronización manual de calendario o ajusta tu búsqueda para revisar metadatos de calendario sincronizados."
+    },
+    "messages": {
+      "syncCompleted": "Sincronización de calendario completada.",
+      "fetched": "Obtenidos",
+      "stored": "guardados",
+      "events": "evento(s).",
+      "readOnlyRole": "Tu rol puede ver eventos de calendario sincronizados, pero se requieren permisos de escritura CRM para sincronizar Calendar o crear sugerencias de IA."
+    }
+  },
   "aiSuggestions": {
     "eyebrow": "Revisión de IA",
     "title": "Sugerencias de IA",
@@ -227,8 +387,7 @@
       "createdAt": "Creado el",
       "reviewedAt": "Revisado el",
       "safety": "Seguridad",
-      "humanControlled": "Flujo controlado por personas"
-      ,
+      "humanControlled": "Flujo controlado por personas",
       "pageTitle": "Revisión de sugerencia de IA",
       "pageSubtitle": "Revisa la recomendación, el contexto de origen, los indicadores de seguridad y las acciones humanas explícitas.",
       "generatedRecommendation": "Recomendación generada",
@@ -247,7 +406,6 @@
       "leadId": "ID de prospecto",
       "appliedAt": "Aplicada el",
       "appliedByUserId": "ID del usuario que aplicó la acción",
-      "created": "Creada",
       "calendarTaskCompletedSafety": "Creada por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon prospectos, contactos, empresas ni notas automáticamente.",
       "calendarNoteCompletedSafety": "Creada por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon prospectos, contactos, empresas ni tareas automáticamente.",
       "calendarLeadCompletedSafety": "Creado por una acción humana explícita. No se envió ningún correo automáticamente y no se crearon empresas, contactos, tareas ni notas automáticamente.",
@@ -259,7 +417,37 @@
       "createCalendarLeadDescription": "Esto crea un prospecto oficial de CRM desde la revisión de calendario aceptada. Requiere este clic humano explícito y no envía correos. No se crea ningún prospecto automáticamente.",
       "calendarTaskPayloadDescription": "La tarea incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, prospectos, notas ni correos automáticamente.",
       "calendarNotePayloadDescription": "La nota incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, prospectos, tareas ni correos automáticamente.",
-      "calendarLeadPayloadDescription": "El prospecto incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. No se crearán empresas, contactos, tareas, notas ni correos automáticamente."
+      "calendarLeadPayloadDescription": "El prospecto incluirá metadatos seguros del calendario sincronizado, el resumen de IA, el razonamiento, los identificadores del evento y un aviso de aprobación humana. Los enlaces existentes a empresas o contactos solo se reutilizan si ya están presentes en la sugerencia. No se crearán empresas, contactos, tareas, notas ni correos automáticamente.",
+      "externalEmailAction": "Acción de correo externo",
+      "createEmailTaskTitle": "Crear tarea CRM desde el correo revisado",
+      "createEmailNoteTitle": "Crear nota CRM desde el correo revisado",
+      "createEmailLeadTitle": "Crear prospecto CRM desde el correo revisado",
+      "createEmailTaskDescription": "Esto crea una tarea oficial de CRM desde la revisión de correo aceptada. Requiere este clic humano explícito y no envía correos.",
+      "createEmailNoteDescription": "Esto crea una nota oficial de CRM desde la revisión de correo aceptada. Requiere este clic humano explícito y no envía correos.",
+      "createEmailLeadDescription": "Esto crea un prospecto oficial de CRM desde la revisión de correo aceptada. Requiere este clic humano explícito y no envía correos.",
+      "emailTaskPayloadDescription": "La tarea incluirá metadatos seguros del correo sincronizado, el resumen de IA, el razonamiento y un aviso de aprobación humana. No se crearán contactos, prospectos ni correos.",
+      "emailNotePayloadDescription": "La nota incluirá metadatos seguros del correo sincronizado y la nota sugerida por IA. No se crearán contactos, prospectos, tareas ni correos.",
+      "emailLeadPayloadDescription": "El prospecto incluirá metadatos seguros del correo sincronizado, el resumen de IA, el razonamiento, los identificadores externos y un aviso de aprobación humana. Los enlaces existentes a empresas o contactos solo se reutilizan si ya están presentes en la sugerencia.",
+      "title": "Título",
+      "description": "Descripción",
+      "priority": "Prioridad",
+      "dueDateOptional": "Fecha límite opcional",
+      "content": "Contenido",
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "critical": "Crítica",
+      "reviewDecisionDescription": "Aceptar o rechazar esta sugerencia solo registra una decisión humana de revisión. No actualiza registros CRM, crea tareas, crea notas, crea prospectos ni envía correos.",
+      "reviewNotePlaceholder": "Agrega contexto sobre por qué aceptas o rechazas esta sugerencia...",
+      "emailTaskCreatedSuccess": "Tarea CRM creada desde la revisión de correo. ID de tarea:",
+      "emailNoteCreatedSuccess": "Nota CRM creada desde la revisión de correo. ID de nota:",
+      "emailLeadCreatedSuccess": "Prospecto CRM creado desde la revisión de correo. ID de prospecto:",
+      "calendarTaskCreatedSuccess": "Tarea CRM creada desde la revisión de calendario. ID de tarea:",
+      "calendarNoteCreatedSuccess": "Nota CRM creada desde la revisión de calendario. ID de nota:",
+      "calendarLeadCreatedSuccess": "Prospecto CRM creado desde la revisión de calendario. ID de prospecto:",
+      "gmailDraftCreatedSuccess": "Borrador de Gmail creado. ID del borrador:",
+      "gmailDraftAlreadyCreated": "Ya se creó un borrador de Gmail para esta sugerencia.",
+      "gmailReconnectRequired": "Vuelve a conectar Google con permisos para borradores de Gmail antes de crear este borrador."
     }
   }
 }

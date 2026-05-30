@@ -29,6 +29,21 @@
       "applying": "Applying...",
       "applied": "Applied"
     },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "showingPage": "Showing page",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "emptyStates": {
+      "notSet": "Not set",
+      "noSubject": "No subject",
+      "noTitle": "No title",
+      "noSnippet": "No snippet available.",
+      "unknownSender": "Unknown sender",
+      "unknownOrganizer": "Unknown organizer"
+    },
     "statuses": {
       "pendingReview": "Pending review",
       "accepted": "Accepted",
@@ -148,6 +163,151 @@
       "calendar": "No synced calendar events yet."
     }
   },
+  "externalSync": {
+    "actions": {
+      "syncGmail": "Sync Gmail",
+      "syncingGmail": "Syncing Gmail...",
+      "syncCalendar": "Sync Calendar",
+      "syncingCalendar": "Syncing Calendar...",
+      "analyzeEmail": "Analyze email",
+      "analyzeEvent": "Analyze event",
+      "analyzing": "Analyzing...",
+      "generateReplyDraft": "Generate reply draft",
+      "generating": "Generating...",
+      "viewAnalysis": "View analysis",
+      "viewReplyDraft": "View reply draft",
+      "openInGoogleCalendar": "Open in Google Calendar",
+      "openCalendarEvent": "Open calendar event"
+    },
+    "board": {
+      "newSynced": "New Synced",
+      "needsReview": "Needs Review",
+      "readyForAction": "Ready for Action",
+      "completed": "Completed",
+      "rejectedClosed": "Rejected / Closed"
+    },
+    "labels": {
+      "sender": "Sender",
+      "from": "From",
+      "organizer": "Organizer",
+      "attendees": "Attendees",
+      "location": "Location",
+      "syncedAt": "Synced at",
+      "synced": "Synced",
+      "internalDate": "Internal date",
+      "internal": "Internal",
+      "analysis": "Analysis",
+      "replyDraft": "Reply draft",
+      "start": "Start",
+      "end": "End",
+      "messageId": "Message ID",
+      "threadId": "Thread ID",
+      "calendarId": "Calendar ID",
+      "eventId": "Event ID",
+      "icalUid": "iCal UID"
+    },
+    "safety": {
+      "emailMetadataOnly": "AI uses synced email metadata/snippet only.",
+      "calendarMetadataOnly": "AI uses synced calendar metadata only.",
+      "noEmailSent": "No email is sent automatically.",
+      "noEmailsSent": "No emails are sent automatically.",
+      "noGmailDraft": "No Gmail draft is created automatically.",
+      "noCrmRecords": "No CRM records are created automatically.",
+      "noTasksOrNotes": "No tasks or notes are created automatically.",
+      "humanReviewRequired": "Human review required.",
+      "generatedSuggestionsHumanReview": "Generated suggestions must be reviewed by a human.",
+      "generatedSuggestionsRequireReview": "Generated suggestions require human review.",
+      "crmActionsFromDetails": "CRM actions happen only from reviewed suggestion details."
+    },
+    "errors": {
+      "existingEmailSuggestion": "An AI suggestion already exists for this email. Open it from the existing suggestion link.",
+      "existingCalendarSuggestion": "An AI suggestion already exists for this calendar event. Open it from the existing suggestion link.",
+      "googlePermissions": "Reconnect Google to grant the required permissions.",
+      "connectGoogleEmails": "Connect or reconnect Google before syncing emails.",
+      "connectGoogleCalendar": "Connect or reconnect Google before syncing calendar events.",
+      "emailActionFailed": "Could not complete this AI action. Please try again.",
+      "calendarActionFailed": "Could not complete this AI action. Please try again.",
+      "syncEmailsFailed": "Could not sync Gmail messages. Please try again.",
+      "syncCalendarFailed": "Could not sync calendar events. Please try again.",
+      "loadEmailBoardFailed": "Could not load AI inbox board.",
+      "loadCalendarBoardFailed": "Could not load AI calendar board.",
+      "loadEmailsFailed": "Could not load synced emails.",
+      "loadCalendarFailed": "Could not load synced calendar events."
+    }
+  },
+  "syncedEmails": {
+    "eyebrow": "AI Inbox",
+    "title": "Synced Emails",
+    "boardTitle": "Synced Emails Board",
+    "subtitle": "View synced Gmail metadata and create AI suggestions for human review.",
+    "boardSubtitle": "Track synced Gmail metadata by AI processing state. Board cards can create AI suggestions for review, but they never send emails, create Gmail drafts, or create CRM records automatically.",
+    "columns": {
+      "newDescription": "No AI analysis or reply draft suggestion yet.",
+      "needsReviewDescription": "At least one AI suggestion is pending human review.",
+      "readyDescription": "Accepted suggestions with no completed action yet.",
+      "completedDescription": "CRM or Gmail draft action metadata exists.",
+      "closedDescription": "Related suggestions are rejected or expired.",
+      "noNew": "No new synced emails",
+      "noNeedsReview": "No emails need review",
+      "noReady": "No emails ready for action",
+      "noCompleted": "No completed email actions",
+      "noClosed": "No rejected or closed emails"
+    },
+    "list": {
+      "searchLabel": "Search synced emails",
+      "searchPlaceholder": "Search subject, sender, or snippet",
+      "total": "synced email(s)"
+    },
+    "emptyStates": {
+      "noneFound": "No synced emails found",
+      "boardDescription": "Run a manual Gmail sync to review synced email metadata in the AI inbox board.",
+      "listDescription": "Run a manual Gmail sync or adjust your search to review synced email metadata."
+    },
+    "messages": {
+      "syncCompleted": "Gmail sync completed.",
+      "fetched": "Fetched",
+      "stored": "stored",
+      "messages": "message(s).",
+      "readOnlyRole": "Your role can view synced emails, but CRM write permissions are required to sync Gmail or create AI suggestions.",
+      "notThreaded": "Not threaded"
+    }
+  },
+  "syncedCalendar": {
+    "eyebrow": "AI Calendar",
+    "title": "Synced Calendar Events",
+    "boardTitle": "Synced Calendar Board",
+    "subtitle": "View synced Google Calendar metadata and create AI calendar analysis suggestions for human review.",
+    "boardSubtitle": "Track synced Google Calendar metadata by AI processing state. Board cards can create AI analysis suggestions for review, but they never create CRM records or send emails automatically.",
+    "columns": {
+      "newDescription": "No AI calendar analysis suggestion yet.",
+      "needsReviewDescription": "AI calendar analysis is pending human review.",
+      "readyDescription": "Accepted analysis with no completed CRM action yet.",
+      "completedDescription": "CRM task, note, or lead action metadata exists.",
+      "closedDescription": "Analysis was rejected or expired.",
+      "noNew": "No new synced calendar events",
+      "noNeedsReview": "No calendar events need review",
+      "noReady": "No calendar events ready for action",
+      "noCompleted": "No completed calendar actions",
+      "noClosed": "No rejected or closed calendar events"
+    },
+    "list": {
+      "searchLabel": "Search synced calendar events",
+      "searchPlaceholder": "Search summary, location, organizer, or description",
+      "total": "synced calendar event(s)"
+    },
+    "emptyStates": {
+      "noneFound": "No synced calendar events found",
+      "boardDescription": "Run a manual Calendar sync to review synced event metadata in the AI calendar board.",
+      "listDescription": "Run a manual Calendar sync or adjust your search to review synced calendar metadata."
+    },
+    "messages": {
+      "syncCompleted": "Calendar sync completed.",
+      "fetched": "Fetched",
+      "stored": "stored",
+      "events": "event(s).",
+      "readOnlyRole": "Your role can view synced calendar events, but CRM write permissions are required to sync Calendar or create AI suggestions."
+    }
+  },
   "aiSuggestions": {
     "eyebrow": "AI Review",
     "title": "AI Suggestions",
@@ -227,8 +387,7 @@
       "createdAt": "Created at",
       "reviewedAt": "Reviewed at",
       "safety": "Safety",
-      "humanControlled": "Human-controlled workflow"
-      ,
+      "humanControlled": "Human-controlled workflow",
       "pageTitle": "AI Suggestion Review",
       "pageSubtitle": "Review the recommendation, source context, safety flags, and explicit human actions.",
       "generatedRecommendation": "Generated recommendation",
@@ -247,7 +406,6 @@
       "leadId": "Lead ID",
       "appliedAt": "Applied at",
       "appliedByUserId": "Applied by user ID",
-      "created": "Created",
       "calendarTaskCompletedSafety": "Created by explicit human action. No email was sent automatically, and no lead, contact, company, or note was created automatically.",
       "calendarNoteCompletedSafety": "Created by explicit human action. No email was sent automatically, and no lead, contact, company, or task was created automatically.",
       "calendarLeadCompletedSafety": "Created by explicit human action. No email was sent automatically, and no company, contact, task, or note was created automatically.",
@@ -259,7 +417,37 @@
       "createCalendarLeadDescription": "This creates one official CRM lead from the accepted calendar review. It requires this explicit human click and does not send an email. No lead is created automatically.",
       "calendarTaskPayloadDescription": "The task will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, lead, note, or email will be created automatically.",
       "calendarNotePayloadDescription": "The note will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, lead, task, or email will be created automatically.",
-      "calendarLeadPayloadDescription": "The lead will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. No company, contact, task, note, or email will be created automatically."
+      "calendarLeadPayloadDescription": "The lead will include safe synced calendar metadata, AI summary, reasoning, event identifiers, and a human approval notice. Existing company or contact links are reused only if already present on the suggestion. No company, contact, task, note, or email will be created automatically.",
+      "externalEmailAction": "External email action",
+      "createEmailTaskTitle": "Create CRM task from reviewed email",
+      "createEmailNoteTitle": "Create CRM note from reviewed email",
+      "createEmailLeadTitle": "Create CRM lead from reviewed email",
+      "createEmailTaskDescription": "This creates one official CRM task from the accepted email review. It requires this explicit human click and does not send an email.",
+      "createEmailNoteDescription": "This creates one official CRM note from the accepted email review. It requires this explicit human click and does not send an email.",
+      "createEmailLeadDescription": "This creates one official CRM lead from the accepted email review. It requires this explicit human click and does not send an email.",
+      "emailTaskPayloadDescription": "The task will include safe synced email metadata, AI summary, reasoning, and a human approval notice. No contact, lead, or email will be created.",
+      "emailNotePayloadDescription": "The note will include safe synced email metadata and the AI suggested note. No contact, lead, task, or email will be created.",
+      "emailLeadPayloadDescription": "The lead will include safe synced email metadata, AI summary, reasoning, external identifiers, and a human approval notice. Existing company or contact links are reused only if already present on the suggestion.",
+      "title": "Title",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDateOptional": "Due date optional",
+      "content": "Content",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical",
+      "reviewDecisionDescription": "Accepting or rejecting this suggestion only records a human review decision. It does not update CRM records, create tasks, create notes, create leads, or send emails.",
+      "reviewNotePlaceholder": "Add context about why you accept or reject this suggestion...",
+      "emailTaskCreatedSuccess": "CRM task created from external email review. Task ID:",
+      "emailNoteCreatedSuccess": "CRM note created from external email review. Note ID:",
+      "emailLeadCreatedSuccess": "CRM lead created from external email review. Lead ID:",
+      "calendarTaskCreatedSuccess": "CRM task created from external calendar review. Task ID:",
+      "calendarNoteCreatedSuccess": "CRM note created from external calendar review. Note ID:",
+      "calendarLeadCreatedSuccess": "CRM lead created from external calendar review. Lead ID:",
+      "gmailDraftCreatedSuccess": "Gmail draft created. Draft ID:",
+      "gmailDraftAlreadyCreated": "A Gmail draft has already been created for this suggestion.",
+      "gmailReconnectRequired": "Reconnect Google with Gmail draft permissions before creating this draft."
     }
   }
 }

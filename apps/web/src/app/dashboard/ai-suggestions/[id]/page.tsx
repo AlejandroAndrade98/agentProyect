@@ -506,7 +506,7 @@ async function handleCreateExternalEmailNote() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM note created from external email review. Note ID: ${response.note.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.emailNoteCreatedSuccess')} ${response.note.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -547,7 +547,7 @@ async function handleCreateExternalEmailTask() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM task created from external email review. Task ID: ${response.task.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.emailTaskCreatedSuccess')} ${response.task.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -579,7 +579,7 @@ async function handleCreateExternalEmailLead() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM lead created from external email review. Lead ID: ${response.lead.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.emailLeadCreatedSuccess')} ${response.lead.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -611,7 +611,7 @@ async function handleCreateExternalCalendarTask() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM task created from external calendar review. Task ID: ${response.task.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.calendarTaskCreatedSuccess')} ${response.task.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -643,7 +643,7 @@ async function handleCreateExternalCalendarNote() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM note created from external calendar review. Note ID: ${response.note.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.calendarNoteCreatedSuccess')} ${response.note.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -675,7 +675,7 @@ async function handleCreateExternalCalendarLead() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `CRM lead created from external calendar review. Lead ID: ${response.lead.id}. No email was sent.`,
+      `${t('aiSuggestions.detail.calendarLeadCreatedSuccess')} ${response.lead.id}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -707,7 +707,7 @@ async function handleCreateGmailDraft() {
 
     setSuggestion(response.suggestion);
     setApplyMessage(
-      `Gmail draft created. Draft ID: ${response.gmailDraftId}. Email not sent automatically.`,
+      `${t('aiSuggestions.detail.gmailDraftCreatedSuccess')} ${response.gmailDraftId}. ${t('aiSuggestions.detail.noEmailSent')}.`,
     );
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -715,7 +715,7 @@ async function handleCreateGmailDraft() {
 
       if (error.status === 409) {
         setErrorMessage(
-          'A Gmail draft has already been created for this suggestion.',
+          t('aiSuggestions.detail.gmailDraftAlreadyCreated'),
         );
       } else if (
         lowerMessage.includes('reconnect') ||
@@ -724,7 +724,7 @@ async function handleCreateGmailDraft() {
         lowerMessage.includes('scope')
       ) {
         setErrorMessage(
-          'Google needs to be reconnected with Gmail draft permissions before creating this draft.',
+          t('aiSuggestions.detail.gmailReconnectRequired'),
         );
       } else {
         setErrorMessage(error.message);
@@ -2136,7 +2136,7 @@ const canCreateGmailDraft =
                 className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isApplying === 'task'
-                  ? 'Creating...'
+                  ? t('common.actions.creating')
                   : taskApplied
                     ? 'Task created'
                     : 'Create task'}
@@ -2196,7 +2196,7 @@ const canCreateGmailDraft =
                 className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isApplying === 'note'
-                  ? 'Creating...'
+                  ? t('common.actions.creating')
                   : noteApplied
                     ? 'Note created'
                     : 'Create note'}
@@ -2400,28 +2400,31 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-emerald-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-emerald-950">
-              CRM lead created
+              {t('aiSuggestions.completedActions.leadCreated')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              Created by explicit human action. No email was sent automatically,
-              and no company, contact, task, or note was created automatically.
+              {t('aiSuggestions.detail.calendarLeadCompletedSafety')}
             </p>
           </div>
 
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <p className="font-medium text-emerald-950">Lead ID</p>
+              <p className="font-medium text-emerald-950">
+                {t('aiSuggestions.detail.leadId')}
+              </p>
               <p className="mt-1 break-all text-emerald-800">
-                {externalCalendarLeadId ?? 'Created'}
+                {externalCalendarLeadId ?? t('aiSuggestions.detail.created')}
               </p>
             </div>
 
             {externalCalendarLeadAppliedAt ? (
               <div>
-                <p className="font-medium text-emerald-950">Applied at</p>
+                <p className="font-medium text-emerald-950">
+                  {t('aiSuggestions.detail.appliedAt')}
+                </p>
                 <p className="mt-1 text-emerald-800">
                   {formatDateTime(externalCalendarLeadAppliedAt)}
                 </p>
@@ -2431,7 +2434,7 @@ const canCreateGmailDraft =
             {externalCalendarLeadAppliedByUserId ? (
               <div>
                 <p className="font-medium text-emerald-950">
-                  Applied by user ID
+                  {t('aiSuggestions.detail.appliedByUserId')}
                 </p>
                 <p className="mt-1 break-all text-emerald-800">
                   {externalCalendarLeadAppliedByUserId}
@@ -2446,15 +2449,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External calendar action
+              {t('aiSuggestions.detail.externalCalendarAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM lead from reviewed calendar event
+              {t('aiSuggestions.detail.createCalendarLeadTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM lead from the accepted calendar
-              review. It requires this explicit human click and does not send an
-              email. No lead is created automatically.
+              {t('aiSuggestions.detail.createCalendarLeadDescription')}
             </p>
           </div>
 
@@ -2465,11 +2466,7 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmLead')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The lead will include safe synced calendar metadata, AI
-                  summary, reasoning, event identifiers, and a human approval
-                  notice. Existing company or contact links are reused only if
-                  already present on the suggestion. No company, contact, task,
-                  note, or email will be created automatically.
+                  {t('aiSuggestions.detail.calendarLeadPayloadDescription')}
                 </p>
               </div>
             </div>
@@ -2485,7 +2482,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-calendar-lead'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalCalendarLeadApplied
                   ? t('aiSuggestions.completedActions.leadCreated')
                   : t('common.actions.createCrmLead')}
@@ -2498,14 +2495,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External email action
+              {t('aiSuggestions.detail.externalEmailAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM lead from reviewed email
+              {t('aiSuggestions.detail.createEmailLeadTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM lead from the accepted email review.
-              It requires this explicit human click and does not send an email.
+              {t('aiSuggestions.detail.createEmailLeadDescription')}
             </p>
           </div>
 
@@ -2516,10 +2512,7 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmLead')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The lead will include safe synced email metadata, AI summary,
-                  reasoning, external identifiers, and a human approval notice.
-                  Existing company or contact links are reused only if already
-                  present on the suggestion.
+                  {t('aiSuggestions.detail.emailLeadPayloadDescription')}
                 </p>
               </div>
             </div>
@@ -2535,7 +2528,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-email-lead'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalEmailLeadApplied
                   ? t('aiSuggestions.completedActions.leadCreated')
                   : t('common.actions.createCrmLead')}
@@ -2548,14 +2541,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External email action
+              {t('aiSuggestions.detail.externalEmailAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM task from reviewed email
+              {t('aiSuggestions.detail.createEmailTaskTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM task from the accepted email review.
-              It requires this explicit human click and does not send an email.
+              {t('aiSuggestions.detail.createEmailTaskDescription')}
             </p>
           </div>
 
@@ -2566,16 +2558,16 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmTask')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The task will include safe synced email metadata, AI summary,
-                  reasoning, and a human approval notice. No contact, lead, or
-                  email will be created.
+                  {t('aiSuggestions.detail.emailTaskPayloadDescription')}
                 </p>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-medium text-slate-700">Title</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t('aiSuggestions.detail.title')}
+                </span>
                 <input
                   value={taskTitleDraft}
                   onChange={(event) => setTaskTitleDraft(event.target.value)}
@@ -2586,7 +2578,7 @@ const canCreateGmailDraft =
 
               <label className="space-y-2 md:col-span-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Description
+                  {t('aiSuggestions.detail.description')}
                 </span>
                 <textarea
                   value={taskDescriptionDraft}
@@ -2599,7 +2591,7 @@ const canCreateGmailDraft =
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Priority
+                  {t('aiSuggestions.detail.priority')}
                 </span>
                 <select
                   value={taskPriorityDraft}
@@ -2615,16 +2607,16 @@ const canCreateGmailDraft =
                   disabled={externalEmailTaskApplied || !canApplyExternalEmailTask}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="CRITICAL">Critical</option>
+                  <option value="LOW">{t('aiSuggestions.detail.low')}</option>
+                  <option value="MEDIUM">{t('aiSuggestions.detail.medium')}</option>
+                  <option value="HIGH">{t('aiSuggestions.detail.high')}</option>
+                  <option value="CRITICAL">{t('aiSuggestions.detail.critical')}</option>
                 </select>
               </label>
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Due date optional
+                  {t('aiSuggestions.detail.dueDateOptional')}
                 </span>
                 <input
                   type="datetime-local"
@@ -2647,7 +2639,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-email-task'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalEmailTaskApplied
                   ? t('aiSuggestions.completedActions.taskCreated')
                   : t('common.actions.createCrmTask')}
@@ -2663,14 +2655,13 @@ const canCreateGmailDraft =
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              External email action
+              {t('aiSuggestions.detail.externalEmailAction')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Create CRM note from reviewed email
+              {t('aiSuggestions.detail.createEmailNoteTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This creates one official CRM note from the accepted email review.
-              It requires this explicit human click and does not send an email.
+              {t('aiSuggestions.detail.createEmailNoteDescription')}
             </p>
           </div>
 
@@ -2681,22 +2672,22 @@ const canCreateGmailDraft =
                   {t('common.actions.createCrmNote')}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  The note will include safe synced email metadata and the AI
-                  suggested note. No contact, lead, task, or email will be
-                  created.
+                  {t('aiSuggestions.detail.emailNotePayloadDescription')}
                 </p>
               </div>
 
               {externalEmailNoteApplied ? (
                 <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                  Applied
+                  {t('common.actions.applied')}
                 </Badge>
               ) : null}
             </div>
 
             <div className="mt-4 space-y-3">
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Title</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t('aiSuggestions.detail.title')}
+                </span>
                 <input
                   value={noteTitleDraft}
                   onChange={(event) => setNoteTitleDraft(event.target.value)}
@@ -2706,7 +2697,9 @@ const canCreateGmailDraft =
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Content</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t('aiSuggestions.detail.content')}
+                </span>
                 <textarea
                   value={noteContentDraft}
                   onChange={(event) => setNoteContentDraft(event.target.value)}
@@ -2729,7 +2722,7 @@ const canCreateGmailDraft =
               className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isApplying === 'external-email-note'
-                ? 'Creating...'
+                ? t('common.actions.creating')
                 : externalEmailNoteApplied
                   ? t('aiSuggestions.completedActions.noteCreated')
                   : t('common.actions.createCrmNote')}
@@ -2741,9 +2734,7 @@ const canCreateGmailDraft =
               {suggestion.status === 'PENDING_REVIEW' ? (
                 <div className="mt-4 space-y-4">
                   <p className="text-sm leading-6 text-slate-600">
-                    Accepting or rejecting this suggestion only records a human
-                    review decision. It does not update CRM records, create tasks,
-                    create notes, create leads, or send emails.
+                    {t('aiSuggestions.detail.reviewDecisionDescription')}
                   </p>
 
                   <label className="block space-y-2">
@@ -2756,7 +2747,7 @@ const canCreateGmailDraft =
                       onChange={(event) => setReviewNote(event.target.value)}
                       rows={4}
                       maxLength={1000}
-                      placeholder="Add context about why you accept or reject this suggestion..."
+                      placeholder={t('aiSuggestions.detail.reviewNotePlaceholder')}
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                     />
                   </label>
