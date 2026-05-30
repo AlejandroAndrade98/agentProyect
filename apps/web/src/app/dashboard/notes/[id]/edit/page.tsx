@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { NoteForm } from '@/components/NoteForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getCompanies,
@@ -38,6 +39,7 @@ export default function EditNotePage() {
   const params = useParams();
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const noteId =
     typeof params.id === 'string'
@@ -108,7 +110,7 @@ export default function EditNotePage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load note.');
+          setErrorMessage(t('crm.notes.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -122,11 +124,11 @@ export default function EditNotePage() {
     return () => {
       isMounted = false;
     };
-  }, [token, noteId]);
+  }, [token, noteId, t]);
 
   async function handleUpdateNote(values: CreateNoteInput) {
     if (!token || !noteId) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -142,7 +144,7 @@ export default function EditNotePage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update note.');
+        setErrorMessage(t('crm.notes.updateFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -165,7 +167,7 @@ export default function EditNotePage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -182,15 +184,15 @@ export default function EditNotePage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Note not found
+            {t('crm.notes.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The note may have been deleted or you may not have access.
+            {t('crm.notes.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -204,18 +206,18 @@ export default function EditNotePage() {
           href={`/dashboard/notes/${note.id}`}
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to note detail
+          ← {t('crm.common.backToNoteDetail')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Edit note
+            {t('crm.notes.edit')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Update note content, importance, source, or linked CRM records.
+            {t('crm.notes.editDescription')}
           </p>
         </div>
       </section>
@@ -231,7 +233,7 @@ export default function EditNotePage() {
         contacts={contacts}
         leads={leads}
         initialValues={getNoteInitialValues(note)}
-        submitLabel="Save changes"
+        submitLabel={t('crm.common.saveChanges')}
         isSubmitting={isSubmitting}
         onSubmit={handleUpdateNote}
       />

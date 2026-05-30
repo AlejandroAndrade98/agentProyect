@@ -8,9 +8,15 @@ import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getImportanceLabel,
+  getPriorityLabel,
+  getTaskStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, deleteTask, getTaskById } from '@/lib/api-client';
 import { getPriorityClasses, getTaskStatusClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 import type { TaskDetail } from '@/types/crm';
 
@@ -18,6 +24,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const taskId =
     typeof params.id === 'string'
@@ -63,7 +70,7 @@ export default function TaskDetailPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load task.');
+          setErrorMessage(t('crm.tasks.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -77,18 +84,20 @@ export default function TaskDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, taskId]);
+  }, [token, taskId, t]);
 
   const canDeleteTask = canDeleteCrm(user);
 
   async function handleDeleteTask() {
     if (!token || !taskId || !task) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${task.title}"? This action will remove it from active CRM views.`,
+      `${t('crm.tasks.deleteConfirmPrefix')} "${task.title}"? ${t(
+        'crm.tasks.deleteConfirmSuffix',
+      )}`,
     );
 
     if (!confirmed) {
@@ -107,7 +116,7 @@ export default function TaskDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not delete task.');
+        setErrorMessage(t('crm.tasks.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -130,7 +139,7 @@ export default function TaskDetailPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <ErrorState message={errorMessage} />
@@ -145,15 +154,15 @@ export default function TaskDetailPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Task not found
+            {t('crm.tasks.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The task may have been deleted or you may not have access.
+            {t('crm.tasks.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -167,20 +176,19 @@ export default function TaskDetailPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Task detail
+              {t('crm.tasks.detail')}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
               {task.title}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review execution details, linked lead, contact, assignee, and
-              completion state.
+              {t('crm.tasks.detailDescription')}
             </p>
           </div>
 
@@ -189,7 +197,7 @@ export default function TaskDetailPage() {
               href={`/dashboard/tasks/${task.id}/edit`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Edit
+              {t('common.actions.edit')}
             </Link>
 
             {canDeleteTask ? (
@@ -199,7 +207,9 @@ export default function TaskDetailPage() {
                 disabled={isDeleting}
                 className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting
+                  ? t('crm.common.deleting')
+                  : t('crm.common.delete')}
               </button>
             ) : null}
           </div>
@@ -210,40 +220,40 @@ export default function TaskDetailPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Status
+              {t('crm.common.status')}
             </p>
             <div className="mt-2">
               <Badge className={getTaskStatusClasses(task.status)}>
-                {formatEnumLabel(task.status)}
+                {getTaskStatusLabel(task.status, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Priority
+              {t('crm.common.priority')}
             </p>
             <div className="mt-2">
               <Badge className={getPriorityClasses(task.priority)}>
-                {formatEnumLabel(task.priority)}
+                {getPriorityLabel(task.priority, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Importance
+              {t('crm.common.importance')}
             </p>
             <div className="mt-2">
               <Badge className={getPriorityClasses(task.importanceLevel)}>
-                {formatEnumLabel(task.importanceLevel)}
+                {getImportanceLabel(task.importanceLevel, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Lead
+              {t('crm.common.lead')}
             </p>
             {task.lead ? (
               <Link
@@ -253,13 +263,15 @@ export default function TaskDetailPage() {
                 {task.lead.title}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Contact
+              {t('crm.common.contact')}
             </p>
             {task.contact ? (
               <Link
@@ -269,22 +281,24 @@ export default function TaskDetailPage() {
                 {task.contact.firstName} {task.contact.lastName}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Assignee
+              {t('crm.common.assignee')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {task.user?.name ?? task.user?.email ?? 'Not assigned'}
+              {task.user?.name ?? task.user?.email ?? t('crm.common.notAssigned')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Due date
+              {t('crm.tasks.dueDate')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(task.dueDate)}
@@ -293,7 +307,7 @@ export default function TaskDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Completed at
+              {t('crm.tasks.completedAt')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(task.completedAt)}
@@ -302,7 +316,7 @@ export default function TaskDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created
+              {t('crm.common.created')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(task.createdAt)}
@@ -313,9 +327,9 @@ export default function TaskDetailPage() {
       </section>
 
       <LongTextCard
-        title="Description"
+        title={t('crm.common.description')}
         content={task.description}
-        emptyText="No description recorded for this task."
+        emptyText={t('crm.tasks.noDescriptionRecorded')}
       />
     </div>
   );

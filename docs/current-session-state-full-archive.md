@@ -5378,3 +5378,88 @@ Validation completed:
 - AI Suggestions board/list/detail translate between English and Spanish.
 - Language switching preserves existing routes and actions.
 - Existing AI review/apply/Gmail draft flows remain unchanged.
+
+## Phase 17K.3B, i18n AI and Dashboard Translation Cleanup
+
+Status: completed, validated in typecheck/build, pending commit/push.
+
+This phase closed remaining frontend i18n gaps across Dashboard, AI Workspace, and AI Suggestions surfaces.
+
+Frontend files updated:
+
+- `apps/web/src/i18n/locales/en.json`
+- `apps/web/src/i18n/locales/es.json`
+- `apps/web/src/i18n/ai-display.ts`
+- `apps/web/src/app/dashboard/ai-workspace/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/board/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/list/page.tsx`
+- `apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx`
+- `apps/web/src/components/DashboardOverview.tsx`
+
+i18n behavior implemented:
+
+- Added missing organized locale keys for:
+  - dashboard labels
+  - AI Workspace labels
+  - AI Suggestions board/list/detail labels
+  - priority labels
+  - task status labels
+  - sync status labels
+  - common fallbacks and empty states
+
+- Replaced visible hardcoded fallback copy such as:
+  - `No subject`
+  - `Unknown sender`
+  - `Not set`
+  - safety messages
+  - static error messages
+  - static button labels
+  - empty states
+
+- Extended `ai-display.ts` with translated display helpers for:
+  - priority labels
+  - task status labels
+  - sync status labels
+
+Behavior preserved:
+
+- No second i18n system was created.
+- No dependencies were added.
+- Backend enum values remain unchanged internally.
+- API payloads remain unchanged.
+- Route paths remain unchanged.
+- Dynamic API data and AI-generated output remain unchanged.
+
+Safety rules preserved:
+
+- No backend changes were made.
+- No Prisma changes were made.
+- No API contract changes were made.
+- No email sending was added.
+- No Gmail draft creation was added.
+- No CRM apply actions were added to external sync pages.
+- No background jobs were added.
+- No automation behavior changed.
+
+Validation completed:
+
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm build` passed.
+- Generated `apps/web/tsconfig.tsbuildinfo` was removed.
+- Turbo build log was restored after validation.
+- Directed search for remaining hardcoded fallback text was completed across the touched surfaces.
+
+## Latest completed phase
+
+Phase 17K.4 i18n for CRM Work pages is completed and validated.
+
+Current i18n coverage:
+- Leads board/list/detail/new/edit/form are translated.
+- Lead AI Suggestions panel is translated.
+- Tasks board/list/detail/new/edit/form are translated.
+- Notes board/list/detail/new/edit/form are translated.
+- Activity page is translated.
+- Shared display helpers cover CRM statuses, priorities, sources, importance, sync statuses, activity types, and entity labels.
+- Dynamic API data, AI-generated output, backend enum values, routes, and API payloads remain unchanged.
+- No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.

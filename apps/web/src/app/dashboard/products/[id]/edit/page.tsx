@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { ProductForm } from '@/components/ProductForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getProductById, updateProduct } from '@/lib/api-client';
 import type { CreateProductInput, Product } from '@/types/crm';
 
@@ -22,6 +23,7 @@ export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const productId =
     typeof params.id === 'string'
@@ -65,7 +67,7 @@ export default function EditProductPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load product.');
+          setErrorMessage(t('crm.products.loadOneFailed'));
         }
       } finally {
         if (isMounted) {
@@ -79,11 +81,11 @@ export default function EditProductPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, productId]);
+  }, [token, productId, t]);
 
   async function handleUpdateProduct(values: CreateProductInput) {
     if (!token || !productId) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -99,7 +101,7 @@ export default function EditProductPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update product.');
+        setErrorMessage(t('crm.products.updateFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -122,7 +124,7 @@ export default function EditProductPage() {
           href="/dashboard/products"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to products
+          ← {t('crm.common.backToProducts')}
         </Link>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -139,15 +141,15 @@ export default function EditProductPage() {
           href="/dashboard/products"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to products
+          ← {t('crm.common.backToProducts')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Product not found
+            {t('crm.products.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The product may have been deleted or you may not have access.
+            {t('crm.products.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -161,18 +163,18 @@ export default function EditProductPage() {
           href={`/dashboard/products/${product.id}`}
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to product detail
+          ← {t('crm.common.backToProductDetail')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Edit product
+            {t('crm.products.edit')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Update product or service details.
+            {t('crm.products.editDescription')}
           </p>
         </div>
       </section>
@@ -185,7 +187,7 @@ export default function EditProductPage() {
 
       <ProductForm
         initialValues={getProductInitialValues(product)}
-        submitLabel="Save changes"
+        submitLabel={t('crm.common.saveChanges')}
         isSubmitting={isSubmitting}
         onSubmit={handleUpdateProduct}
       />

@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getProducts } from '@/lib/api-client';
 import { getBooleanStatusClasses } from '@/lib/crm-styles';
 import { formatDate } from '@/lib/formatters';
@@ -17,6 +18,7 @@ import type { PaginatedResponse, Product } from '@/types/crm';
 
 export default function ProductsPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [productsResponse, setProductsResponse] =
     useState<PaginatedResponse<Product> | null>(null);
@@ -67,7 +69,7 @@ export default function ProductsPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load products.');
+          setErrorMessage(t('crm.products.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -81,7 +83,7 @@ export default function ProductsPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch, isActiveFilter]);
+  }, [token, page, submittedSearch, isActiveFilter, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,15 +104,15 @@ export default function ProductsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Products"
-        description="Manage products and services that can be used in commercial opportunities."
+        title={t('crm.products.title')}
+        description={t('crm.products.subtitle')}
         actions={
           canManageProducts(user) ? (
             <Link
               href="/dashboard/products/new"
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              New product
+              {t('crm.products.new')}
             </Link>
           ) : null
         }
@@ -125,7 +127,7 @@ export default function ProductsPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by name, description, category..."
+            placeholder={t('crm.products.searchPlaceholder')}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -137,9 +139,9 @@ export default function ProductsPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="all">All statuses</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
+            <option value="all">{t('crm.common.allStatuses')}</option>
+            <option value="true">{t('crm.common.active')}</option>
+            <option value="false">{t('crm.common.inactive')}</option>
           </select>
 
           <div className="flex gap-2">
@@ -147,7 +149,7 @@ export default function ProductsPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('crm.common.search')}
             </button>
 
             <button
@@ -155,7 +157,7 @@ export default function ProductsPage() {
               onClick={handleClearFilters}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear
+              {t('crm.common.clear')}
             </button>
           </div>
         </form>
@@ -169,8 +171,8 @@ export default function ProductsPage() {
 
       {!isLoading && !errorMessage && products.length === 0 ? (
         <EmptyState
-          title="No products found"
-          description="Create your first product or service."
+          title={t('crm.products.noFound')}
+          description={t('crm.products.empty')}
         />
       ) : null}
 
@@ -181,19 +183,19 @@ export default function ProductsPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Product
+                    {t('crm.products.product')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Category
+                    {t('crm.common.category')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
+                    {t('crm.common.status')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
+                    {t('crm.common.created')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -206,19 +208,21 @@ export default function ProductsPage() {
                         {product.name}
                       </p>
                       <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-                        {product.description ?? 'No description'}
+                        {product.description ?? t('crm.common.noDescription')}
                       </p>
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {product.category ?? 'Not specified'}
+                      {product.category ?? t('crm.common.notSpecified')}
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge
                         className={getBooleanStatusClasses(product.isActive)}
                       >
-                        {product.isActive ? 'Active' : 'Inactive'}
+                        {product.isActive
+                          ? t('crm.common.active')
+                          : t('crm.common.inactive')}
                       </Badge>
                     </td>
 
@@ -231,7 +235,7 @@ export default function ProductsPage() {
                         href={`/dashboard/products/${product.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('crm.common.view')}
                       </Link>
                     </td>
                   </tr>
@@ -243,8 +247,9 @@ export default function ProductsPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total}{' '}
-                products
+                {t('crm.common.page')} {meta.page} {t('crm.common.of')}{' '}
+                {meta.totalPages || 1} · {meta.total}{' '}
+                {t('crm.products.title')}
               </p>
 
               <div className="flex gap-2">
@@ -254,7 +259,7 @@ export default function ProductsPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('crm.common.previous')}
                 </button>
 
                 <button
@@ -263,7 +268,7 @@ export default function ProductsPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('crm.common.next')}
                 </button>
               </div>
             </div>

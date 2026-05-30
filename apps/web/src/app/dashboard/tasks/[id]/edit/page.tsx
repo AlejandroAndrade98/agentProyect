@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { TaskForm } from '@/components/TaskForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getContacts,
@@ -33,6 +34,7 @@ export default function EditTaskPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const taskId =
     typeof params.id === 'string'
@@ -95,7 +97,7 @@ export default function EditTaskPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load task.');
+          setErrorMessage(t('crm.tasks.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -109,11 +111,11 @@ export default function EditTaskPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, taskId]);
+  }, [token, taskId, t]);
 
   async function handleUpdateTask(values: CreateTaskInput) {
     if (!token || !taskId) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -129,7 +131,7 @@ export default function EditTaskPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update task.');
+        setErrorMessage(t('crm.tasks.updateFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -152,7 +154,7 @@ export default function EditTaskPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -169,15 +171,15 @@ export default function EditTaskPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Task not found
+            {t('crm.tasks.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The task may have been deleted or you may not have access.
+            {t('crm.tasks.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -191,19 +193,18 @@ export default function EditTaskPage() {
           href={`/dashboard/tasks/${task.id}`}
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to task detail
+          ← {t('crm.common.backToTaskDetail')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Edit task
+            {t('crm.tasks.edit')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Update task status, priority, due date, ownership, and related CRM
-            records.
+            {t('crm.tasks.editDescription')}
           </p>
         </div>
       </section>
@@ -219,7 +220,7 @@ export default function EditTaskPage() {
         contacts={contacts}
         currentUser={user}
         initialValues={getTaskInitialValues(task)}
-        submitLabel="Save changes"
+        submitLabel={t('crm.common.saveChanges')}
         isSubmitting={isSubmitting}
         onSubmit={handleUpdateTask}
       />

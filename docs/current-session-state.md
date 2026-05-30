@@ -411,3 +411,17 @@ Current i18n coverage:
 - Common AI statuses, suggestion types, safety messages, and applied action labels have translated display helpers.
 - Backend enum values, API payloads, routes, and AI-generated content remain unchanged.
 - No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17K.3B i18n AI and Dashboard Translation Cleanup is completed and validated.
+
+Current i18n coverage:
+- Sidebar and dashboard are translated.
+- Dashboard fallback labels and next-meeting copy are translated.
+- AI Workspace is translated.
+- AI Suggestions board/list/detail are translated.
+- Synced Emails and Synced Calendar board/list are translated.
+- Shared display helpers cover AI suggestion types/statuses, priorities, task statuses, sync statuses, and applied action labels.
+- Dynamic API data, AI-generated output, backend enum values, routes, and API payloads remain unchanged.
+- No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.

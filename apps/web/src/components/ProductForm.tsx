@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 
+import { useI18n } from '@/i18n/useI18n';
 import type { CreateProductInput } from '@/types/crm';
 
 type ProductFormProps = {
@@ -23,6 +24,7 @@ export function ProductForm({
   isSubmitting,
   onSubmit,
 }: ProductFormProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(initialValues?.name ?? '');
   const [description, setDescription] = useState(
     initialValues?.description ?? '',
@@ -52,7 +54,7 @@ export function ProductForm({
             htmlFor="product-name"
             className="text-sm font-medium text-slate-700"
           >
-            Product name
+            {t('crm.products.productName')}
           </label>
           <input
             id="product-name"
@@ -70,7 +72,7 @@ export function ProductForm({
             htmlFor="product-category"
             className="text-sm font-medium text-slate-700"
           >
-            Category
+            {t('crm.common.category')}
           </label>
           <input
             id="product-category"
@@ -90,7 +92,7 @@ export function ProductForm({
               onChange={(event) => setIsActive(event.target.checked)}
               className="h-4 w-4 rounded border-slate-300"
             />
-            Active product
+            {t('crm.products.activeProduct')}
           </label>
         </div>
 
@@ -99,7 +101,7 @@ export function ProductForm({
             htmlFor="product-description"
             className="text-sm font-medium text-slate-700"
           >
-            Description
+            {t('crm.common.description')}
           </label>
           <textarea
             id="product-description"
@@ -107,7 +109,7 @@ export function ProductForm({
             onChange={(event) => setDescription(event.target.value)}
             rows={5}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Describe what this product or service includes..."
+            placeholder={t('crm.products.descriptionPlaceholder')}
           />
         </div>
       </div>
@@ -118,7 +120,7 @@ export function ProductForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

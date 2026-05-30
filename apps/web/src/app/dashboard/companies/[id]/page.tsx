@@ -7,21 +7,31 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import {
+  getImportanceLabel,
+  getLeadStatusLabel,
+  getPriorityLabel,
+  getSourceLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   deleteCompany,
   getCompanyById,
 } from '@/lib/api-client';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 import { useAuth } from '@/hooks/useAuth';
 import type { CompanyDetail } from '@/types/crm';
 
 
 function EmptyRelatedState({ label }: { label: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-      No {label} linked yet.
+      {t('crm.common.noLinkedYetPrefix')} {label}{' '}
+      {t('crm.common.noLinkedYetSuffix')}
     </div>
   );
 }
@@ -30,6 +40,7 @@ export default function CompanyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const companyId =
     typeof params.id === 'string'
@@ -75,7 +86,7 @@ export default function CompanyDetailPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load company.');
+          setErrorMessage(t('crm.companies.loadOneFailed'));
         }
       } finally {
         if (isMounted) {
@@ -89,18 +100,18 @@ export default function CompanyDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, companyId]);
+  }, [token, companyId, t]);
 
   const canDeleteCompany = canDeleteCrm(user);
 
 async function handleDeleteCompany() {
   if (!token || !companyId || !company) {
-    setErrorMessage('Your session is not ready. Please try again.');
+    setErrorMessage(t('crm.common.sessionNotReady'));
     return;
   }
 
   const confirmed = window.confirm(
-    `Are you sure you want to delete "${company.name}"? This action will remove it from active CRM views.`,
+    t('crm.companies.deleteConfirm').replace('{name}', company.name),
   );
 
   if (!confirmed) {
@@ -119,7 +130,7 @@ async function handleDeleteCompany() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not delete company.');
+      setErrorMessage(t('crm.companies.deleteFailed'));
     }
   } finally {
     setIsDeleting(false);
@@ -147,7 +158,7 @@ async function handleDeleteCompany() {
           href="/dashboard/companies"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to companies
+          ← {t('crm.common.backToCompanies')}
         </Link>
 
     <ErrorState message={errorMessage} />
@@ -162,15 +173,15 @@ async function handleDeleteCompany() {
           href="/dashboard/companies"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to companies
+          ← {t('crm.common.backToCompanies')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Company not found
+            {t('crm.companies.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The company may have been deleted or you may not have access.
+            {t('crm.companies.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -188,20 +199,19 @@ async function handleDeleteCompany() {
           href="/dashboard/companies"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to companies
+          ← {t('crm.common.backToCompanies')}
         </Link>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Company detail
+              {t('crm.companies.detail')}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
               {company.name}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review account information, linked contacts, related leads, and
-              notes for this company.
+              {t('crm.companies.detailDescription')}
             </p>
           </div>
 
@@ -210,21 +220,21 @@ async function handleDeleteCompany() {
     href={`/dashboard/companies/${company.id}/edit`}
     className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
   >
-    Edit
+    {t('crm.common.edit')}
   </Link>
 
   <Link
     href={`/dashboard/notes/new?companyId=${company.id}`}
     className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
   >
-    New note
+    {t('navigation.items.notes')}
   </Link>
 
   <Link
     href={`/dashboard/leads/new?companyId=${company.id}`}
     className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
   >
-    New lead
+    {t('navigation.items.leads')}
   </Link>
 
   {canDeleteCompany ? (
@@ -234,7 +244,7 @@ async function handleDeleteCompany() {
       disabled={isDeleting}
       className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {isDeleting ? 'Deleting...' : 'Delete'}
+      {isDeleting ? t('crm.common.deleting') : t('crm.common.delete')}
     </button>
   ) : null}
 </div>
@@ -245,7 +255,7 @@ async function handleDeleteCompany() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Website
+              {t('crm.companies.website')}
             </p>
             {company.website ? (
               <a
@@ -257,52 +267,54 @@ async function handleDeleteCompany() {
                 {company.website}
               </a>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not specified</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notSpecified')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Industry
+              {t('crm.companies.industry')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {company.industry ?? 'Not specified'}
+              {company.industry ?? t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Location
+              {t('crm.common.location')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {[company.city, company.country].filter(Boolean).join(', ') ||
-                'Not specified'}
+                t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Importance
+              {t('crm.common.importance')}
             </p>
             <div className="mt-2">
               <Badge className={getImportanceClasses(company.importanceLevel)}>
-                {formatEnumLabel(company.importanceLevel)}
+                {getImportanceLabel(company.importanceLevel, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Source
+              {t('crm.common.source')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {formatEnumLabel(company.source)}
+              {getSourceLabel(company.source, t)}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created
+              {t('crm.common.created')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(company.createdAt)}
@@ -313,7 +325,7 @@ async function handleDeleteCompany() {
         {company.notes ? (
           <div className="mt-6 border-t border-slate-200 pt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Notes
+              {t('crm.common.notes')}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {company.notes}
@@ -325,7 +337,9 @@ async function handleDeleteCompany() {
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Contacts</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.contacts')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {contacts.length}
             </span>
@@ -342,22 +356,26 @@ async function handleDeleteCompany() {
                     {contact.firstName} {contact.lastName}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    {contact.email ?? 'No email'}
+                    {contact.email ?? t('crm.common.noEmail')}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {contact.phone ?? 'No phone'}
+                    {contact.phone ?? t('crm.common.noPhone')}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="contacts" />
+            <EmptyRelatedState
+              label={t('navigation.items.contacts').toLowerCase()}
+            />
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Leads</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.leads')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {leads.length}
             </span>
@@ -373,26 +391,30 @@ async function handleDeleteCompany() {
                   <p className="font-medium text-slate-950">{lead.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                      {formatEnumLabel(lead.status)}
+                      {getLeadStatusLabel(lead.status, t)}
                     </Badge>
                     <Badge className={getImportanceClasses(lead.priority)}>
-                      {formatEnumLabel(lead.priority)}
+                      {getPriorityLabel(lead.priority, t)}
                     </Badge>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(lead.createdAt)}
+                    {t('crm.common.created')} {formatDate(lead.createdAt)}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="leads" />
+            <EmptyRelatedState
+              label={t('navigation.items.leads').toLowerCase()}
+            />
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Notes</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.notes')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {notes.length}
             </span>
@@ -406,19 +428,21 @@ async function handleDeleteCompany() {
                   className="rounded-xl border border-slate-200 p-4"
                 >
                   <p className="font-medium text-slate-950">
-                    {note.title ?? 'Untitled note'}
+                    {note.title ?? t('crm.common.untitledNote')}
                   </p>
                   <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
                     {note.content}
                   </p>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(note.createdAt)}
+                    {t('crm.common.created')} {formatDate(note.createdAt)}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="notes" />
+            <EmptyRelatedState
+              label={t('navigation.items.notes').toLowerCase()}
+            />
           )}
         </div>
       </section>

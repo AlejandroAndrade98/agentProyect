@@ -6,19 +6,21 @@ import { useState } from 'react';
 
 import { ProductForm } from '@/components/ProductForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, createProduct } from '@/lib/api-client';
 import type { CreateProductInput } from '@/types/crm';
 
 export default function NewProductPage() {
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleCreateProduct(values: CreateProductInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -34,7 +36,7 @@ export default function NewProductPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create product.');
+        setErrorMessage(t('crm.products.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -48,19 +50,18 @@ export default function NewProductPage() {
           href="/dashboard/products"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to products
+          ← {t('crm.common.backToProducts')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New product
+            {t('crm.products.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a product or service that can support future commercial
-            workflows.
+            {t('crm.products.newDescription')}
           </p>
         </div>
       </section>
@@ -72,7 +73,7 @@ export default function NewProductPage() {
       ) : null}
 
       <ProductForm
-        submitLabel="Create product"
+        submitLabel={t('crm.products.create')}
         isSubmitting={isSubmitting}
         onSubmit={handleCreateProduct}
       />

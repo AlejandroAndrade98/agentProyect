@@ -8,7 +8,13 @@ import {
   priorityOptions,
   sourceOptions,
 } from '@/lib/crm-options';
-import { formatEnumLabel } from '@/lib/formatters';
+import {
+  getImportanceLabel,
+  getLeadStatusLabel,
+  getPriorityLabel,
+  getSourceLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import type {
   Company,
   Contact,
@@ -67,6 +73,7 @@ export function LeadForm({
   isSubmitting,
   onSubmit,
 }: LeadFormProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [description, setDescription] = useState(
     initialValues?.description ?? '',
@@ -148,7 +155,7 @@ export function LeadForm({
             htmlFor="lead-title"
             className="text-sm font-medium text-slate-700"
           >
-            Lead title
+            {t('crm.leads.titleLabel')}
           </label>
           <input
             id="lead-title"
@@ -157,7 +164,7 @@ export function LeadForm({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Website redesign opportunity"
+            placeholder={t('crm.leads.titlePlaceholder')}
           />
         </div>
 
@@ -166,7 +173,7 @@ export function LeadForm({
             htmlFor="lead-company"
             className="text-sm font-medium text-slate-700"
           >
-            Company
+            {t('crm.common.company')}
           </label>
           <select
             id="lead-company"
@@ -174,7 +181,7 @@ export function LeadForm({
             onChange={(event) => setCompanyId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No company</option>
+            <option value="">{t('crm.common.noCompany')}</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
@@ -188,7 +195,7 @@ export function LeadForm({
             htmlFor="lead-contact"
             className="text-sm font-medium text-slate-700"
           >
-            Contact
+            {t('crm.common.contact')}
           </label>
           <select
             id="lead-contact"
@@ -196,7 +203,7 @@ export function LeadForm({
             onChange={(event) => setContactId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No contact</option>
+            <option value="">{t('crm.common.noContact')}</option>
             {contacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.firstName} {contact.lastName}
@@ -210,7 +217,7 @@ export function LeadForm({
             htmlFor="lead-status"
             className="text-sm font-medium text-slate-700"
           >
-            Status
+            {t('crm.common.status')}
           </label>
           <select
             id="lead-status"
@@ -220,7 +227,7 @@ export function LeadForm({
           >
             {leadStatusOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getLeadStatusLabel(option, t)}
               </option>
             ))}
           </select>
@@ -231,7 +238,7 @@ export function LeadForm({
             htmlFor="lead-priority"
             className="text-sm font-medium text-slate-700"
           >
-            Priority
+            {t('crm.common.priority')}
           </label>
           <select
             id="lead-priority"
@@ -241,7 +248,7 @@ export function LeadForm({
           >
             {priorityOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getPriorityLabel(option, t)}
               </option>
             ))}
           </select>
@@ -252,7 +259,7 @@ export function LeadForm({
             htmlFor="lead-importance"
             className="text-sm font-medium text-slate-700"
           >
-            Importance
+            {t('crm.common.importance')}
           </label>
           <select
             id="lead-importance"
@@ -264,7 +271,7 @@ export function LeadForm({
           >
             {importanceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getImportanceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -275,7 +282,7 @@ export function LeadForm({
             htmlFor="lead-source"
             className="text-sm font-medium text-slate-700"
           >
-            Source
+            {t('crm.common.source')}
           </label>
           <select
             id="lead-source"
@@ -285,7 +292,7 @@ export function LeadForm({
           >
             {sourceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getSourceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -296,7 +303,7 @@ export function LeadForm({
             htmlFor="lead-budget"
             className="text-sm font-medium text-slate-700"
           >
-            Estimated budget
+            {t('crm.leads.budgetLabel')}
           </label>
           <input
             id="lead-budget"
@@ -315,7 +322,7 @@ export function LeadForm({
             htmlFor="lead-expected-close"
             className="text-sm font-medium text-slate-700"
           >
-            Expected close date
+            {t('crm.leads.expectedCloseDate')}
           </label>
           <input
             id="lead-expected-close"
@@ -331,7 +338,7 @@ export function LeadForm({
             htmlFor="lead-last-contact"
             className="text-sm font-medium text-slate-700"
           >
-            Last contact date
+            {t('crm.leads.lastContactDate')}
           </label>
           <input
             id="lead-last-contact"
@@ -347,7 +354,7 @@ export function LeadForm({
             htmlFor="lead-assignee"
             className="text-sm font-medium text-slate-700"
           >
-            Assignee
+            {t('crm.common.assignee')}
           </label>
           <select
             id="lead-assignee"
@@ -355,7 +362,7 @@ export function LeadForm({
             onChange={(event) => setAssignedToUserId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No assignee</option>
+            <option value="">{t('crm.common.noAssignee')}</option>
             {currentUser ? (
               <option value={currentUser.id}>
                 {currentUser.name ?? currentUser.email}
@@ -363,7 +370,7 @@ export function LeadForm({
             ) : null}
           </select>
           <p className="mt-1 text-xs text-slate-500">
-            For now, only the current user can be selected from the frontend.
+            {t('crm.common.currentUserOnlyHelp')}
           </p>
         </div>
 
@@ -372,7 +379,7 @@ export function LeadForm({
             htmlFor="lead-next-step"
             className="text-sm font-medium text-slate-700"
           >
-            Next step
+            {t('crm.common.nextStep')}
           </label>
           <input
             id="lead-next-step"
@@ -380,7 +387,7 @@ export function LeadForm({
             value={nextStep}
             onChange={(event) => setNextStep(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Schedule discovery call"
+            placeholder={t('crm.leads.nextStepPlaceholder')}
           />
         </div>
 
@@ -389,7 +396,7 @@ export function LeadForm({
             htmlFor="lead-description"
             className="text-sm font-medium text-slate-700"
           >
-            Description
+            {t('crm.common.description')}
           </label>
           <textarea
             id="lead-description"
@@ -397,7 +404,7 @@ export function LeadForm({
             onChange={(event) => setDescription(event.target.value)}
             rows={5}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Describe the opportunity..."
+            placeholder={t('crm.leads.descriptionPlaceholder')}
           />
         </div>
       </div>
@@ -408,7 +415,7 @@ export function LeadForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

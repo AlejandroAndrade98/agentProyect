@@ -7,7 +7,12 @@ import {
   priorityOptions,
   taskStatusOptions,
 } from '@/lib/crm-options';
-import { formatEnumLabel } from '@/lib/formatters';
+import {
+  getImportanceLabel,
+  getPriorityLabel,
+  getTaskStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import type {
   Contact,
   CreateTaskInput,
@@ -53,6 +58,7 @@ export function TaskForm({
   isSubmitting,
   onSubmit,
 }: TaskFormProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [description, setDescription] = useState(
     initialValues?.description ?? '',
@@ -119,7 +125,7 @@ export function TaskForm({
             htmlFor="task-title"
             className="text-sm font-medium text-slate-700"
           >
-            Task title
+            {t('crm.tasks.titleLabel')}
           </label>
           <input
             id="task-title"
@@ -128,7 +134,7 @@ export function TaskForm({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Follow up with client"
+            placeholder={t('crm.tasks.titlePlaceholder')}
           />
         </div>
 
@@ -137,7 +143,7 @@ export function TaskForm({
             htmlFor="task-lead"
             className="text-sm font-medium text-slate-700"
           >
-            Lead
+            {t('crm.common.lead')}
           </label>
           <select
             id="task-lead"
@@ -145,7 +151,7 @@ export function TaskForm({
             onChange={(event) => setLeadId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No lead</option>
+            <option value="">{t('crm.common.noLead')}</option>
             {leads.map((lead) => (
               <option key={lead.id} value={lead.id}>
                 {lead.title}
@@ -159,7 +165,7 @@ export function TaskForm({
             htmlFor="task-contact"
             className="text-sm font-medium text-slate-700"
           >
-            Contact
+            {t('crm.common.contact')}
           </label>
           <select
             id="task-contact"
@@ -167,7 +173,7 @@ export function TaskForm({
             onChange={(event) => setContactId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No contact</option>
+            <option value="">{t('crm.common.noContact')}</option>
             {contacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.firstName} {contact.lastName}
@@ -181,7 +187,7 @@ export function TaskForm({
             htmlFor="task-status"
             className="text-sm font-medium text-slate-700"
           >
-            Status
+            {t('crm.common.status')}
           </label>
           <select
             id="task-status"
@@ -191,12 +197,12 @@ export function TaskForm({
           >
             {taskStatusOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getTaskStatusLabel(option, t)}
               </option>
             ))}
           </select>
           <p className="mt-1 text-xs text-slate-500">
-            Moving a task to Completed will let the backend set completedAt.
+            {t('crm.tasks.completedHelp')}
           </p>
         </div>
 
@@ -205,7 +211,7 @@ export function TaskForm({
             htmlFor="task-priority"
             className="text-sm font-medium text-slate-700"
           >
-            Priority
+            {t('crm.common.priority')}
           </label>
           <select
             id="task-priority"
@@ -215,7 +221,7 @@ export function TaskForm({
           >
             {priorityOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getPriorityLabel(option, t)}
               </option>
             ))}
           </select>
@@ -226,7 +232,7 @@ export function TaskForm({
             htmlFor="task-importance"
             className="text-sm font-medium text-slate-700"
           >
-            Importance
+            {t('crm.common.importance')}
           </label>
           <select
             id="task-importance"
@@ -238,7 +244,7 @@ export function TaskForm({
           >
             {importanceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getImportanceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -249,7 +255,7 @@ export function TaskForm({
             htmlFor="task-due-date"
             className="text-sm font-medium text-slate-700"
           >
-            Due date
+            {t('crm.tasks.dueDate')}
           </label>
           <input
             id="task-due-date"
@@ -265,7 +271,7 @@ export function TaskForm({
             htmlFor="task-assignee"
             className="text-sm font-medium text-slate-700"
           >
-            Assignee
+            {t('crm.common.assignee')}
           </label>
           <select
             id="task-assignee"
@@ -273,7 +279,7 @@ export function TaskForm({
             onChange={(event) => setAssignedToUserId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No assignee</option>
+            <option value="">{t('crm.common.noAssignee')}</option>
             {currentUser ? (
               <option value={currentUser.id}>
                 {currentUser.name ?? currentUser.email}
@@ -281,7 +287,7 @@ export function TaskForm({
             ) : null}
           </select>
           <p className="mt-1 text-xs text-slate-500">
-            For now, only the current user can be selected from the frontend.
+            {t('crm.common.currentUserOnlyHelp')}
           </p>
         </div>
 
@@ -290,7 +296,7 @@ export function TaskForm({
             htmlFor="task-description"
             className="text-sm font-medium text-slate-700"
           >
-            Description
+            {t('crm.common.description')}
           </label>
           <textarea
             id="task-description"
@@ -298,7 +304,7 @@ export function TaskForm({
             onChange={(event) => setDescription(event.target.value)}
             rows={5}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Describe the task..."
+            placeholder={t('crm.tasks.descriptionPlaceholder')}
           />
         </div>
       </div>
@@ -309,7 +315,7 @@ export function TaskForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

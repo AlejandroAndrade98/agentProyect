@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { LeadForm } from '@/components/LeadForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getCompanies,
@@ -42,6 +43,7 @@ export default function EditLeadPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const leadId =
     typeof params.id === 'string'
@@ -104,7 +106,7 @@ export default function EditLeadPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load lead.');
+          setErrorMessage(t('crm.leads.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -118,11 +120,11 @@ export default function EditLeadPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, leadId]);
+  }, [token, leadId, t]);
 
   async function handleUpdateLead(values: CreateLeadInput) {
     if (!token || !leadId) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -138,7 +140,7 @@ export default function EditLeadPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update lead.');
+        setErrorMessage(t('crm.leads.updateFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -161,7 +163,7 @@ export default function EditLeadPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -178,15 +180,15 @@ export default function EditLeadPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Lead not found
+            {t('crm.leads.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The lead may have been deleted or you may not have access.
+            {t('crm.leads.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -200,19 +202,18 @@ export default function EditLeadPage() {
           href={`/dashboard/leads/${lead.id}`}
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to lead detail
+          ← {t('crm.common.backToLeadDetail')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Edit lead
+            {t('crm.leads.edit')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Update opportunity status, priority, budget, ownership, and next
-            steps.
+            {t('crm.leads.editDescription')}
           </p>
         </div>
       </section>
@@ -228,7 +229,7 @@ export default function EditLeadPage() {
         contacts={contacts}
         currentUser={user}
         initialValues={getLeadInitialValues(lead)}
-        submitLabel="Save changes"
+        submitLabel={t('crm.common.saveChanges')}
         isSubmitting={isSubmitting}
         onSubmit={handleUpdateLead}
       />

@@ -9,10 +9,16 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getImportanceLabel,
+  getSourceLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getNotes } from '@/lib/api-client';
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, truncateText } from '@/lib/formatters';
+import { formatDate, truncateText } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type {
   ImportanceLevel,
@@ -21,16 +27,17 @@ import type {
   Source,
 } from '@/types/crm';
 
-function getLinkedLabel(note: Note) {
-  if (note.leadId) return 'Lead';
-  if (note.contactId) return 'Contact';
-  if (note.companyId) return 'Company';
+function getLinkedLabel(note: Note, t: Translate) {
+  if (note.leadId) return t('crm.common.lead');
+  if (note.contactId) return t('crm.common.contact');
+  if (note.companyId) return t('crm.common.company');
 
-  return 'Unlinked';
+  return t('common.labels.unlinked');
 }
 
 export default function NotesListPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [notesResponse, setNotesResponse] =
     useState<PaginatedResponse<Note> | null>(null);
@@ -82,7 +89,7 @@ export default function NotesListPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load notes.');
+          setErrorMessage(t('crm.notes.loadListFailed'));
         }
       } finally {
         if (isMounted) {
@@ -96,7 +103,7 @@ export default function NotesListPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch, importanceFilter, sourceFilter]);
+  }, [token, page, submittedSearch, importanceFilter, sourceFilter, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,15 +125,15 @@ export default function NotesListPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Notes"
-        description="Manage commercial notes linked to companies, contacts, and leads."
+        title={t('crm.notes.title')}
+        description={t('crm.notes.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/notes/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Board view
+              {t('common.actions.boardView')}
             </Link>
 
             {canCreateCrm(user) ? (
@@ -134,7 +141,7 @@ export default function NotesListPage() {
                 href="/dashboard/notes/new"
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
               >
-                New note
+                {t('crm.common.newNote')}
               </Link>
             ) : null}
           </div>
@@ -150,7 +157,7 @@ export default function NotesListPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by title or content..."
+            placeholder={t('crm.notes.searchPlaceholder')}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -162,10 +169,10 @@ export default function NotesListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All importance</option>
+            <option value="">{t('crm.notes.allImportance')}</option>
             {importanceOptions.map((importance) => (
               <option key={importance} value={importance}>
-                {formatEnumLabel(importance)}
+                {getImportanceLabel(importance, t)}
               </option>
             ))}
           </select>
@@ -178,10 +185,10 @@ export default function NotesListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All sources</option>
+            <option value="">{t('crm.notes.allSources')}</option>
             {sourceOptions.map((source) => (
               <option key={source} value={source}>
-                {formatEnumLabel(source)}
+                {getSourceLabel(source, t)}
               </option>
             ))}
           </select>
@@ -191,7 +198,7 @@ export default function NotesListPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('common.actions.search')}
             </button>
 
             <button
@@ -199,7 +206,7 @@ export default function NotesListPage() {
               onClick={handleClearFilters}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear
+              {t('common.actions.clear')}
             </button>
           </div>
         </form>
@@ -213,8 +220,8 @@ export default function NotesListPage() {
 
       {!isLoading && !errorMessage && notes.length === 0 ? (
         <EmptyState
-          title="No notes found"
-          description="Create your first note to start documenting commercial context."
+          title={t('crm.notes.noFound')}
+          description={t('crm.notes.empty')}
         />
       ) : null}
 
@@ -225,22 +232,22 @@ export default function NotesListPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Note
+                    {t('crm.common.note')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Linked to
+                    {t('crm.notes.linkedTo')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Importance
+                    {t('crm.common.importance')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Source
+                    {t('crm.common.source')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
+                    {t('crm.common.created')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -250,7 +257,7 @@ export default function NotesListPage() {
                   <tr key={note.id} className="transition hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-950">
-                        {note.title ?? 'Untitled note'}
+                        {note.title ?? t('common.emptyStates.untitledNote')}
                       </p>
                       <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
                         {truncateText(note.content, 160)}
@@ -258,25 +265,25 @@ export default function NotesListPage() {
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {getLinkedLabel(note)}
+                      {getLinkedLabel(note, t)}
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge
                         className={getImportanceClasses(note.importanceLevel)}
                       >
-                        {formatEnumLabel(note.importanceLevel)}
+                        {getImportanceLabel(note.importanceLevel, t)}
                       </Badge>
                     </td>
 
                     <td className="px-6 py-4">
                       {note.source === 'AI_SUGGESTION' ? (
                         <Badge className="border-blue-200 bg-blue-50 text-blue-700">
-                          AI suggestion
+                          {getSourceLabel(note.source, t)}
                         </Badge>
                       ) : (
                         <span className="text-sm text-slate-600">
-                          {formatEnumLabel(note.source)}
+                          {getSourceLabel(note.source, t)}
                         </span>
                       )}
                     </td>
@@ -290,7 +297,7 @@ export default function NotesListPage() {
                         href={`/dashboard/notes/${note.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('common.actions.view')}
                       </Link>
                     </td>
                   </tr>
@@ -302,7 +309,9 @@ export default function NotesListPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total} notes
+                {t('common.pagination.page')} {meta.page}{' '}
+                {t('common.pagination.of')} {meta.totalPages || 1} ·{' '}
+                {meta.total} {t('crm.notes.total')}
               </p>
 
               <div className="flex gap-2">
@@ -312,7 +321,7 @@ export default function NotesListPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.pagination.previous')}
                 </button>
 
                 <button
@@ -321,7 +330,7 @@ export default function NotesListPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('common.pagination.next')}
                 </button>
               </div>
             </div>

@@ -8,9 +8,16 @@ import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getLeadStatusLabel,
+  getPriorityLabel,
+  getSourceLabel,
+  getTaskStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, deleteLead, getLeadById } from '@/lib/api-client';
 import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 import type { LeadDetail } from '@/types/crm';
 
@@ -19,7 +26,7 @@ import { LeadAiSuggestionsPanel } from './LeadAiSuggestionsPanel';
 function EmptyRelatedState({ label }: { label: string }) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-      No {label} linked yet.
+      {label}
     </div>
   );
 }
@@ -28,6 +35,7 @@ export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const leadId =
     typeof params.id === 'string'
@@ -73,7 +81,7 @@ export default function LeadDetailPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load lead.');
+          setErrorMessage(t('crm.leads.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -87,18 +95,20 @@ export default function LeadDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, leadId]);
+  }, [token, leadId, t]);
 
   const canDeleteLead = canDeleteCrm(user);
 
   async function handleDeleteLead() {
     if (!token || !leadId || !lead) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${lead.title}"? This action will remove it from active CRM views.`,
+      `${t('crm.leads.deleteConfirmPrefix')} "${lead.title}"? ${t(
+        'crm.leads.deleteConfirmSuffix',
+      )}`,
     );
 
     if (!confirmed) {
@@ -117,7 +127,7 @@ export default function LeadDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not delete lead.');
+        setErrorMessage(t('crm.leads.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -144,7 +154,7 @@ export default function LeadDetailPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <ErrorState message={errorMessage} />
@@ -159,15 +169,15 @@ export default function LeadDetailPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Lead not found
+            {t('crm.leads.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The lead may have been deleted or you may not have access.
+            {t('crm.leads.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -184,20 +194,19 @@ export default function LeadDetailPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Lead detail
+              {t('crm.leads.detail')}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
               {lead.title}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review opportunity details, related CRM records, next steps,
-              tasks, and notes.
+              {t('crm.leads.detailDescription')}
             </p>
           </div>
 
@@ -206,14 +215,14 @@ export default function LeadDetailPage() {
               href={`/dashboard/leads/${lead.id}/edit`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Edit
+              {t('common.actions.edit')}
             </Link>
 
                         <Link
               href={`/dashboard/notes/new?leadId=${lead.id}`}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
-              New note
+              {t('crm.common.newNote')}
             </Link>
 
             <Link
@@ -224,7 +233,7 @@ export default function LeadDetailPage() {
               }
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
-              New task
+              {t('crm.common.newTask')}
             </Link>
 
             {canDeleteLead ? (
@@ -234,7 +243,9 @@ export default function LeadDetailPage() {
               disabled={isDeleting}
               className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting
+                  ? t('crm.common.deleting')
+                  : t('crm.common.delete')}
               </button>
             ) : null}
           </div>
@@ -246,29 +257,29 @@ export default function LeadDetailPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Status
+              {t('crm.common.status')}
             </p>
             <div className="mt-2">
               <Badge className={getLeadStatusClasses(lead.status)}>
-                {formatEnumLabel(lead.status)}
+                {getLeadStatusLabel(lead.status, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Priority
+              {t('crm.common.priority')}
             </p>
             <div className="mt-2">
               <Badge className={getPriorityClasses(lead.priority)}>
-                {formatEnumLabel(lead.priority)}
+                {getPriorityLabel(lead.priority, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Budget
+              {t('crm.common.budget')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatMoney(lead.estimatedBudget)}
@@ -277,7 +288,7 @@ export default function LeadDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Company
+              {t('crm.common.company')}
             </p>
             {lead.company ? (
               <Link
@@ -287,13 +298,15 @@ export default function LeadDetailPage() {
                 {lead.company.name}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Contact
+              {t('crm.common.contact')}
             </p>
             {lead.contact ? (
               <Link
@@ -303,22 +316,24 @@ export default function LeadDetailPage() {
                 {lead.contact.firstName} {lead.contact.lastName}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Assignee
+              {t('crm.common.assignee')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {lead.user?.name ?? lead.user?.email ?? 'Not assigned'}
+              {lead.user?.name ?? lead.user?.email ?? t('crm.common.notAssigned')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Expected close
+              {t('crm.common.expectedClose')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(lead.expectedCloseDate)}
@@ -327,7 +342,7 @@ export default function LeadDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Last contact
+              {t('crm.common.lastContact')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(lead.lastContactAt)}
@@ -336,16 +351,16 @@ export default function LeadDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Source
+              {t('crm.common.source')}
             </p>
             <div className="mt-2">
               {lead.source === 'AI_SUGGESTION' ? (
                 <Badge className="border-blue-200 bg-blue-50 text-blue-700">
-                  AI suggestion
+                  {getSourceLabel(lead.source, t)}
                 </Badge>
               ) : (
                 <p className="text-sm text-slate-950">
-                  {formatEnumLabel(lead.source)}
+                  {getSourceLabel(lead.source, t)}
                 </p>
               )}
             </div>
@@ -356,33 +371,33 @@ export default function LeadDetailPage() {
       {lead.source === 'AI_SUGGESTION' ? (
         <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
           <Badge className="border-blue-200 bg-white text-blue-700">
-            AI suggestion
+            {getSourceLabel(lead.source, t)}
           </Badge>
           <p className="mt-3 text-sm leading-6 text-blue-900">
-            This lead came from a reviewed AI suggestion. No email is sent
-            automatically from this page, and no company, contact, task, or note
-            is created automatically here.
+            {t('crm.leads.aiSafety')}
           </p>
         </section>
       ) : null}
 
       <section className="grid gap-6 xl:grid-cols-2">
         <LongTextCard
-          title="Next step"
+          title={t('crm.common.nextStep')}
           content={lead.nextStep}
-          emptyText="No next step recorded for this lead."
+          emptyText={t('crm.leads.noNextStepRecorded')}
         />
         <LongTextCard
-          title="Description"
+          title={t('crm.common.description')}
           content={lead.description}
-          emptyText="No description recorded for this lead."
+          emptyText={t('crm.leads.noDescriptionRecorded')}
         />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Tasks</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('crm.common.tasks')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {tasks.length}
             </span>
@@ -398,26 +413,35 @@ export default function LeadDetailPage() {
                   <p className="font-medium text-slate-950">{task.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                      {formatEnumLabel(task.status)}
+                      {getTaskStatusLabel(task.status, t)}
                     </Badge>
                     <Badge className={getPriorityClasses(task.priority)}>
-                      {formatEnumLabel(task.priority)}
+                      {getPriorityLabel(task.priority, t)}
                     </Badge>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(task.createdAt)}
+                    {t('crm.common.createdAt').replace(
+                      '{date}',
+                      formatDate(task.createdAt),
+                    )}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="tasks" />
+            <EmptyRelatedState
+              label={`${t('crm.common.noLinkedYetPrefix')} ${t(
+                'crm.common.tasks',
+              ).toLowerCase()} ${t('crm.common.noLinkedYetSuffix')}`}
+            />
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Notes</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('crm.common.notes')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {notes.length}
             </span>
@@ -431,19 +455,26 @@ export default function LeadDetailPage() {
                   className="rounded-xl border border-slate-200 p-4"
                 >
                   <p className="font-medium text-slate-950">
-                    {note.title ?? 'Untitled note'}
+                    {note.title ?? t('crm.common.untitledNote')}
                   </p>
                   <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
                     {note.content}
                   </p>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(note.createdAt)}
+                    {t('crm.common.createdAt').replace(
+                      '{date}',
+                      formatDate(note.createdAt),
+                    )}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="notes" />
+            <EmptyRelatedState
+              label={`${t('crm.common.noLinkedYetPrefix')} ${t(
+                'crm.common.notes',
+              ).toLowerCase()} ${t('crm.common.noLinkedYetSuffix')}`}
+            />
           )}
         </div>
       </section>

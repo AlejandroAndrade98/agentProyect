@@ -10,10 +10,12 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getLeadStatusLabel, getPriorityLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getLeads, moveLeadPipeline } from '@/lib/api-client';
 import { leadStatusOptions } from '@/lib/crm-options';
 import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, formatMoney } from '@/lib/formatters';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type { Lead, LeadStatus } from '@/types/crm';
 
@@ -63,6 +65,7 @@ function sortLeadsForBoard(leads: Lead[]) {
 
 export default function LeadPipelinePage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [leadsByStatus, setLeadsByStatus] = useState<LeadsByStatus>(() =>
     createEmptyLeadsByStatus(),
@@ -113,7 +116,7 @@ export default function LeadPipelinePage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load lead pipeline.');
+        setErrorMessage(t('crm.leads.loadPipelineFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -159,7 +162,7 @@ export default function LeadPipelinePage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not move lead.');
+        setErrorMessage(t('crm.leads.moveFailed'));
       }
     } finally {
       setMovingLeadId(null);
@@ -240,15 +243,15 @@ export default function LeadPipelinePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Lead Pipeline"
-        description="Manage opportunities by stage, review pipeline health, and move leads through the commercial workflow."
+        title={t('crm.leads.pipelineTitle')}
+        description={t('crm.leads.pipelineSubtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/leads/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
 
             {canCreateCrm(user) ? (
@@ -256,7 +259,7 @@ export default function LeadPipelinePage() {
                 href="/dashboard/leads/new"
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
               >
-                New lead
+                {t('crm.common.newLead')}
               </Link>
             ) : null}
           </div>
@@ -271,8 +274,8 @@ export default function LeadPipelinePage() {
 
       {!isLoading && !errorMessage && totalLeads === 0 ? (
         <EmptyState
-          title="No leads in pipeline"
-          description="Create leads to start visualizing your commercial pipeline."
+          title={t('crm.leads.noPipeline')}
+          description={t('crm.leads.noPipelineDescription')}
         />
       ) : null}
 
@@ -300,7 +303,7 @@ export default function LeadPipelinePage() {
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <Badge className={getLeadStatusClasses(status)}>
-                        {formatEnumLabel(status)}
+                        {getLeadStatusLabel(status, t)}
                       </Badge>
 
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
@@ -335,7 +338,7 @@ export default function LeadPipelinePage() {
                               </Link>
 
                               <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                                {lead.nextStep ?? 'No next step'}
+                                {lead.nextStep ?? t('crm.common.noNextStep')}
                               </p>
                             </div>
 
@@ -343,27 +346,27 @@ export default function LeadPipelinePage() {
                               <Badge
                                 className={getPriorityClasses(lead.priority)}
                               >
-                                {formatEnumLabel(lead.priority)}
+                                {getPriorityLabel(lead.priority, t)}
                               </Badge>
                             </div>
 
                             <div className="space-y-1 text-xs text-slate-500">
                               <p>
-                                Budget:{' '}
+                                {t('crm.common.budget')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatMoney(lead.estimatedBudget)}
                                 </span>
                               </p>
 
                               <p>
-                                Close:{' '}
+                                {t('crm.common.closeDate')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatDate(lead.expectedCloseDate)}
                                 </span>
                               </p>
 
                               <p>
-                                Stage since:{' '}
+                                {t('crm.common.stageSince')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatDate(lead.statusChangedAt)}
                                 </span>
@@ -371,7 +374,7 @@ export default function LeadPipelinePage() {
 
                               {lead.company ? (
                                 <p>
-                                  Company:{' '}
+                                  {t('crm.common.company')}:{' '}
                                   <span className="font-medium text-slate-700">
                                     {lead.company.name}
                                   </span>
@@ -380,7 +383,7 @@ export default function LeadPipelinePage() {
 
                               {lead.contact ? (
                                 <p>
-                                  Contact:{' '}
+                                  {t('crm.common.contact')}:{' '}
                                   <span className="font-medium text-slate-700">
                                     {lead.contact.firstName}{' '}
                                     {lead.contact.lastName}
@@ -391,7 +394,7 @@ export default function LeadPipelinePage() {
 
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-slate-600">
-                                Move to stage
+                                {t('crm.common.moveToStage')}
                               </label>
 
                               <select
@@ -407,7 +410,7 @@ export default function LeadPipelinePage() {
                               >
                                 {leadStatusOptions.map((option) => (
                                   <option key={option} value={option}>
-                                    {formatEnumLabel(option)}
+                                    {getLeadStatusLabel(option, t)}
                                   </option>
                                 ))}
                               </select>
@@ -417,14 +420,14 @@ export default function LeadPipelinePage() {
                               href={`/dashboard/leads/${lead.id}`}
                               className="inline-flex text-xs font-medium text-blue-700 transition hover:text-blue-900"
                             >
-                              View record
+                              {t('common.actions.viewRecord')}
                             </Link>
                           </div>
                         </article>
                       ))
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
-                        No leads
+                        {t('crm.leads.noLeads')}
                       </div>
                     )}
                   </div>
@@ -442,11 +445,12 @@ export default function LeadPipelinePage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Previous
+                        {t('common.pagination.previous')}
                       </button>
 
                       <span className="text-xs text-slate-500">
-                        Page {currentPage} of {totalPages}
+                        {t('common.pagination.page')} {currentPage}{' '}
+                        {t('common.pagination.of')} {totalPages}
                       </span>
 
                       <button
@@ -460,7 +464,7 @@ export default function LeadPipelinePage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {t('common.pagination.next')}
                       </button>
                     </div>
                   </div>

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { TaskForm } from '@/components/TaskForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   createTask,
@@ -17,6 +18,7 @@ import type { Contact, CreateTaskInput, Lead } from '@/types/crm';
 export default function NewTaskPage() {
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -65,7 +67,7 @@ export default function NewTaskPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load related CRM records.');
+          setErrorMessage(t('crm.tasks.loadRelationsFailed'));
         }
       } finally {
         if (isMounted) {
@@ -79,11 +81,11 @@ export default function NewTaskPage() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function handleCreateTask(values: CreateTaskInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -99,7 +101,7 @@ export default function NewTaskPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create task.');
+        setErrorMessage(t('crm.tasks.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -113,19 +115,18 @@ export default function NewTaskPage() {
           href="/dashboard/tasks"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to tasks
+          ← {t('crm.common.backToTasks')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New task
+            {t('crm.tasks.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a follow-up task and optionally link it to a lead and
-            contact.
+            {t('crm.tasks.newDescription')}
           </p>
         </div>
       </section>
@@ -143,7 +144,7 @@ export default function NewTaskPage() {
           leads={leads}
           contacts={contacts}
           currentUser={user}
-          submitLabel="Create task"
+          submitLabel={t('crm.common.createTask')}
           isSubmitting={isSubmitting}
           onSubmit={handleCreateTask}
         />

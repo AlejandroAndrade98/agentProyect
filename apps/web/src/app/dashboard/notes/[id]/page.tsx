@@ -8,9 +8,14 @@ import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LongTextCard } from '@/components/ui/LongTextCard';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getImportanceLabel,
+  getSourceLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, deleteNote, getNoteById } from '@/lib/api-client';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 import type { NoteDetail } from '@/types/crm';
 
@@ -18,6 +23,7 @@ export default function NoteDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const noteId =
     typeof params.id === 'string'
@@ -63,7 +69,7 @@ export default function NoteDetailPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load note.');
+          setErrorMessage(t('crm.notes.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -77,18 +83,20 @@ export default function NoteDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, noteId]);
+  }, [token, noteId, t]);
 
   const canDeleteNote = canDeleteCrm(user);
 
   async function handleDeleteNote() {
     if (!token || !noteId || !note) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${note.title ?? 'Untitled note'}"? This action will remove it from active CRM views.`,
+      `${t('crm.notes.deleteConfirmPrefix')} "${
+        note.title ?? t('crm.common.untitledNote')
+      }"? ${t('crm.notes.deleteConfirmSuffix')}`,
     );
 
     if (!confirmed) {
@@ -107,7 +115,7 @@ export default function NoteDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not delete note.');
+        setErrorMessage(t('crm.notes.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -130,7 +138,7 @@ export default function NoteDetailPage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <ErrorState message={errorMessage} />
@@ -145,15 +153,15 @@ export default function NoteDetailPage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Note not found
+            {t('crm.notes.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The note may have been deleted or you may not have access.
+            {t('crm.notes.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -167,20 +175,19 @@ export default function NoteDetailPage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Note detail
+              {t('crm.notes.detail')}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              {note.title ?? 'Untitled note'}
+              {note.title ?? t('crm.common.untitledNote')}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review commercial context, linked records, source, importance, and
-              author details.
+              {t('crm.notes.detailDescription')}
             </p>
           </div>
 
@@ -189,7 +196,7 @@ export default function NoteDetailPage() {
               href={`/dashboard/notes/${note.id}/edit`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Edit
+              {t('common.actions.edit')}
             </Link>
 
             {canDeleteNote ? (
@@ -199,7 +206,9 @@ export default function NoteDetailPage() {
                 disabled={isDeleting}
                 className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting
+                  ? t('crm.common.deleting')
+                  : t('crm.common.delete')}
               </button>
             ) : null}
           </div>
@@ -210,27 +219,27 @@ export default function NoteDetailPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Importance
+              {t('crm.common.importance')}
             </p>
             <div className="mt-2">
               <Badge className={getImportanceClasses(note.importanceLevel)}>
-                {formatEnumLabel(note.importanceLevel)}
+                {getImportanceLabel(note.importanceLevel, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Source
+              {t('crm.common.source')}
             </p>
             <div className="mt-2">
               {note.source === 'AI_SUGGESTION' ? (
                 <Badge className="border-blue-200 bg-blue-50 text-blue-700">
-                  AI suggestion
+                  {getSourceLabel(note.source, t)}
                 </Badge>
               ) : (
                 <p className="text-sm text-slate-950">
-                  {formatEnumLabel(note.source)}
+                  {getSourceLabel(note.source, t)}
                 </p>
               )}
             </div>
@@ -238,16 +247,18 @@ export default function NoteDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created by
+              {t('crm.notes.createdBy')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {note.createdBy?.name ?? note.createdBy?.email ?? 'Unknown'}
+              {note.createdBy?.name ??
+                note.createdBy?.email ??
+                t('crm.notes.unknownAuthor')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Company
+              {t('crm.common.company')}
             </p>
             {note.company ? (
               <Link
@@ -257,13 +268,15 @@ export default function NoteDetailPage() {
                 {note.company.name}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Contact
+              {t('crm.common.contact')}
             </p>
             {note.contact ? (
               <Link
@@ -273,13 +286,15 @@ export default function NoteDetailPage() {
                 {note.contact.firstName} {note.contact.lastName}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Lead
+              {t('crm.common.lead')}
             </p>
             {note.lead ? (
               <Link
@@ -289,13 +304,15 @@ export default function NoteDetailPage() {
                 {note.lead.title}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created
+              {t('crm.common.created')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(note.createdAt)}
@@ -304,7 +321,7 @@ export default function NoteDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Updated
+              {t('crm.common.updated')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(note.updatedAt)}
@@ -317,17 +334,15 @@ export default function NoteDetailPage() {
       {note.source === 'AI_SUGGESTION' ? (
         <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
           <Badge className="border-blue-200 bg-white text-blue-700">
-            AI suggestion
+            {getSourceLabel(note.source, t)}
           </Badge>
           <p className="mt-3 text-sm leading-6 text-blue-900">
-            This note came from a reviewed AI suggestion. The full CRM note
-            content is preserved below for audit and follow-up context. No
-            email is sent automatically from this page.
+            {t('crm.notes.aiSafety')}
           </p>
         </section>
       ) : null}
 
-      <LongTextCard title="Content" content={note.content} />
+      <LongTextCard title={t('crm.notes.content')} content={note.content} />
     </div>
   );
 }

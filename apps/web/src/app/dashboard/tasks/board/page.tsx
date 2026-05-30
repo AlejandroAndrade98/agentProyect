@@ -10,10 +10,12 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getPriorityLabel, getTaskStatusLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getTasks, moveTaskBoard } from '@/lib/api-client';
 import { taskStatusOptions } from '@/lib/crm-options';
 import { getPriorityClasses, getTaskStatusClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type { Task, TaskStatus } from '@/types/crm';
 
@@ -63,6 +65,7 @@ function sortTasksForBoard(tasks: Task[]) {
 
 export default function TasksBoardPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [tasksByStatus, setTasksByStatus] = useState<TasksByStatus>(() =>
     createEmptyTasksByStatus(),
@@ -113,7 +116,7 @@ export default function TasksBoardPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load tasks board.');
+        setErrorMessage(t('crm.tasks.loadBoardFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -159,7 +162,7 @@ export default function TasksBoardPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not move task.');
+        setErrorMessage(t('crm.tasks.moveFailed'));
       }
     } finally {
       setMovingTaskId(null);
@@ -240,15 +243,15 @@ export default function TasksBoardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Tasks Board"
-        description="Track execution work by status, due date, priority, and completion state."
+        title={t('crm.tasks.boardTitle')}
+        description={t('crm.tasks.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/tasks/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
 
             {canCreateCrm(user) ? (
@@ -256,7 +259,7 @@ export default function TasksBoardPage() {
                 href="/dashboard/tasks/new"
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
               >
-                New task
+                {t('crm.common.newTask')}
               </Link>
             ) : null}
           </div>
@@ -271,8 +274,8 @@ export default function TasksBoardPage() {
 
       {!isLoading && !errorMessage && totalTasks === 0 ? (
         <EmptyState
-          title="No tasks in board"
-          description="Create tasks to start managing execution from the board."
+          title={t('crm.tasks.noBoard')}
+          description={t('crm.tasks.noBoardDescription')}
         />
       ) : null}
 
@@ -300,7 +303,7 @@ export default function TasksBoardPage() {
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <Badge className={getTaskStatusClasses(status)}>
-                        {formatEnumLabel(status)}
+                        {getTaskStatusLabel(status, t)}
                       </Badge>
 
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
@@ -335,7 +338,8 @@ export default function TasksBoardPage() {
                               </Link>
 
                               <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                                {task.description ?? 'No description'}
+                                {task.description ??
+                                  t('common.emptyStates.noDescription')}
                               </p>
                             </div>
 
@@ -343,27 +347,27 @@ export default function TasksBoardPage() {
                               <Badge
                                 className={getPriorityClasses(task.priority)}
                               >
-                                {formatEnumLabel(task.priority)}
+                                {getPriorityLabel(task.priority, t)}
                               </Badge>
                             </div>
 
                             <div className="space-y-1 text-xs text-slate-500">
                               <p>
-                                Due:{' '}
+                                {t('crm.common.due')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatDate(task.dueDate)}
                                 </span>
                               </p>
 
                               <p>
-                                Status since:{' '}
+                                {t('crm.common.statusSince')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatDate(task.statusChangedAt)}
                                 </span>
                               </p>
 
                               <p>
-                                Completed:{' '}
+                                {t('crm.common.completed')}:{' '}
                                 <span className="font-medium text-slate-700">
                                   {formatDate(task.completedAt)}
                                 </span>
@@ -371,7 +375,7 @@ export default function TasksBoardPage() {
 
                               {task.lead ? (
                                 <p>
-                                  Lead:{' '}
+                                  {t('crm.common.lead')}:{' '}
                                   <span className="font-medium text-slate-700">
                                     {task.lead.title}
                                   </span>
@@ -380,7 +384,7 @@ export default function TasksBoardPage() {
 
                               {task.contact ? (
                                 <p>
-                                  Contact:{' '}
+                                  {t('crm.common.contact')}:{' '}
                                   <span className="font-medium text-slate-700">
                                     {task.contact.firstName}{' '}
                                     {task.contact.lastName}
@@ -391,7 +395,7 @@ export default function TasksBoardPage() {
 
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-slate-600">
-                                Move to status
+                                {t('crm.common.moveToStatus')}
                               </label>
 
                               <select
@@ -407,7 +411,7 @@ export default function TasksBoardPage() {
                               >
                                 {taskStatusOptions.map((option) => (
                                   <option key={option} value={option}>
-                                    {formatEnumLabel(option)}
+                                    {getTaskStatusLabel(option, t)}
                                   </option>
                                 ))}
                               </select>
@@ -417,14 +421,14 @@ export default function TasksBoardPage() {
                               href={`/dashboard/tasks/${task.id}`}
                               className="inline-flex text-xs font-medium text-blue-700 transition hover:text-blue-900"
                             >
-                              View record
+                              {t('common.actions.viewRecord')}
                             </Link>
                           </div>
                         </article>
                       ))
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
-                        No tasks
+                        {t('crm.tasks.noTasks')}
                       </div>
                     )}
                   </div>
@@ -442,11 +446,12 @@ export default function TasksBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Previous
+                        {t('common.pagination.previous')}
                       </button>
 
                       <span className="text-xs text-slate-500">
-                        Page {currentPage} of {totalPages}
+                        {t('common.pagination.page')} {currentPage}{' '}
+                        {t('common.pagination.of')} {totalPages}
                       </span>
 
                       <button
@@ -460,7 +465,7 @@ export default function TasksBoardPage() {
                         }
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {t('common.pagination.next')}
                       </button>
                     </div>
                   </div>

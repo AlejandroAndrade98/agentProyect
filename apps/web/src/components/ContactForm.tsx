@@ -3,7 +3,8 @@
 import { FormEvent, useState } from 'react';
 
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
-import { formatEnumLabel } from '@/lib/formatters';
+import { getImportanceLabel, getSourceLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import type {
   Company,
   CreateContactInput,
@@ -34,6 +35,7 @@ export function ContactForm({
   isSubmitting,
   onSubmit,
 }: ContactFormProps) {
+  const { t } = useI18n();
   const [firstName, setFirstName] = useState(initialValues?.firstName ?? '');
   const [lastName, setLastName] = useState(initialValues?.lastName ?? '');
   const [email, setEmail] = useState(initialValues?.email ?? '');
@@ -85,7 +87,7 @@ export function ContactForm({
             htmlFor="contact-first-name"
             className="text-sm font-medium text-slate-700"
           >
-            First name
+            {t('crm.contacts.firstName')}
           </label>
           <input
             id="contact-first-name"
@@ -103,7 +105,7 @@ export function ContactForm({
             htmlFor="contact-last-name"
             className="text-sm font-medium text-slate-700"
           >
-            Last name
+            {t('crm.contacts.lastName')}
           </label>
           <input
             id="contact-last-name"
@@ -121,7 +123,7 @@ export function ContactForm({
             htmlFor="contact-email"
             className="text-sm font-medium text-slate-700"
           >
-            Email
+            {t('crm.contacts.email')}
           </label>
           <input
             id="contact-email"
@@ -138,7 +140,7 @@ export function ContactForm({
             htmlFor="contact-phone"
             className="text-sm font-medium text-slate-700"
           >
-            Phone
+            {t('crm.contacts.phone')}
           </label>
           <input
             id="contact-phone"
@@ -155,7 +157,7 @@ export function ContactForm({
             htmlFor="contact-company"
             className="text-sm font-medium text-slate-700"
           >
-            Company
+            {t('crm.contacts.company')}
           </label>
           <select
             id="contact-company"
@@ -163,7 +165,7 @@ export function ContactForm({
             onChange={(event) => setCompanyId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No company</option>
+            <option value="">{t('crm.contacts.noCompany')}</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
@@ -177,7 +179,7 @@ export function ContactForm({
             htmlFor="contact-job-title"
             className="text-sm font-medium text-slate-700"
           >
-            Job title
+            {t('crm.contacts.jobTitle')}
           </label>
           <input
             id="contact-job-title"
@@ -194,7 +196,7 @@ export function ContactForm({
             htmlFor="contact-linkedin"
             className="text-sm font-medium text-slate-700"
           >
-            LinkedIn URL
+            {t('crm.contacts.linkedinUrl')}
           </label>
           <input
             id="contact-linkedin"
@@ -211,7 +213,7 @@ export function ContactForm({
             htmlFor="contact-expertise"
             className="text-sm font-medium text-slate-700"
           >
-            Expertise
+            {t('crm.contacts.expertise')}
           </label>
           <input
             id="contact-expertise"
@@ -228,7 +230,7 @@ export function ContactForm({
             htmlFor="contact-city"
             className="text-sm font-medium text-slate-700"
           >
-            City
+            {t('crm.common.city')}
           </label>
           <input
             id="contact-city"
@@ -245,7 +247,7 @@ export function ContactForm({
             htmlFor="contact-country"
             className="text-sm font-medium text-slate-700"
           >
-            Country
+            {t('crm.common.country')}
           </label>
           <input
             id="contact-country"
@@ -262,7 +264,7 @@ export function ContactForm({
             htmlFor="contact-importance"
             className="text-sm font-medium text-slate-700"
           >
-            Importance
+            {t('crm.common.importance')}
           </label>
           <select
             id="contact-importance"
@@ -274,7 +276,7 @@ export function ContactForm({
           >
             {importanceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getImportanceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -285,7 +287,7 @@ export function ContactForm({
             htmlFor="contact-source"
             className="text-sm font-medium text-slate-700"
           >
-            Source
+            {t('crm.common.source')}
           </label>
           <select
             id="contact-source"
@@ -295,7 +297,7 @@ export function ContactForm({
           >
             {sourceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getSourceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -306,7 +308,7 @@ export function ContactForm({
             htmlFor="contact-notes"
             className="text-sm font-medium text-slate-700"
           >
-            Notes
+            {t('crm.common.notes')}
           </label>
           <textarea
             id="contact-notes"
@@ -314,7 +316,7 @@ export function ContactForm({
             onChange={(event) => setNotes(event.target.value)}
             rows={5}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Internal notes about this contact..."
+            placeholder={t('crm.contacts.notesPlaceholder')}
           />
         </div>
       </div>
@@ -325,7 +327,7 @@ export function ContactForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

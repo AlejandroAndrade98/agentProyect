@@ -6,6 +6,14 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getImportanceLabel,
+  getLeadStatusLabel,
+  getPriorityLabel,
+  getSourceLabel,
+  getTaskStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   deleteContact,
   getContactById,
@@ -15,13 +23,16 @@ import type { ContactDetail, ImportanceLevel } from '@/types/crm';
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canDeleteCrm } from '@/lib/permissions';
 
 function EmptyRelatedState({ label }: { label: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-      No {label} linked yet.
+      {t('crm.common.noLinkedYetPrefix')} {label}{' '}
+      {t('crm.common.noLinkedYetSuffix')}
     </div>
   );
 }
@@ -30,6 +41,7 @@ export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const contactId =
     typeof params.id === 'string'
@@ -75,7 +87,7 @@ export default function ContactDetailPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load contact.');
+          setErrorMessage(t('crm.contacts.loadOneFailed'));
         }
       } finally {
         if (isMounted) {
@@ -89,18 +101,21 @@ export default function ContactDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, contactId]);
+  }, [token, contactId, t]);
 
   const canDeleteContact = canDeleteCrm(user);
 
   async function handleDeleteContact() {
     if (!token || !contactId || !contact) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${contact.firstName} ${contact.lastName}"? This action will remove it from active CRM views.`,
+      t('crm.contacts.deleteConfirm').replace(
+        '{name}',
+        `${contact.firstName} ${contact.lastName}`,
+      ),
     );
 
     if (!confirmed) {
@@ -119,7 +134,7 @@ export default function ContactDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not delete contact.');
+        setErrorMessage(t('crm.contacts.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -147,7 +162,7 @@ export default function ContactDetailPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
       <ErrorState message={errorMessage} />
@@ -162,15 +177,15 @@ export default function ContactDetailPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Contact not found
+            {t('crm.contacts.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The contact may have been deleted or you may not have access.
+            {t('crm.contacts.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -188,20 +203,19 @@ export default function ContactDetailPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-              Contact detail
+              {t('crm.contacts.detail')}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
               {contact.firstName} {contact.lastName}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Review stakeholder details, linked company, related leads, tasks,
-              and notes.
+              {t('crm.contacts.detailDescription')}
             </p>
           </div>
 
@@ -210,21 +224,21 @@ export default function ContactDetailPage() {
               href={`/dashboard/contacts/${contact.id}/edit`}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Edit
+              {t('crm.common.edit')}
             </Link>
 
                         <Link
               href={`/dashboard/notes/new?contactId=${contact.id}`}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
-              New note
+              {t('navigation.items.notes')}
             </Link>
 
             <Link
               href={`/dashboard/tasks/new?contactId=${contact.id}`}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
-              New task
+              {t('navigation.items.tasks')}
             </Link>
 
             <Link
@@ -235,7 +249,7 @@ export default function ContactDetailPage() {
               }
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
             >
-              New lead
+              {t('navigation.items.leads')}
             </Link>
 
             {canDeleteContact ? (
@@ -245,7 +259,7 @@ export default function ContactDetailPage() {
                 disabled={isDeleting}
                 className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? t('crm.common.deleting') : t('crm.common.delete')}
               </button>
             ) : null}
           </div>
@@ -256,25 +270,25 @@ export default function ContactDetailPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Email
+              {t('crm.contacts.email')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {contact.email ?? 'Not specified'}
+              {contact.email ?? t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Phone
+              {t('crm.contacts.phone')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {contact.phone ?? 'Not specified'}
+              {contact.phone ?? t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Company
+              {t('crm.contacts.company')}
             </p>
             {contact.company ? (
               <Link
@@ -284,52 +298,54 @@ export default function ContactDetailPage() {
                 {contact.company.name}
               </Link>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not linked</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notLinked')}
+              </p>
             )}
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Job title
+              {t('crm.contacts.jobTitle')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {contact.jobTitle ?? 'Not specified'}
+              {contact.jobTitle ?? t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Location
+              {t('crm.common.location')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {[contact.city, contact.country].filter(Boolean).join(', ') ||
-                'Not specified'}
+                t('crm.common.notSpecified')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Importance
+              {t('crm.common.importance')}
             </p>
             <div className="mt-2">
               <Badge className={getImportanceClasses(contact.importanceLevel)}>
-                {formatEnumLabel(contact.importanceLevel)}
+                {getImportanceLabel(contact.importanceLevel, t)}
               </Badge>
             </div>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Source
+              {t('crm.common.source')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
-              {formatEnumLabel(contact.source)}
+              {getSourceLabel(contact.source, t)}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Created
+              {t('crm.common.created')}
             </p>
             <p className="mt-2 text-sm text-slate-950">
               {formatDate(contact.createdAt)}
@@ -338,7 +354,7 @@ export default function ContactDetailPage() {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              LinkedIn
+              {t('crm.contacts.linkedin')}
             </p>
             {contact.linkedinUrl ? (
               <a
@@ -350,7 +366,9 @@ export default function ContactDetailPage() {
                 {contact.linkedinUrl}
               </a>
             ) : (
-              <p className="mt-2 text-sm text-slate-600">Not specified</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {t('crm.common.notSpecified')}
+              </p>
             )}
           </div>
         </div>
@@ -358,7 +376,7 @@ export default function ContactDetailPage() {
         {contact.expertise ? (
           <div className="mt-6 border-t border-slate-200 pt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Expertise
+              {t('crm.contacts.expertise')}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {contact.expertise}
@@ -369,7 +387,7 @@ export default function ContactDetailPage() {
         {contact.notes ? (
           <div className="mt-6 border-t border-slate-200 pt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Notes
+              {t('crm.common.notes')}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {contact.notes}
@@ -381,7 +399,9 @@ export default function ContactDetailPage() {
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Leads</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.leads')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {leads.length}
             </span>
@@ -397,26 +417,30 @@ export default function ContactDetailPage() {
                   <p className="font-medium text-slate-950">{lead.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                      {formatEnumLabel(lead.status)}
+                      {getLeadStatusLabel(lead.status, t)}
                     </Badge>
                     <Badge className={getImportanceClasses(lead.priority)}>
-                      {formatEnumLabel(lead.priority)}
+                      {getPriorityLabel(lead.priority, t)}
                     </Badge>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(lead.createdAt)}
+                    {t('crm.common.created')} {formatDate(lead.createdAt)}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="leads" />
+            <EmptyRelatedState
+              label={t('navigation.items.leads').toLowerCase()}
+            />
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Tasks</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.tasks')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {tasks.length}
             </span>
@@ -432,26 +456,30 @@ export default function ContactDetailPage() {
                   <p className="font-medium text-slate-950">{task.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                      {formatEnumLabel(task.status)}
+                      {getTaskStatusLabel(task.status, t)}
                     </Badge>
                     <Badge className={getImportanceClasses(task.priority)}>
-                      {formatEnumLabel(task.priority)}
+                      {getPriorityLabel(task.priority, t)}
                     </Badge>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(task.createdAt)}
+                    {t('crm.common.created')} {formatDate(task.createdAt)}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="tasks" />
+            <EmptyRelatedState
+              label={t('navigation.items.tasks').toLowerCase()}
+            />
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Notes</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t('navigation.items.notes')}
+            </h2>
             <span className="text-xs font-medium text-slate-500">
               {notes.length}
             </span>
@@ -465,19 +493,21 @@ export default function ContactDetailPage() {
                   className="rounded-xl border border-slate-200 p-4"
                 >
                   <p className="font-medium text-slate-950">
-                    {note.title ?? 'Untitled note'}
+                    {note.title ?? t('crm.common.untitledNote')}
                   </p>
                   <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
                     {note.content}
                   </p>
                   <p className="mt-3 text-xs text-slate-500">
-                    Created {formatDate(note.createdAt)}
+                    {t('crm.common.created')} {formatDate(note.createdAt)}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyRelatedState label="notes" />
+            <EmptyRelatedState
+              label={t('navigation.items.notes').toLowerCase()}
+            />
           )}
         </div>
       </section>

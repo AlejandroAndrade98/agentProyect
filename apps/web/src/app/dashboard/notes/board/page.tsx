@@ -9,10 +9,16 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getImportanceLabel,
+  getSourceLabel,
+  type Translate,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getNotes } from '@/lib/api-client';
 import { sourceOptions } from '@/lib/crm-options';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, truncateText } from '@/lib/formatters';
+import { formatDate, truncateText } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type { Note, Source } from '@/types/crm';
 
@@ -51,12 +57,8 @@ function createInitialColumns() {
   }, {} as NotesColumns);
 }
 
-function getSourceColumnTitle(source: Source) {
-  if (source === 'AI_SUGGESTION') {
-    return 'AI Suggestion';
-  }
-
-  return formatEnumLabel(source);
+function getSourceColumnTitle(source: Source, t: Translate) {
+  return getSourceLabel(source, t);
 }
 
 function getSourceBadgeClasses(source: Source) {
@@ -72,17 +74,19 @@ function getSourceBadgeClasses(source: Source) {
   return classes[source];
 }
 
-function getLinkedLabel(note: Note) {
-  if (note.lead) return `Lead: ${note.lead.title}`;
+function getLinkedLabel(note: Note, t: Translate) {
+  if (note.lead) return `${t('crm.common.lead')}: ${note.lead.title}`;
   if (note.contact) {
-    return `Contact: ${note.contact.firstName} ${note.contact.lastName}`;
+    return `${t('crm.common.contact')}: ${note.contact.firstName} ${
+      note.contact.lastName
+    }`;
   }
-  if (note.company) return `Company: ${note.company.name}`;
-  if (note.leadId) return 'Lead';
-  if (note.contactId) return 'Contact';
-  if (note.companyId) return 'Company';
+  if (note.company) return `${t('crm.common.company')}: ${note.company.name}`;
+  if (note.leadId) return t('crm.common.lead');
+  if (note.contactId) return t('crm.common.contact');
+  if (note.companyId) return t('crm.common.company');
 
-  return 'Unlinked';
+  return t('common.labels.unlinked');
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -97,7 +101,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function NoteCard({ note }: { note: Note }) {
+function NoteCard({ note, t }: { note: Note; t: Translate }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="space-y-3">
@@ -106,34 +110,37 @@ function NoteCard({ note }: { note: Note }) {
             href={`/dashboard/notes/${note.id}`}
             className="text-sm font-semibold leading-5 text-slate-950 transition hover:text-blue-700"
           >
-            {note.title ?? 'Untitled note'}
+            {note.title ?? t('common.emptyStates.untitledNote')}
           </Link>
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            {truncateText(note.content, 140) || 'No content'}
+            {truncateText(note.content, 140) || t('common.emptyStates.noContent')}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Badge className={getSourceBadgeClasses(note.source)}>
-            {note.source === 'AI_SUGGESTION'
-              ? 'AI suggestion'
-              : formatEnumLabel(note.source)}
+            {getSourceLabel(note.source, t)}
           </Badge>
           <Badge className={getImportanceClasses(note.importanceLevel)}>
-            {formatEnumLabel(note.importanceLevel)}
+            {getImportanceLabel(note.importanceLevel, t)}
           </Badge>
         </div>
 
         <div className="space-y-1 text-xs text-slate-500">
-          <p>{getLinkedLabel(note)}</p>
-          <p>Created {formatDate(note.createdAt)}</p>
+          <p>{getLinkedLabel(note, t)}</p>
+          <p>
+            {t('crm.common.createdAt').replace(
+              '{date}',
+              formatDate(note.createdAt),
+            )}
+          </p>
         </div>
 
         <Link
           href={`/dashboard/notes/${note.id}`}
           className="inline-flex text-xs font-medium text-blue-700 transition hover:text-blue-900"
         >
-          View record
+          {t('common.actions.viewRecord')}
         </Link>
       </div>
     </article>
@@ -142,6 +149,7 @@ function NoteCard({ note }: { note: Note }) {
 
 export default function NotesBoardPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
   const [columnPages, setColumnPages] = useState<NotesColumnPages>(() =>
     createInitialColumnPages(),
   );
@@ -198,7 +206,10 @@ export default function NotesBoardPage() {
             isLoading: false,
             errorMessage: getErrorMessage(
               error,
-              `Could not load ${getSourceColumnTitle(source)} notes.`,
+              `${t('crm.notesBoard.loadColumnFailedPrefix')} ${getSourceColumnTitle(
+                source,
+                t,
+              ).toLowerCase()} ${t('crm.notesBoard.loadColumnFailedSuffix')}`,
             ),
           },
         }));
@@ -234,15 +245,15 @@ export default function NotesBoardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Notes Board"
-        description="Browse notes visually by source. This board is read-only and does not change note source, importance, or linked records."
+        title={t('crm.notesBoard.title')}
+        description={t('crm.notesBoard.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/notes/list"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              List view
+              {t('common.actions.listView')}
             </Link>
 
             {canCreateCrm(user) ? (
@@ -250,7 +261,7 @@ export default function NotesBoardPage() {
                 href="/dashboard/notes/new"
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
               >
-                New note
+                {t('crm.common.newNote')}
               </Link>
             ) : null}
           </div>
@@ -261,8 +272,8 @@ export default function NotesBoardPage() {
 
       {!isInitialLoading && totalNotes === 0 && !hasErrors ? (
         <EmptyState
-          title="No notes found"
-          description="Create your first note to start documenting commercial context."
+          title={t('crm.notesBoard.noFound')}
+          description={t('crm.notesBoard.empty')}
         />
       ) : null}
 
@@ -281,7 +292,7 @@ export default function NotesBoardPage() {
                   <div className="border-b border-slate-200 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <Badge className={getSourceBadgeClasses(source)}>
-                        {getSourceColumnTitle(source)}
+                        {getSourceColumnTitle(source, t)}
                       </Badge>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
                         {column.total}
@@ -307,7 +318,7 @@ export default function NotesBoardPage() {
                           onClick={() => void loadColumn(source, currentPage)}
                           className="mt-3 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
                         >
-                          Retry
+                          {t('common.actions.retry')}
                         </button>
                       </div>
                     ) : null}
@@ -316,13 +327,15 @@ export default function NotesBoardPage() {
                     !column.errorMessage &&
                     column.items.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
-                        No {getSourceColumnTitle(source).toLowerCase()} notes
+                        {t('crm.notesBoard.noSourceNotesPrefix')}{' '}
+                        {getSourceColumnTitle(source, t).toLowerCase()}{' '}
+                        {t('crm.notesBoard.noSourceNotesSuffix')}
                       </div>
                     ) : null}
 
                     {!column.isLoading && !column.errorMessage
                       ? column.items.map((note) => (
-                          <NoteCard key={note.id} note={note} />
+                          <NoteCard key={note.id} note={note} t={t} />
                         ))
                       : null}
                   </div>
@@ -335,11 +348,12 @@ export default function NotesBoardPage() {
                         onClick={() => setColumnPage(source, currentPage - 1)}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Previous
+                        {t('common.pagination.previous')}
                       </button>
 
                       <span className="text-xs text-slate-500">
-                        Page {currentPage} of {column.totalPages}
+                        {t('common.pagination.page')} {currentPage}{' '}
+                        {t('common.pagination.of')} {column.totalPages}
                       </span>
 
                       <button
@@ -350,7 +364,7 @@ export default function NotesBoardPage() {
                         onClick={() => setColumnPage(source, currentPage + 1)}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {t('common.pagination.next')}
                       </button>
                     </div>
                   </div>

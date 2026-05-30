@@ -9,14 +9,17 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getImportanceLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getCompanies } from '@/lib/api-client';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import { getImportanceClasses } from '@/lib/crm-styles';
 import type { Company, PaginatedResponse } from '@/types/crm';
 
 export default function CompaniesPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [companiesResponse, setCompaniesResponse] =
     useState<PaginatedResponse<Company> | null>(null);
@@ -62,7 +65,7 @@ export default function CompaniesPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load companies.');
+          setErrorMessage(t('crm.companies.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -76,7 +79,7 @@ export default function CompaniesPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch]);
+  }, [token, page, submittedSearch, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,15 +99,15 @@ export default function CompaniesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Companies"
-        description="Manage company accounts, review business details, and open each record to see related CRM activity."
+        title={t('crm.companies.title')}
+        description={t('crm.companies.subtitle')}
         actions={
           canCreateCrm(user) ? (
             <Link
               href="/dashboard/companies/new"
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              New company
+              {t('crm.companies.new')}
             </Link>
           ) : null
         }
@@ -119,7 +122,7 @@ export default function CompaniesPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by name, website, industry, city, country..."
+            placeholder={t('crm.companies.searchPlaceholder')}
             className="min-h-11 flex-1 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -128,7 +131,7 @@ export default function CompaniesPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('crm.common.search')}
             </button>
 
             {submittedSearch ? (
@@ -137,7 +140,7 @@ export default function CompaniesPage() {
                 onClick={handleClearSearch}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Clear
+                {t('crm.common.clear')}
               </button>
             ) : null}
           </div>
@@ -152,11 +155,11 @@ export default function CompaniesPage() {
 
       {!isLoading && !errorMessage && companies.length === 0 ? (
         <EmptyState
-          title="No companies found"
+          title={t('crm.companies.noFound')}
           description={
             submittedSearch
-              ? 'Try changing your search terms.'
-              : 'Create your first company to start building your CRM.'
+              ? t('crm.common.tryChangingSearch')
+              : t('crm.companies.empty')
           }
         />
       ) : null}
@@ -168,22 +171,22 @@ export default function CompaniesPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Company
+                    {t('crm.companies.name')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Industry
+                    {t('crm.companies.industry')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Location
+                    {t('crm.common.location')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Importance
+                    {t('crm.common.importance')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
+                    {t('crm.common.created')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -197,19 +200,19 @@ export default function CompaniesPage() {
                           {company.name}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {company.website ?? 'No website'}
+                          {company.website ?? t('crm.common.noWebsite')}
                         </p>
                       </div>
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {company.industry ?? 'Not specified'}
+                      {company.industry ?? t('crm.common.notSpecified')}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {[company.city, company.country]
                         .filter(Boolean)
-                        .join(', ') || 'Not specified'}
+                        .join(', ') || t('crm.common.notSpecified')}
                     </td>
 
                     <td className="px-6 py-4">
@@ -218,7 +221,7 @@ export default function CompaniesPage() {
                           company.importanceLevel,
                         )}
                       >
-                        {formatEnumLabel(company.importanceLevel)}
+                        {getImportanceLabel(company.importanceLevel, t)}
                       </Badge>
                     </td>
 
@@ -231,7 +234,7 @@ export default function CompaniesPage() {
                         href={`/dashboard/companies/${company.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('crm.common.view')}
                       </Link>
                     </td>
                   </tr>
@@ -243,8 +246,9 @@ export default function CompaniesPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total}{' '}
-                companies
+                {t('crm.common.page')} {meta.page} {t('crm.common.of')}{' '}
+                {meta.totalPages || 1} · {meta.total}{' '}
+                {t('crm.companies.title')}
               </p>
 
               <div className="flex gap-2">
@@ -254,7 +258,7 @@ export default function CompaniesPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('crm.common.previous')}
                 </button>
 
                 <button
@@ -263,7 +267,7 @@ export default function CompaniesPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('crm.common.next')}
                 </button>
               </div>
             </div>

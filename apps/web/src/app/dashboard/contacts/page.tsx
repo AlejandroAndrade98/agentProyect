@@ -9,14 +9,17 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getImportanceLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getContacts } from '@/lib/api-client';
 import { getImportanceClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type { Contact, PaginatedResponse } from '@/types/crm';
 
 export default function ContactsPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [contactsResponse, setContactsResponse] =
     useState<PaginatedResponse<Contact> | null>(null);
@@ -62,7 +65,7 @@ export default function ContactsPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load contacts.');
+          setErrorMessage(t('crm.contacts.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -76,7 +79,7 @@ export default function ContactsPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch]);
+  }, [token, page, submittedSearch, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,15 +99,15 @@ export default function ContactsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Contacts"
-        description="Manage decision makers, stakeholders, and people related to your commercial pipeline."
+        title={t('crm.contacts.title')}
+        description={t('crm.contacts.subtitle')}
         actions={
           canCreateCrm(user) ? (
             <Link
               href="/dashboard/contacts/new"
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              New contact
+              {t('crm.contacts.new')}
             </Link>
           ) : null
         }
@@ -119,7 +122,7 @@ export default function ContactsPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by name, email, phone, job title, city..."
+            placeholder={t('crm.contacts.searchPlaceholder')}
             className="min-h-11 flex-1 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -128,7 +131,7 @@ export default function ContactsPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('crm.common.search')}
             </button>
 
             {submittedSearch ? (
@@ -137,7 +140,7 @@ export default function ContactsPage() {
                 onClick={handleClearSearch}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Clear
+                {t('crm.common.clear')}
               </button>
             ) : null}
           </div>
@@ -152,11 +155,11 @@ export default function ContactsPage() {
 
       {!isLoading && !errorMessage && contacts.length === 0 ? (
         <EmptyState
-          title="No contacts found"
+          title={t('crm.contacts.noFound')}
           description={
             submittedSearch
-              ? 'Try changing your search terms.'
-              : 'Create your first contact to start building your CRM network.'
+              ? t('crm.common.tryChangingSearch')
+              : t('crm.contacts.empty')
           }
         />
       ) : null}
@@ -168,22 +171,22 @@ export default function ContactsPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Contact
+                    {t('crm.contacts.contact')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Job title
+                    {t('crm.contacts.jobTitle')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Location
+                    {t('crm.common.location')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Importance
+                    {t('crm.common.importance')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
+                    {t('crm.common.created')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -197,19 +200,21 @@ export default function ContactsPage() {
                           {contact.firstName} {contact.lastName}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {contact.email ?? contact.phone ?? 'No contact info'}
+                          {contact.email ??
+                            contact.phone ??
+                            t('crm.common.noContactInfo')}
                         </p>
                       </div>
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {contact.jobTitle ?? 'Not specified'}
+                      {contact.jobTitle ?? t('crm.common.notSpecified')}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {[contact.city, contact.country]
                         .filter(Boolean)
-                        .join(', ') || 'Not specified'}
+                        .join(', ') || t('crm.common.notSpecified')}
                     </td>
 
                     <td className="px-6 py-4">
@@ -218,7 +223,7 @@ export default function ContactsPage() {
                           contact.importanceLevel,
                         )}
                       >
-                        {formatEnumLabel(contact.importanceLevel)}
+                        {getImportanceLabel(contact.importanceLevel, t)}
                       </Badge>
                     </td>
 
@@ -231,7 +236,7 @@ export default function ContactsPage() {
                         href={`/dashboard/contacts/${contact.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('crm.common.view')}
                       </Link>
                     </td>
                   </tr>
@@ -243,8 +248,9 @@ export default function ContactsPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total}{' '}
-                contacts
+                {t('crm.common.page')} {meta.page} {t('crm.common.of')}{' '}
+                {meta.totalPages || 1} · {meta.total}{' '}
+                {t('crm.contacts.title')}
               </p>
 
               <div className="flex gap-2">
@@ -254,7 +260,7 @@ export default function ContactsPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('crm.common.previous')}
                 </button>
 
                 <button
@@ -263,7 +269,7 @@ export default function ContactsPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('crm.common.next')}
                 </button>
               </div>
             </div>

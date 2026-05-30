@@ -55,32 +55,32 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function getConfidenceLabel(suggestion: AiSuggestion) {
+function getConfidenceLabel(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.confidenceScore === null) {
-    return 'Not set';
+    return t('common.emptyStates.notSet');
   }
 
   return `${Math.round(suggestion.confidenceScore * 100)}%`;
 }
 
-function getSuggestionContextLabel(suggestion: AiSuggestion) {
+function getSuggestionContextLabel(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.type === 'ANALYZE_EXTERNAL_EMAIL') {
-    return 'Synced email metadata';
+    return t('aiSuggestions.labels.syncedEmailMetadata');
   }
 
   if (suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT') {
-    return 'Reply draft review';
+    return t('aiSuggestions.labels.replyDraftReview');
   }
 
   if (suggestion.type === 'ANALYZE_EXTERNAL_CALENDAR_EVENT') {
-    return 'Synced calendar metadata';
+    return t('aiSuggestions.labels.syncedCalendarMetadata');
   }
 
   if (suggestion.leadId) {
-    return 'Lead recommendation';
+    return t('aiSuggestions.labels.leadRecommendation');
   }
 
-  return 'AI suggestion';
+  return t('aiSuggestions.labels.aiSuggestion');
 }
 
 function getMetadataString(value: unknown) {
@@ -141,15 +141,15 @@ function getAppliedLabels(suggestion: AiSuggestion, t: Translate) {
   return Array.from(labels);
 }
 
-function getReplyDraftSubject(suggestion: AiSuggestion) {
+function getReplyDraftSubject(suggestion: AiSuggestion, t: Translate) {
   return (
     getMetadataString(suggestion.metadataJson?.suggestedSubject) ??
     suggestion.externalEmailMessage?.subject ??
-    'No subject'
+    t('common.emptyStates.noSubject')
   );
 }
 
-function getEmailSender(suggestion: AiSuggestion) {
+function getEmailSender(suggestion: AiSuggestion, t: Translate) {
   const senderName = getMetadataString(
     suggestion.externalEmailMessage?.fromName,
   );
@@ -161,7 +161,7 @@ function getEmailSender(suggestion: AiSuggestion) {
     return `${senderName} <${senderEmail}>`;
   }
 
-  return senderEmail ?? senderName ?? 'Unknown sender';
+  return senderEmail ?? senderName ?? t('common.emptyStates.unknownSender');
 }
 
 function getAttendeesCount(value: unknown) {
@@ -172,13 +172,13 @@ function getAttendeesCount(value: unknown) {
   return null;
 }
 
-function getSuggestionTitle(suggestion: AiSuggestion) {
+function getSuggestionTitle(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.title) {
     return suggestion.title;
   }
 
   if (suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT') {
-    return getReplyDraftSubject(suggestion);
+    return getReplyDraftSubject(suggestion, t);
   }
 
   if (suggestion.externalEmailMessage?.subject) {
@@ -189,7 +189,7 @@ function getSuggestionTitle(suggestion: AiSuggestion) {
     return suggestion.externalCalendarEvent.summary;
   }
 
-  return 'Untitled AI suggestion';
+  return t('aiSuggestions.labels.untitled');
 }
 
 function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
@@ -198,11 +198,11 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
     suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT'
   ) {
     const email = suggestion.externalEmailMessage;
-    const subject = email?.subject ?? 'No subject';
+    const subject = email?.subject ?? t('common.emptyStates.noSubject');
     const snippet =
       truncateText(email?.snippet, 180) ||
       truncateText(suggestion.outputText, 180) ||
-      'No snippet available.';
+      t('common.emptyStates.noSnippet');
 
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -219,7 +219,7 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
               {t('aiSuggestions.labels.sender')}
             </p>
             <p className="mt-1 break-words text-sm text-slate-700">
-              {getEmailSender(suggestion)}
+              {getEmailSender(suggestion, t)}
             </p>
           </div>
         </div>
@@ -230,7 +230,7 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
               {t('aiSuggestions.labels.suggestedSubject')}
             </p>
             <p className="mt-1 text-sm font-medium text-slate-950">
-              {getReplyDraftSubject(suggestion)}
+              {getReplyDraftSubject(suggestion, t)}
             </p>
           </div>
         ) : null}
@@ -252,7 +252,7 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
               {t('aiSuggestions.detail.calendarEvent')}
             </p>
             <p className="mt-1 font-medium text-slate-950">
-              {event?.summary ?? 'No title'}
+              {event?.summary ?? t('common.emptyStates.noTitle')}
             </p>
           </div>
 
@@ -263,13 +263,13 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
             <p className="mt-1 break-words text-sm text-slate-700">
               {event?.organizerName ||
                 event?.organizerEmail ||
-                'Unknown organizer'}
+                t('common.emptyStates.unknownOrganizer')}
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Starts
+              {t('common.labels.starts')}
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {formatDateTime(event?.startAt)}
@@ -281,7 +281,9 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
               {t('aiSuggestions.labels.attendees')}
             </p>
             <p className="mt-1 text-sm text-slate-700">
-              {attendeesCount === null ? 'Not set' : attendeesCount}
+              {attendeesCount === null
+                ? t('common.emptyStates.notSet')
+                : attendeesCount}
             </p>
           </div>
         </div>
@@ -296,10 +298,10 @@ function renderSourcePreview(suggestion: AiSuggestion, t: Translate) {
       </p>
       <p className="mt-1 text-sm text-slate-700">
         {suggestion.leadId
-          ? `Lead recommendation for lead ${suggestion.leadId}`
+          ? `${t('aiSuggestions.labels.leadRecommendationForLead')} ${suggestion.leadId}`
           : suggestion.entityType && suggestion.entityId
             ? `${formatEnumLabel(suggestion.entityType)} / ${suggestion.entityId}`
-            : 'No linked source context available.'}
+            : t('aiSuggestions.labels.sourceUnavailable')}
       </p>
     </div>
   );
@@ -349,12 +351,12 @@ export default function AiSuggestionsPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load AI suggestions.');
+        setErrorMessage(t('aiWorkspace.messages.suggestionsLoadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, status, token, type]);
+  }, [page, search, status, t, token, type]);
 
   useEffect(() => {
     loadSuggestions();
@@ -393,7 +395,7 @@ export default function AiSuggestionsPage() {
       { label: t('common.statuses.rejected'), value: rejected, tone: 'text-rose-700' },
       { label: t('aiSuggestions.board.completed'), value: applied, tone: 'text-blue-700' },
       { label: t('common.types.emailReplyDraft'), value: replyDrafts, tone: 'text-indigo-700' },
-      { label: 'External sources', value: externalSources, tone: 'text-slate-700' },
+      { label: t('aiSuggestions.labels.externalSources'), value: externalSources, tone: 'text-slate-700' },
     ];
   }, [suggestions, t]);
 
@@ -453,7 +455,7 @@ export default function AiSuggestionsPage() {
             t('common.safety.humanReviewRequired'),
             t('common.safety.noAutomaticEmailSending'),
             t('common.safety.noAutomaticCrmChanges'),
-            'Details page handles apply actions',
+            t('aiSuggestions.labels.detailsHandleApplyActions'),
           ].map((message) => (
             <div
               key={message}
@@ -477,7 +479,9 @@ export default function AiSuggestionsPage() {
             <p className={`mt-2 text-2xl font-semibold ${item.tone}`}>
               {item.value}
             </p>
-            <p className="mt-1 text-xs text-slate-500">Current page</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {t('aiSuggestions.labels.currentPage')}
+            </p>
           </div>
         ))}
       </section>
@@ -573,7 +577,7 @@ export default function AiSuggestionsPage() {
             onClick={loadSuggestions}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Retry
+            {t('common.actions.retry')}
           </button>
         </div>
       ) : null}
@@ -588,8 +592,8 @@ export default function AiSuggestionsPage() {
             }
             description={
               hasFilters
-                ? 'Try clearing filters or searching for a different source context.'
-                : 'Generate suggestions from synced emails, synced calendar events, or lead detail pages to start reviewing AI-assisted recommendations.'
+                ? t('aiSuggestions.list.tryClearingFilters')
+                : t('aiSuggestions.list.generateSuggestionsHint')
             }
           />
 
@@ -607,19 +611,19 @@ export default function AiSuggestionsPage() {
               href="/dashboard/ai-workspace"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Open AI Workspace
+              {t('navigation.items.aiWorkspace')}
             </Link>
             <Link
               href="/dashboard/external-sync/email-messages"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Open Synced Emails
+              {t('aiWorkspace.actions.openEmails')}
             </Link>
             <Link
               href="/dashboard/external-sync/calendar-events"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Open Synced Calendar
+              {t('aiWorkspace.actions.openCalendar')}
             </Link>
           </div>
         </div>
@@ -633,7 +637,9 @@ export default function AiSuggestionsPage() {
                 {t('aiSuggestions.list.reviewQueue')}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Showing {suggestions.length} of {totalSuggestions} suggestions
+                {t('aiSuggestions.labels.showing')} {suggestions.length}{' '}
+                {t('aiSuggestions.labels.of')} {totalSuggestions}{' '}
+                {t('aiSuggestions.labels.suggestions')}
               </p>
             </div>
           </div>
@@ -660,11 +666,11 @@ export default function AiSuggestionsPage() {
 
                       <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
                         {t('aiSuggestions.labels.confidence')}:{' '}
-                        {getConfidenceLabel(suggestion)}
+                        {getConfidenceLabel(suggestion, t)}
                       </Badge>
 
                       <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
-                        {getSuggestionContextLabel(suggestion)}
+                        {getSuggestionContextLabel(suggestion, t)}
                       </Badge>
 
                       {hasGmailDraftCreated(suggestion) ? (
@@ -679,7 +685,7 @@ export default function AiSuggestionsPage() {
                         href={`/dashboard/ai-suggestions/${suggestion.id}`}
                         className="text-xl font-semibold text-slate-950 transition hover:text-blue-700"
                       >
-                        {getSuggestionTitle(suggestion)}
+                        {getSuggestionTitle(suggestion, t)}
                       </Link>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                         <span>
@@ -733,7 +739,7 @@ export default function AiSuggestionsPage() {
                         href={`/dashboard/leads/${suggestion.leadId}`}
                         className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        View lead
+                        {t('common.actions.viewLead')}
                       </Link>
                     ) : null}
 

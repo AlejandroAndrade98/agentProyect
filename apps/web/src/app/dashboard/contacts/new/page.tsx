@@ -6,12 +6,14 @@ import { useEffect, useState } from 'react';
 
 import { ContactForm } from '@/components/ContactForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, createContact, getCompanies } from '@/lib/api-client';
 import type { Company, CreateContactInput } from '@/types/crm';
 
 export default function NewContactPage() {
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function NewContactPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load companies.');
+          setErrorMessage(t('crm.companies.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -64,11 +66,11 @@ export default function NewContactPage() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function handleCreateContact(values: CreateContactInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -84,7 +86,7 @@ export default function NewContactPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create contact.');
+        setErrorMessage(t('crm.contacts.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -98,19 +100,18 @@ export default function NewContactPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New contact
+            {t('crm.contacts.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a stakeholder profile and optionally link it to an existing
-            company.
+            {t('crm.contacts.newDescription')}
           </p>
         </div>
       </section>
@@ -126,7 +127,7 @@ export default function NewContactPage() {
       ) : (
         <ContactForm
           companies={companies}
-          submitLabel="Create contact"
+          submitLabel={t('crm.contacts.create')}
           isSubmitting={isSubmitting}
           onSubmit={handleCreateContact}
         />

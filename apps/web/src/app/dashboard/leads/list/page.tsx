@@ -9,12 +9,13 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getLeadStatusLabel, getPriorityLabel, getSourceLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getLeads } from '@/lib/api-client';
 import { leadStatusOptions, priorityOptions } from '@/lib/crm-options';
 import { getLeadStatusClasses, getPriorityClasses } from '@/lib/crm-styles';
 import {
   formatDate,
-  formatEnumLabel,
   formatMoney,
   truncateText,
 } from '@/lib/formatters';
@@ -28,6 +29,7 @@ import type {
 
 export default function LeadsListPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [leadsResponse, setLeadsResponse] =
     useState<PaginatedResponse<Lead> | null>(null);
@@ -77,7 +79,7 @@ export default function LeadsListPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load leads.');
+          setErrorMessage(t('crm.leads.loadListFailed'));
         }
       } finally {
         if (isMounted) {
@@ -91,7 +93,7 @@ export default function LeadsListPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch, statusFilter, priorityFilter]);
+  }, [token, page, submittedSearch, statusFilter, priorityFilter, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,15 +115,15 @@ export default function LeadsListPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Leads"
-        description="Manage commercial opportunities, track pipeline status, and keep next steps visible."
+        title={t('crm.leads.title')}
+        description={t('crm.leads.subtitle')}
         actions={
         <div className="flex flex-wrap gap-2">
           <Link
             href="/dashboard/leads/pipeline"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Board view
+            {t('common.actions.boardView')}
           </Link>
 
           {canCreateCrm(user) ? (
@@ -129,7 +131,7 @@ export default function LeadsListPage() {
               href="/dashboard/leads/new"
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
             >
-              New lead
+              {t('crm.common.newLead')}
             </Link>
           ) : null}
         </div>
@@ -145,7 +147,7 @@ export default function LeadsListPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by title, description, next step..."
+            placeholder={t('crm.leads.searchPlaceholder')}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -157,10 +159,10 @@ export default function LeadsListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All statuses</option>
+            <option value="">{t('crm.common.allStatuses')}</option>
             {leadStatusOptions.map((status) => (
               <option key={status} value={status}>
-                {formatEnumLabel(status)}
+                {getLeadStatusLabel(status, t)}
               </option>
             ))}
           </select>
@@ -173,10 +175,10 @@ export default function LeadsListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All priorities</option>
+            <option value="">{t('crm.common.allPriorities')}</option>
             {priorityOptions.map((priority) => (
               <option key={priority} value={priority}>
-                {formatEnumLabel(priority)}
+                {getPriorityLabel(priority, t)}
               </option>
             ))}
           </select>
@@ -186,7 +188,7 @@ export default function LeadsListPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('common.actions.search')}
             </button>
 
             <button
@@ -194,7 +196,7 @@ export default function LeadsListPage() {
               onClick={handleClearFilters}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear
+              {t('common.actions.clear')}
             </button>
           </div>
         </form>
@@ -208,8 +210,8 @@ export default function LeadsListPage() {
 
       {!isLoading && !errorMessage && leads.length === 0 ? (
         <EmptyState
-          title="No leads found"
-          description="Create your first lead to start tracking an opportunity."
+          title={t('crm.leads.noFound')}
+          description={t('crm.leads.empty')}
         />
       ) : null}
 
@@ -220,22 +222,22 @@ export default function LeadsListPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Lead
+                    {t('crm.common.lead')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
+                    {t('crm.common.status')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Priority
+                    {t('crm.common.priority')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Budget
+                    {t('crm.common.budget')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Close date
+                    {t('crm.common.closeDate')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -250,25 +252,25 @@ export default function LeadsListPage() {
                         </p>
                         {lead.source === 'AI_SUGGESTION' ? (
                           <Badge className="border-blue-200 bg-blue-50 text-blue-700">
-                            AI suggestion
+                            {getSourceLabel(lead.source, t)}
                           </Badge>
                         ) : null}
                       </div>
                       <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
                         {truncateText(lead.nextStep ?? lead.description, 160) ||
-                          'No next step'}
+                          t('crm.common.noNextStep')}
                       </p>
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge className={getLeadStatusClasses(lead.status)}>
-                        {formatEnumLabel(lead.status)}
+                        {getLeadStatusLabel(lead.status, t)}
                       </Badge>
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge className={getPriorityClasses(lead.priority)}>
-                        {formatEnumLabel(lead.priority)}
+                        {getPriorityLabel(lead.priority, t)}
                       </Badge>
                     </td>
 
@@ -285,7 +287,7 @@ export default function LeadsListPage() {
                         href={`/dashboard/leads/${lead.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('common.actions.view')}
                       </Link>
                     </td>
                   </tr>
@@ -297,7 +299,9 @@ export default function LeadsListPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total} leads
+                {t('common.pagination.page')} {meta.page}{' '}
+                {t('common.pagination.of')} {meta.totalPages || 1} ·{' '}
+                {meta.total} {t('crm.leads.total')}
               </p>
 
               <div className="flex gap-2">
@@ -307,7 +311,7 @@ export default function LeadsListPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.pagination.previous')}
                 </button>
 
                 <button
@@ -316,7 +320,7 @@ export default function LeadsListPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('common.pagination.next')}
                 </button>
               </div>
             </div>

@@ -3,7 +3,8 @@
 import { FormEvent, useState } from 'react';
 
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
-import { formatEnumLabel } from '@/lib/formatters';
+import { getImportanceLabel, getSourceLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import type { CreateCompanyInput, ImportanceLevel, Source } from '@/types/crm';
 
 type CompanyFormValues = {
@@ -36,6 +37,7 @@ export function CompanyForm({
   isSubmitting,
   onSubmit,
 }: CompanyFormProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(initialValues?.name ?? '');
   const [website, setWebsite] = useState(initialValues?.website ?? '');
   const [industry, setIndustry] = useState(initialValues?.industry ?? '');
@@ -75,7 +77,7 @@ export function CompanyForm({
             htmlFor="company-name"
             className="text-sm font-medium text-slate-700"
           >
-            Company name
+            {t('crm.companies.companyName')}
           </label>
           <input
             id="company-name"
@@ -93,7 +95,7 @@ export function CompanyForm({
             htmlFor="company-website"
             className="text-sm font-medium text-slate-700"
           >
-            Website
+            {t('crm.companies.website')}
           </label>
           <input
             id="company-website"
@@ -104,7 +106,7 @@ export function CompanyForm({
             placeholder="https://example.com"
           />
           <p className="mt-1 text-xs text-slate-500">
-            Include https:// if you add a website.
+            {t('crm.companies.websiteHelp')}
           </p>
         </div>
 
@@ -113,7 +115,7 @@ export function CompanyForm({
             htmlFor="company-industry"
             className="text-sm font-medium text-slate-700"
           >
-            Industry
+            {t('crm.companies.industry')}
           </label>
           <input
             id="company-industry"
@@ -130,7 +132,7 @@ export function CompanyForm({
             htmlFor="company-city"
             className="text-sm font-medium text-slate-700"
           >
-            City
+            {t('crm.common.city')}
           </label>
           <input
             id="company-city"
@@ -147,7 +149,7 @@ export function CompanyForm({
             htmlFor="company-country"
             className="text-sm font-medium text-slate-700"
           >
-            Country
+            {t('crm.common.country')}
           </label>
           <input
             id="company-country"
@@ -164,7 +166,7 @@ export function CompanyForm({
             htmlFor="company-importance"
             className="text-sm font-medium text-slate-700"
           >
-            Importance
+            {t('crm.common.importance')}
           </label>
           <select
             id="company-importance"
@@ -176,7 +178,7 @@ export function CompanyForm({
           >
             {importanceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getImportanceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -187,7 +189,7 @@ export function CompanyForm({
             htmlFor="company-source"
             className="text-sm font-medium text-slate-700"
           >
-            Source
+            {t('crm.common.source')}
           </label>
           <select
             id="company-source"
@@ -197,7 +199,7 @@ export function CompanyForm({
           >
             {sourceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getSourceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -208,7 +210,7 @@ export function CompanyForm({
             htmlFor="company-notes"
             className="text-sm font-medium text-slate-700"
           >
-            Notes
+            {t('crm.common.notes')}
           </label>
           <textarea
             id="company-notes"
@@ -216,7 +218,7 @@ export function CompanyForm({
             onChange={(event) => setNotes(event.target.value)}
             rows={5}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Internal notes about this company..."
+            placeholder={t('crm.companies.notesPlaceholder')}
           />
         </div>
       </div>
@@ -227,7 +229,7 @@ export function CompanyForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { LeadForm } from '@/components/LeadForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   createLead,
@@ -17,6 +18,7 @@ import type { Company, Contact, CreateLeadInput } from '@/types/crm';
 export default function NewLeadPage() {
   const router = useRouter();
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -65,7 +67,7 @@ export default function NewLeadPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load related CRM records.');
+          setErrorMessage(t('crm.leads.loadRelationsFailed'));
         }
       } finally {
         if (isMounted) {
@@ -79,11 +81,11 @@ export default function NewLeadPage() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function handleCreateLead(values: CreateLeadInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -99,7 +101,7 @@ export default function NewLeadPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create lead.');
+        setErrorMessage(t('crm.leads.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -113,19 +115,18 @@ export default function NewLeadPage() {
           href="/dashboard/leads"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to leads
+          ← {t('crm.common.backToLeads')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New lead
+            {t('crm.leads.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a new commercial opportunity and optionally link it to a
-            company and contact.
+            {t('crm.leads.newDescription')}
           </p>
         </div>
       </section>
@@ -143,7 +144,7 @@ export default function NewLeadPage() {
           companies={companies}
           contacts={contacts}
           currentUser={user}
-          submitLabel="Create lead"
+          submitLabel={t('crm.common.createLead')}
           isSubmitting={isSubmitting}
           onSubmit={handleCreateLead}
         />

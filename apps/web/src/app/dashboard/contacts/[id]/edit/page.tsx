@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { ContactForm } from '@/components/ContactForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   getCompanies,
@@ -40,6 +41,7 @@ export default function EditContactPage() {
   const params = useParams();
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const contactId =
     typeof params.id === 'string'
@@ -93,7 +95,7 @@ export default function EditContactPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load contact.');
+          setErrorMessage(t('crm.contacts.loadOneFailed'));
         }
       } finally {
         if (isMounted) {
@@ -107,11 +109,11 @@ export default function EditContactPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, contactId]);
+  }, [token, contactId, t]);
 
   async function handleUpdateContact(values: CreateContactInput) {
     if (!token || !contactId) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -127,7 +129,7 @@ export default function EditContactPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update contact.');
+        setErrorMessage(t('crm.contacts.updateFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -150,7 +152,7 @@ export default function EditContactPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -167,15 +169,15 @@ export default function EditContactPage() {
           href="/dashboard/contacts"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contacts
+          ← {t('crm.common.backToContacts')}
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-950">
-            Contact not found
+            {t('crm.contacts.notFound')}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            The contact may have been deleted or you may not have access.
+            {t('crm.contacts.notFoundDescription')}
           </p>
         </div>
       </div>
@@ -189,19 +191,18 @@ export default function EditContactPage() {
           href={`/dashboard/contacts/${contact.id}`}
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to contact detail
+          ← {t('crm.common.backToContactDetail')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Edit contact
+            {t('crm.contacts.edit')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Update stakeholder information and keep your CRM relationships
-            accurate.
+            {t('crm.contacts.editDescription')}
           </p>
         </div>
       </section>
@@ -215,7 +216,7 @@ export default function EditContactPage() {
       <ContactForm
         companies={companies}
         initialValues={getContactInitialValues(contact)}
-        submitLabel="Save changes"
+        submitLabel={t('crm.common.saveChanges')}
         isSubmitting={isSubmitting}
         onSubmit={handleUpdateContact}
       />

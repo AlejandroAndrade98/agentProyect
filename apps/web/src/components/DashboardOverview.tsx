@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getPriorityLabel,
+  getSyncStatusLabel,
+  getTaskStatusLabel,
+} from '@/i18n/ai-display';
 import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
@@ -83,20 +88,20 @@ function getActivityLabel(type: ActivityEventType) {
   return formatEnumLabel(type);
 }
 
-function getMeetingCountdown(value: string | null, now: Date) {
+function getMeetingCountdown(value: string | null, now: Date, t: (key: string) => string) {
   if (!value) {
-    return 'No meeting scheduled';
+    return t('dashboard.sections.noUpcomingMeeting');
   }
 
   const meetingDate = new Date(value);
   const diffMs = meetingDate.getTime() - now.getTime();
 
   if (Number.isNaN(meetingDate.getTime())) {
-    return 'Invalid date';
+    return t('common.emptyStates.notSet');
   }
 
   if (diffMs <= 0) {
-    return 'Starting now';
+    return t('dashboard.cards.nextMeeting');
   }
 
   const totalMinutes = Math.ceil(diffMs / 60000);
@@ -158,7 +163,7 @@ function hasCompletedAction(suggestion: AiSuggestion) {
   );
 }
 
-function getSyncErrorMessage(error: unknown) {
+function getSyncErrorMessage(error: unknown, t: (key: string) => string) {
   if (error instanceof ApiClientError) {
     return error.message;
   }
@@ -167,7 +172,7 @@ function getSyncErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Sync failed.';
+  return t('dashboard.messages.syncFailed');
 }
 
 async function getDashboardAiOverview(token: string): Promise<DashboardAiOverview> {
@@ -305,11 +310,15 @@ function SyncStatusBadge({
   label: string;
   syncState: DashboardExternalSyncState | null;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
       <span className="text-xs font-medium text-slate-600">{label}</span>
       <Badge className={getSyncStatusClasses(syncState?.status)}>
-        {syncState?.status ? formatEnumLabel(syncState.status) : 'Not synced'}
+        {syncState?.status
+          ? getSyncStatusLabel(syncState.status, t)
+          : t('common.labels.notSynced')}
       </Badge>
     </div>
   );
@@ -336,8 +345,7 @@ function NextMeetingSpotlight({
               {t('dashboard.sections.noUpcomingMeeting')}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Calendar metadata is synced into the workspace when available.
-              Run Calendar sync if you expect to see upcoming meetings here.
+              {t('dashboard.messages.calendarMetadataSynced')}
             </p>
           </div>
 
@@ -352,7 +360,7 @@ function NextMeetingSpotlight({
     );
   }
 
-  const countdown = getMeetingCountdown(meeting.startAt, now);
+  const countdown = getMeetingCountdown(meeting.startAt, now, t);
 
   return (
     <section className="rounded-3xl border border-blue-200 bg-slate-950 p-6 text-white shadow-sm">
@@ -371,18 +379,18 @@ function NextMeetingSpotlight({
 
         <div className="min-w-0">
           <h2 className="break-words text-2xl font-semibold tracking-tight">
-            {meeting.summary ?? 'Untitled meeting'}
+            {meeting.summary ?? t('common.emptyStates.noTitle')}
           </h2>
           <div className="mt-4 grid gap-3 text-sm text-slate-200 md:grid-cols-2">
             <p>{formatDateTime(meeting.startAt)}</p>
-            <p>{meeting.location || 'No location set'}</p>
+            <p>{meeting.location || t('common.emptyStates.notSet')}</p>
             <p>
-              Organizer:{' '}
+              {t('externalSync.labels.organizer')}:{' '}
               {meeting.organizerName ||
                 meeting.organizerEmail ||
-                'Unknown organizer'}
+                t('common.emptyStates.unknownOrganizer')}
             </p>
-            <p>Synced: {formatDateTime(meeting.syncedAt)}</p>
+            <p>{t('externalSync.labels.synced')}: {formatDateTime(meeting.syncedAt)}</p>
           </div>
         </div>
 
@@ -411,6 +419,8 @@ function NextMeetingSpotlight({
 }
 
 function TaskPreview({ task }: { task: DashboardTask }) {
+  const { t } = useI18n();
+
   return (
     <Link
       href={`/dashboard/tasks/${task.id}`}
@@ -422,11 +432,11 @@ function TaskPreview({ task }: { task: DashboardTask }) {
             {task.title}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Due {formatDate(task.dueDate)}
+            {t('common.labels.due')} {formatDate(task.dueDate)}
           </p>
         </div>
         <Badge className={getPriorityClasses(task.priority)}>
-          {formatEnumLabel(task.priority)}
+          {getPriorityLabel(task.priority, t)}
         </Badge>
       </div>
     </Link>
@@ -434,6 +444,8 @@ function TaskPreview({ task }: { task: DashboardTask }) {
 }
 
 function ActivityItem({ event }: { event: DashboardActivityEvent }) {
+  const { t } = useI18n();
+
   return (
     <div className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
       <div className="flex items-start justify-between gap-3">
@@ -450,13 +462,17 @@ function ActivityItem({ event }: { event: DashboardActivityEvent }) {
       </div>
 
       {event.actor ? (
-        <p className="mt-2 text-xs text-slate-500">By {event.actor.name}</p>
+        <p className="mt-2 text-xs text-slate-500">
+          {t('common.labels.by')} {event.actor.name}
+        </p>
       ) : null}
     </div>
   );
 }
 
 function RecentEmailItem({ email }: { email: DashboardExternalEmailMessage }) {
+  const { t } = useI18n();
+
   return (
     <Link
       href="/dashboard/external-sync/email-messages"
@@ -465,10 +481,10 @@ function RecentEmailItem({ email }: { email: DashboardExternalEmailMessage }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-slate-950">
-            {email.subject || 'No subject'}
+            {email.subject || t('common.emptyStates.noSubject')}
           </p>
           <p className="mt-1 truncate text-xs text-slate-500">
-            {email.fromName || email.fromEmail || 'Unknown sender'}
+            {email.fromName || email.fromEmail || t('common.emptyStates.unknownSender')}
           </p>
         </div>
         <span className="shrink-0 text-xs text-slate-400">
@@ -490,13 +506,15 @@ function UpcomingCalendarItem({
 }: {
   event: DashboardExternalCalendarEvent;
 }) {
+  const { t } = useI18n();
+
   return (
     <Link
       href="/dashboard/external-sync/calendar-events"
       className="block rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-slate-200 hover:bg-white"
     >
       <p className="truncate text-sm font-medium text-slate-950">
-        {event.summary || 'Untitled event'}
+        {event.summary || t('common.emptyStates.noTitle')}
       </p>
       <p className="mt-1 text-xs text-slate-500">
         {formatDateTime(event.startAt)}
@@ -548,17 +566,17 @@ function ExternalSyncSnapshot({
                 {t('dashboard.sections.syncStatus')}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                Manual sync only. No background automation is started here.
+                {t('dashboard.messages.manualSyncOnly')}
               </p>
             </div>
 
             {externalSync.connectedAccount ? (
               <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                Connected
+                {t('common.labels.connected')}
               </Badge>
             ) : (
               <Badge className="bg-slate-100 text-slate-600 ring-slate-200">
-                Not connected
+                {t('common.labels.notConnected')}
               </Badge>
             )}
           </div>
@@ -585,7 +603,9 @@ function ExternalSyncSnapshot({
               }
               className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncingEmail ? 'Syncing Gmail...' : 'Sync Gmail'}
+              {isSyncingEmail
+                ? t('externalSync.actions.syncingGmail')
+                : t('externalSync.actions.syncGmail')}
             </button>
 
             <button
@@ -598,7 +618,9 @@ function ExternalSyncSnapshot({
               }
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSyncingCalendar ? 'Syncing Calendar...' : 'Sync Calendar'}
+              {isSyncingCalendar
+                ? t('externalSync.actions.syncingCalendar')
+                : t('externalSync.actions.syncCalendar')}
             </button>
           </div>
 
@@ -619,13 +641,13 @@ function ExternalSyncSnapshot({
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-slate-950">
-                Recent synced emails
+                {t('dashboard.labels.recentSyncedEmails')}
               </h3>
               <Link
                 href="/dashboard/external-sync/email-messages"
                 className="text-xs font-medium text-blue-700 hover:text-blue-900"
               >
-                Open inbox
+                {t('dashboard.labels.openInbox')}
               </Link>
             </div>
 
@@ -636,7 +658,7 @@ function ExternalSyncSnapshot({
                 ))
               ) : (
                 <p className="text-sm text-slate-500">
-                  No synced emails yet.
+                  {t('dashboard.messages.noSyncedEmails')}
                 </p>
               )}
             </div>
@@ -645,13 +667,13 @@ function ExternalSyncSnapshot({
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-slate-950">
-                Upcoming calendar
+                {t('dashboard.labels.upcomingCalendar')}
               </h3>
               <Link
                 href="/dashboard/external-sync/calendar-events"
                 className="text-xs font-medium text-blue-700 hover:text-blue-900"
               >
-                Open calendar
+                {t('dashboard.labels.openCalendar')}
               </Link>
             </div>
 
@@ -662,7 +684,7 @@ function ExternalSyncSnapshot({
                 ))
               ) : (
                 <p className="text-sm text-slate-500">
-                  No upcoming synced events.
+                  {t('dashboard.messages.noUpcomingEvents')}
                 </p>
               )}
             </div>
@@ -743,7 +765,7 @@ export function DashboardOverview() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load dashboard data.');
+          setErrorMessage(t('dashboard.messages.loadFailed'));
         }
       } finally {
         if (isMounted) {
@@ -780,7 +802,7 @@ export function DashboardOverview() {
 
   async function handleSyncEmailMessages() {
     if (!token) {
-      setSyncActionError('Missing access token.');
+      setSyncActionError(t('dashboard.messages.missingAccessToken'));
       return;
     }
 
@@ -794,12 +816,14 @@ export function DashboardOverview() {
       await refreshExternalSyncOverview();
 
       setSyncActionMessage(
-        `Gmail sync completed. ${result.messagesStored ?? 0} messages stored, ${
+        `${t('dashboard.messages.gmailSyncCompleted')} ${
+          result.messagesStored ?? 0
+        } ${t('dashboard.messages.messagesStored')}, ${
           result.messagesDeletedAsStale ?? 0
-        } stale or trashed messages removed.`,
+        } ${t('dashboard.messages.staleMessagesRemoved')}`,
       );
     } catch (error) {
-      setSyncActionError(getSyncErrorMessage(error));
+      setSyncActionError(getSyncErrorMessage(error, t));
     } finally {
       setIsSyncingEmail(false);
     }
@@ -807,7 +831,7 @@ export function DashboardOverview() {
 
   async function handleSyncCalendarEvents() {
     if (!token) {
-      setSyncActionError('Missing access token.');
+      setSyncActionError(t('dashboard.messages.missingAccessToken'));
       return;
     }
 
@@ -821,12 +845,14 @@ export function DashboardOverview() {
       await refreshExternalSyncOverview();
 
       setSyncActionMessage(
-        `Calendar sync completed. ${result.eventsStored ?? 0} events stored, ${
+        `${t('dashboard.messages.calendarSyncCompleted')} ${
+          result.eventsStored ?? 0
+        } ${t('dashboard.messages.eventsStored')}, ${
           result.eventsDeletedAsStale ?? 0
-        } stale events removed.`,
+        } ${t('dashboard.messages.staleEventsRemoved')}`,
       );
     } catch (error) {
-      setSyncActionError(getSyncErrorMessage(error));
+      setSyncActionError(getSyncErrorMessage(error, t));
     } finally {
       setIsSyncingCalendar(false);
     }
@@ -834,14 +860,15 @@ export function DashboardOverview() {
 
   const nextMeetingSummary = useMemo(() => {
     if (!data?.externalSync.nextMeeting) {
-      return 'No upcoming meeting found in synced calendar metadata.';
+      return t('dashboard.cards.noMeetingMetadata');
     }
 
     return `${getMeetingCountdown(
       data.externalSync.nextMeeting.startAt,
       now,
-    )} - ${data.externalSync.nextMeeting.summary ?? 'Untitled meeting'}`;
-  }, [data?.externalSync.nextMeeting, now]);
+      t,
+    )} - ${data.externalSync.nextMeeting.summary ?? t('common.emptyStates.noTitle')}`;
+  }, [data?.externalSync.nextMeeting, now, t]);
 
   if (isLoading) {
     return (
@@ -870,7 +897,7 @@ export function DashboardOverview() {
   if (!data) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-        No dashboard data available.
+        {t('dashboard.messages.noDashboardData')}
       </div>
     );
   }
@@ -898,30 +925,30 @@ export function DashboardOverview() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <ActionCard
-            label="Pending AI reviews"
+            label={t('dashboard.cards.pendingAiReviews')}
             value={data.ai.pendingReviewCount}
-            helper="Review AI-generated suggestions before applying anything."
+            helper={t('dashboard.cards.pendingAiReviewsHelper')}
             href="/dashboard/ai-suggestions"
             tone="attention"
           />
           <ActionCard
-            label="Ready for action"
+            label={t('dashboard.cards.readyForAction')}
             value={data.ai.readyForActionCount}
-            helper="Accepted AI suggestions with no completed action yet."
+            helper={t('dashboard.cards.readyForActionHelper')}
             href="/dashboard/ai-workspace"
           />
           <ActionCard
-            label="Pending tasks"
+            label={t('dashboard.cards.pendingTasks')}
             value={data.summary.tasks.pending}
-            helper={`${todoTasks} to do and ${inProgressTasks} in progress.`}
+            helper={`${todoTasks} ${t('dashboard.cards.pendingTasksHelper')} ${inProgressTasks} ${t('dashboard.cards.inProgress')}.`}
             href="/dashboard/tasks"
           />
           <ActionCard
-            label="Next meeting"
+            label={t('dashboard.cards.nextMeeting')}
             value={
               data.externalSync.nextMeeting
-                ? getMeetingCountdown(data.externalSync.nextMeeting.startAt, now)
-                : 'None'
+                ? getMeetingCountdown(data.externalSync.nextMeeting.startAt, now, t)
+                : t('common.labels.none')
             }
             helper={nextMeetingSummary}
             href="/dashboard/external-sync/calendar-events"
@@ -941,24 +968,24 @@ export function DashboardOverview() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label="Open leads"
+            label={t('dashboard.cards.openLeads')}
             value={data.summary.leads.open}
-            helper={`${data.summary.leads.won} won and ${data.summary.leads.lost} lost overall.`}
+            helper={`${data.summary.leads.won} ${t('dashboard.cards.wonAndLost')} ${data.summary.leads.lost} ${t('dashboard.cards.lostOverall')}`}
           />
           <MetricCard
-            label="Tasks due soon"
+            label={t('dashboard.cards.tasksDueSoon')}
             value={data.tasks.dueSoonTasks.length}
-            helper="Upcoming task deadlines from the current dashboard feed."
+            helper={t('dashboard.cards.tasksDueSoonHelper')}
           />
           <MetricCard
-            label="Overdue tasks"
+            label={t('dashboard.cards.overdueTasks')}
             value={data.summary.tasks.overdue}
-            helper={`${data.tasks.overdueTasks.length} overdue task previews available.`}
+            helper={`${data.tasks.overdueTasks.length} ${t('dashboard.cards.overdueTaskPreviews')}`}
           />
           <MetricCard
-            label="Recently completed"
+            label={t('dashboard.cards.recentlyCompleted')}
             value={recentCompletedCount}
-            helper={`${data.summary.tasks.completed} completed tasks overall.`}
+            helper={`${data.summary.tasks.completed} ${t('dashboard.cards.completedTasksOverall')}`}
           />
         </div>
 
@@ -966,10 +993,10 @@ export function DashboardOverview() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-950">
-                Leads by status
+                {t('dashboard.labels.leadsByStatus')}
               </h3>
               <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
-                {data.summary.leads.total} total
+                {data.summary.leads.total} {t('common.labels.total')}
               </Badge>
             </div>
 
@@ -990,10 +1017,10 @@ export function DashboardOverview() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-950">
-                Tasks by status
+                {t('dashboard.labels.tasksByStatus')}
               </h3>
               <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                Workload
+                {t('dashboard.labels.workload')}
               </Badge>
             </div>
 
@@ -1001,7 +1028,7 @@ export function DashboardOverview() {
               {data.tasks.tasksByStatus.map((item) => (
                 <CountRow
                   key={item.status}
-                  label={formatEnumLabel(item.status)}
+                  label={getTaskStatusLabel(item.status, t)}
                   count={item.count}
                   badgeClassName={
                     item.count > 0 ? 'bg-slate-700' : 'bg-slate-300'
@@ -1014,10 +1041,10 @@ export function DashboardOverview() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-950">
-                Task priorities
+                {t('dashboard.labels.taskPriorities')}
               </h3>
               <Badge className="bg-amber-50 text-amber-700 ring-amber-200">
-                Focus
+                {t('dashboard.labels.focus')}
               </Badge>
             </div>
 
@@ -1025,7 +1052,7 @@ export function DashboardOverview() {
               {data.tasks.tasksByPriority.map((item) => (
                 <CountRow
                   key={item.priority}
-                  label={formatEnumLabel(item.priority)}
+                  label={getPriorityLabel(item.priority, t)}
                   count={item.count}
                   badgeClassName={
                     item.priority === 'CRITICAL'
@@ -1055,33 +1082,33 @@ export function DashboardOverview() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <WorkspaceCard
-            title="AI Workspace"
-            description="Unified hub for suggestions, synced inputs, and safe manual sync."
+            title={t('navigation.items.aiWorkspace')}
+            description={t('dashboard.workspaces.aiWorkspaceDescription')}
             href="/dashboard/ai-workspace"
           />
           <WorkspaceCard
-            title="AI Suggestions Board"
-            description="Review pending, accepted, completed, and rejected AI suggestions."
+            title={t('aiSuggestions.boardTitle')}
+            description={t('dashboard.workspaces.aiSuggestionsDescription')}
             href="/dashboard/ai-suggestions"
           />
           <WorkspaceCard
-            title="Lead Pipeline"
-            description="Move opportunities through the sales workflow."
+            title={t('dashboard.quickLinks.leadPipeline')}
+            description={t('dashboard.workspaces.leadPipelineDescription')}
             href="/dashboard/leads"
           />
           <WorkspaceCard
-            title="Tasks Board"
-            description="Track to do, in progress, completed, and archived tasks."
+            title={t('dashboard.quickLinks.tasksBoard')}
+            description={t('dashboard.workspaces.tasksBoardDescription')}
             href="/dashboard/tasks"
           />
           <WorkspaceCard
-            title="Synced Emails"
-            description="Review Gmail metadata and create AI suggestions for human review."
+            title={t('navigation.items.syncedEmails')}
+            description={t('dashboard.workspaces.syncedEmailsDescription')}
             href="/dashboard/external-sync/email-messages"
           />
           <WorkspaceCard
-            title="Synced Calendar"
-            description="Review calendar metadata and create AI analysis suggestions."
+            title={t('navigation.items.syncedCalendar')}
+            description={t('dashboard.workspaces.syncedCalendarDescription')}
             href="/dashboard/external-sync/calendar-events"
           />
         </div>
@@ -1112,7 +1139,7 @@ export function DashboardOverview() {
               href="/dashboard/tasks"
               className="text-sm font-medium text-blue-700 hover:text-blue-900"
             >
-              Open board
+              {t('dashboard.labels.openBoard')}
             </Link>
           </div>
 
@@ -1122,7 +1149,9 @@ export function DashboardOverview() {
                 .slice(0, 3)
                 .map((task) => <TaskPreview key={task.id} task={task} />)
             ) : (
-              <p className="text-sm text-slate-500">No pending tasks shown.</p>
+              <p className="text-sm text-slate-500">
+                {t('dashboard.messages.noPendingTasks')}
+              </p>
             )}
           </div>
         </div>
@@ -1143,7 +1172,9 @@ export function DashboardOverview() {
                 <ActivityItem key={event.id} event={event} />
               ))
             ) : (
-              <p className="text-sm text-slate-500">No recent activity yet.</p>
+              <p className="text-sm text-slate-500">
+                {t('dashboard.messages.noRecentActivity')}
+              </p>
             )}
           </div>
         </div>
@@ -1152,10 +1183,10 @@ export function DashboardOverview() {
       <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <div className="flex flex-wrap gap-2">
           {[
-            'Human review required for AI suggestions.',
-            'No email is sent automatically.',
-            'No Gmail draft is created automatically from the dashboard.',
-            'No CRM records are created automatically.',
+            t('dashboard.safety.humanReviewRequiredForAi'),
+            t('dashboard.safety.noEmailSent'),
+            t('dashboard.safety.noDashboardGmailDraft'),
+            t('dashboard.safety.noCrmRecords'),
           ].map((message) => (
             <Badge
               key={message}

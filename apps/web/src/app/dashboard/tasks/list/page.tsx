@@ -9,10 +9,12 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getPriorityLabel, getTaskStatusLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, getTasks } from '@/lib/api-client';
 import { priorityOptions, taskStatusOptions } from '@/lib/crm-options';
 import { getPriorityClasses, getTaskStatusClasses } from '@/lib/crm-styles';
-import { formatDate, formatEnumLabel, truncateText } from '@/lib/formatters';
+import { formatDate, truncateText } from '@/lib/formatters';
 import { canCreateCrm } from '@/lib/permissions';
 import type {
   PaginatedResponse,
@@ -23,6 +25,7 @@ import type {
 
 export default function TasksListPage() {
   const { token, user } = useAuth();
+  const { t } = useI18n();
 
   const [tasksResponse, setTasksResponse] =
     useState<PaginatedResponse<Task> | null>(null);
@@ -72,7 +75,7 @@ export default function TasksListPage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load tasks.');
+          setErrorMessage(t('crm.tasks.loadListFailed'));
         }
       } finally {
         if (isMounted) {
@@ -86,7 +89,7 @@ export default function TasksListPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, page, submittedSearch, statusFilter, priorityFilter]);
+  }, [token, page, submittedSearch, statusFilter, priorityFilter, t]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,15 +111,15 @@ export default function TasksListPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Tasks"
-        description="Manage follow-ups, deadlines, and sales execution tasks."
+        title={t('crm.tasks.title')}
+        description={t('crm.tasks.listSubtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/tasks/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Board view
+              {t('common.actions.boardView')}
             </Link>
 
             {canCreateCrm(user) ? (
@@ -124,7 +127,7 @@ export default function TasksListPage() {
                 href="/dashboard/tasks/new"
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
               >
-                New task
+                {t('crm.common.newTask')}
               </Link>
             ) : null}
           </div>
@@ -140,7 +143,7 @@ export default function TasksListPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by title or description..."
+            placeholder={t('crm.tasks.searchPlaceholder')}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
@@ -152,10 +155,10 @@ export default function TasksListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All statuses</option>
+            <option value="">{t('crm.common.allStatuses')}</option>
             {taskStatusOptions.map((status) => (
               <option key={status} value={status}>
-                {formatEnumLabel(status)}
+                {getTaskStatusLabel(status, t)}
               </option>
             ))}
           </select>
@@ -168,10 +171,10 @@ export default function TasksListPage() {
             }}
             className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">All priorities</option>
+            <option value="">{t('crm.common.allPriorities')}</option>
             {priorityOptions.map((priority) => (
               <option key={priority} value={priority}>
-                {formatEnumLabel(priority)}
+                {getPriorityLabel(priority, t)}
               </option>
             ))}
           </select>
@@ -181,7 +184,7 @@ export default function TasksListPage() {
               type="submit"
               className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
             >
-              Search
+              {t('common.actions.search')}
             </button>
 
             <button
@@ -189,7 +192,7 @@ export default function TasksListPage() {
               onClick={handleClearFilters}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear
+              {t('common.actions.clear')}
             </button>
           </div>
         </form>
@@ -203,8 +206,8 @@ export default function TasksListPage() {
 
       {!isLoading && !errorMessage && tasks.length === 0 ? (
         <EmptyState
-          title="No tasks found"
-          description="Create your first task to start tracking execution."
+          title={t('crm.tasks.noFound')}
+          description={t('crm.tasks.empty')}
         />
       ) : null}
 
@@ -215,22 +218,22 @@ export default function TasksListPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Task
+                    {t('crm.common.task')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
+                    {t('crm.common.status')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Priority
+                    {t('crm.common.priority')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Due date
+                    {t('crm.tasks.dueDate')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Completed
+                    {t('crm.common.completed')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
+                    {t('crm.common.action')}
                   </th>
                 </tr>
               </thead>
@@ -244,19 +247,19 @@ export default function TasksListPage() {
                       </p>
                       <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
                         {truncateText(task.description, 160) ||
-                          'No description'}
+                          t('common.emptyStates.noDescription')}
                       </p>
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge className={getTaskStatusClasses(task.status)}>
-                        {formatEnumLabel(task.status)}
+                        {getTaskStatusLabel(task.status, t)}
                       </Badge>
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge className={getPriorityClasses(task.priority)}>
-                        {formatEnumLabel(task.priority)}
+                        {getPriorityLabel(task.priority, t)}
                       </Badge>
                     </td>
 
@@ -273,7 +276,7 @@ export default function TasksListPage() {
                         href={`/dashboard/tasks/${task.id}`}
                         className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
                       >
-                        View
+                        {t('common.actions.view')}
                       </Link>
                     </td>
                   </tr>
@@ -285,7 +288,9 @@ export default function TasksListPage() {
           {meta ? (
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">
-                Page {meta.page} of {meta.totalPages || 1} · {meta.total} tasks
+                {t('common.pagination.page')} {meta.page}{' '}
+                {t('common.pagination.of')} {meta.totalPages || 1} ·{' '}
+                {meta.total} {t('crm.tasks.total')}
               </p>
 
               <div className="flex gap-2">
@@ -295,7 +300,7 @@ export default function TasksListPage() {
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.pagination.previous')}
                 </button>
 
                 <button
@@ -304,7 +309,7 @@ export default function TasksListPage() {
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next
+                  {t('common.pagination.next')}
                 </button>
               </div>
             </div>

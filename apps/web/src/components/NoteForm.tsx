@@ -3,7 +3,11 @@
 import { FormEvent, useEffect, useState } from 'react';
 
 import { importanceOptions, sourceOptions } from '@/lib/crm-options';
-import { formatEnumLabel } from '@/lib/formatters';
+import {
+  getImportanceLabel,
+  getSourceLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import type {
   Company,
   Contact,
@@ -38,6 +42,7 @@ export function NoteForm({
   isSubmitting,
   onSubmit,
 }: NoteFormProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [content, setContent] = useState(initialValues?.content ?? '');
   const [companyId, setCompanyId] = useState(initialValues?.companyId ?? '');
@@ -98,7 +103,7 @@ export function NoteForm({
             htmlFor="note-title"
             className="text-sm font-medium text-slate-700"
           >
-            Title
+            {t('crm.notes.titleLabel')}
           </label>
           <input
             id="note-title"
@@ -106,10 +111,10 @@ export function NoteForm({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Follow-up summary"
+            placeholder={t('crm.notes.titlePlaceholder')}
           />
           <p className="mt-1 text-xs text-slate-500">
-            Optional. Leave blank if the note does not need a title.
+            {t('crm.notes.titleHelp')}
           </p>
         </div>
 
@@ -118,7 +123,7 @@ export function NoteForm({
             htmlFor="note-company"
             className="text-sm font-medium text-slate-700"
           >
-            Company
+            {t('crm.common.company')}
           </label>
           <select
             id="note-company"
@@ -126,7 +131,7 @@ export function NoteForm({
             onChange={(event) => setCompanyId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No company</option>
+            <option value="">{t('crm.common.noCompany')}</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
@@ -140,7 +145,7 @@ export function NoteForm({
             htmlFor="note-contact"
             className="text-sm font-medium text-slate-700"
           >
-            Contact
+            {t('crm.common.contact')}
           </label>
           <select
             id="note-contact"
@@ -148,7 +153,7 @@ export function NoteForm({
             onChange={(event) => setContactId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No contact</option>
+            <option value="">{t('crm.common.noContact')}</option>
             {contacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.firstName} {contact.lastName}
@@ -162,7 +167,7 @@ export function NoteForm({
             htmlFor="note-lead"
             className="text-sm font-medium text-slate-700"
           >
-            Lead
+            {t('crm.common.lead')}
           </label>
           <select
             id="note-lead"
@@ -170,7 +175,7 @@ export function NoteForm({
             onChange={(event) => setLeadId(event.target.value)}
             className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="">No lead</option>
+            <option value="">{t('crm.common.noLead')}</option>
             {leads.map((lead) => (
               <option key={lead.id} value={lead.id}>
                 {lead.title}
@@ -184,7 +189,7 @@ export function NoteForm({
             htmlFor="note-importance"
             className="text-sm font-medium text-slate-700"
           >
-            Importance
+            {t('crm.common.importance')}
           </label>
           <select
             id="note-importance"
@@ -196,7 +201,7 @@ export function NoteForm({
           >
             {importanceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getImportanceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -207,7 +212,7 @@ export function NoteForm({
             htmlFor="note-source"
             className="text-sm font-medium text-slate-700"
           >
-            Source
+            {t('crm.common.source')}
           </label>
           <select
             id="note-source"
@@ -217,7 +222,7 @@ export function NoteForm({
           >
             {sourceOptions.map((option) => (
               <option key={option} value={option}>
-                {formatEnumLabel(option)}
+                {getSourceLabel(option, t)}
               </option>
             ))}
           </select>
@@ -228,7 +233,7 @@ export function NoteForm({
             htmlFor="note-content"
             className="text-sm font-medium text-slate-700"
           >
-            Content
+            {t('crm.notes.content')}
           </label>
           <textarea
             id="note-content"
@@ -237,7 +242,7 @@ export function NoteForm({
             onChange={(event) => setContent(event.target.value)}
             rows={7}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Write the note content..."
+            placeholder={t('crm.notes.contentPlaceholder')}
           />
         </div>
       </div>
@@ -248,7 +253,7 @@ export function NoteForm({
           disabled={isSubmitting}
           className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Saving...' : submitLabel}
+          {isSubmitting ? t('common.actions.saving') : submitLabel}
         </button>
       </div>
     </form>

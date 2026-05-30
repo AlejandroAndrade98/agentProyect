@@ -6,19 +6,21 @@ import { useState } from 'react';
 
 import { CompanyForm } from '@/components/CompanyForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import { ApiClientError, createCompany } from '@/lib/api-client';
 import type { CreateCompanyInput } from '@/types/crm';
 
 export default function NewCompanyPage() {
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleCreateCompany(values: CreateCompanyInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -34,7 +36,7 @@ export default function NewCompanyPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create company.');
+        setErrorMessage(t('crm.companies.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -48,19 +50,18 @@ export default function NewCompanyPage() {
           href="/dashboard/companies"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to companies
+          ← {t('crm.common.backToCompanies')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New company
+            {t('crm.companies.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a new company account and start linking contacts, leads, and
-            notes to it.
+            {t('crm.companies.newDescription')}
           </p>
         </div>
       </section>
@@ -72,7 +73,7 @@ export default function NewCompanyPage() {
       ) : null}
 
       <CompanyForm
-        submitLabel="Create company"
+        submitLabel={t('crm.companies.create')}
         isSubmitting={isSubmitting}
         onSubmit={handleCreateCompany}
       />

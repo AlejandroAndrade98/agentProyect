@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { locale, locales, setLocale, t } = useI18n();
 
   const canManageUsers =
   user?.role === 'SUPER_ADMIN' ||
@@ -16,8 +18,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Settings"
-        description="Manage account, organization, usage, appearance, and future workspace preferences."
+        title={t('settings.title')}
+        description={t('settings.subtitle')}
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -25,13 +27,14 @@ export default function SettingsPage() {
           href="/dashboard/settings/organization"
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
         >
-          <p className="text-sm font-medium text-blue-700">Workspace</p>
+          <p className="text-sm font-medium text-blue-700">
+            {t('settings.cards.workspace')}
+          </p>
           <h2 className="mt-2 text-lg font-semibold text-slate-950">
-            Organization
+            {t('settings.cards.organization')}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Review and update your organization profile, billing contact,
-            support contact, timezone, and locale.
+            {t('settings.cards.organizationDescription')}
           </p>
         </Link>
 
@@ -40,11 +43,14 @@ export default function SettingsPage() {
           href="/dashboard/settings/users"
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
         >
-          <p className="text-sm font-medium text-blue-700">Access</p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-950">Users</h2>
+          <p className="text-sm font-medium text-blue-700">
+            {t('settings.cards.access')}
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-950">
+            {t('settings.cards.users')}
+          </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            View users in your organization and review roles, status, and access
-            information.
+            {t('settings.cards.usersDescription')}
           </p>
         </Link>
         ) : null}
@@ -53,13 +59,14 @@ export default function SettingsPage() {
           href="/dashboard/settings/ai-usage"
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
         >
-          <p className="text-sm font-medium text-blue-700">AI Governance</p>
+          <p className="text-sm font-medium text-blue-700">
+            {t('settings.cards.aiGovernance')}
+          </p>
           <h2 className="mt-2 text-lg font-semibold text-slate-950">
-            AI Usage
+            {t('settings.cards.aiUsage')}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Review personal usage, organization credits, limits, and AI usage
-            history.
+            {t('settings.cards.aiUsageDescription')}
           </p>
         </Link>
 
@@ -67,34 +74,52 @@ export default function SettingsPage() {
           href="/dashboard/settings/connected-accounts"
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
         >
-          <p className="text-sm font-medium text-blue-700">Integrations</p>
+          <p className="text-sm font-medium text-blue-700">
+            {t('settings.cards.integrations')}
+          </p>
           <h2 className="mt-2 text-lg font-semibold text-slate-950">
-            Connected Accounts
+            {t('settings.cards.connectedAccounts')}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Review Gmail, Outlook, email, and calendar connections prepared for future
-            sync and AI review workflows.
+            {t('settings.cards.connectedAccountsDescription')}
           </p>
         </Link>
 
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
-          <p className="text-sm font-medium text-slate-500">Coming soon</p>
+          <p className="text-sm font-medium text-slate-500">
+            {t('settings.cards.comingSoon')}
+          </p>
           <h2 className="mt-2 text-lg font-semibold text-slate-800">
-            Appearance
+            {t('settings.cards.appearance')}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Dark mode and visual preferences will be added later.
+            {t('settings.cards.appearanceDescription')}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
-          <p className="text-sm font-medium text-slate-500">Coming soon</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-blue-700">
+            {t('navigation.language')}
+          </p>
           <h2 className="mt-2 text-lg font-semibold text-slate-800">
-            Language
+            {t('settings.cards.language')}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Spanish and English workspace preferences will be added later.
+            {t('settings.cards.languageDescription')}
           </p>
+          <select
+            value={locale}
+            onChange={(event) =>
+              setLocale(event.target.value as typeof locale)
+            }
+            className="mt-4 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            {locales.map((availableLocale) => (
+              <option key={availableLocale} value={availableLocale}>
+                {availableLocale.toUpperCase()}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

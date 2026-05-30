@@ -71,9 +71,9 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function formatConfidence(value: number | null) {
+function formatConfidence(value: number | null, t: Translate) {
   if (value === null) {
-    return 'Not set';
+    return t('common.emptyStates.notSet');
   }
 
   return `${Math.round(value * 100)}%`;
@@ -91,7 +91,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function getFriendlySyncError(error: unknown) {
+function getFriendlySyncError(error: unknown, t: Translate) {
   if (error instanceof ApiClientError) {
     const message = error.message.toLowerCase();
 
@@ -100,7 +100,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('permission') ||
       message.includes('permissions')
     ) {
-      return 'Reconnect Google to grant the required permissions.';
+      return t('externalSync.errors.googlePermissions');
     }
 
     if (
@@ -109,7 +109,7 @@ function getFriendlySyncError(error: unknown) {
       message.includes('reconnect') ||
       message.includes('google')
     ) {
-      return 'Connect or reconnect Google before syncing external data.';
+      return t('aiWorkspace.messages.connectGoogleExternal');
     }
 
     return error.message;
@@ -119,7 +119,7 @@ function getFriendlySyncError(error: unknown) {
     return error.message;
   }
 
-  return 'Could not complete sync. Please try again.';
+  return t('aiWorkspace.messages.syncFailed');
 }
 
 function getMetadataString(value: unknown) {
@@ -187,40 +187,47 @@ function sortSuggestionsByCreatedAt(suggestions: AiSuggestion[]) {
   );
 }
 
-function getSuggestionContext(suggestion: AiSuggestion) {
+function getSuggestionContext(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.externalEmailMessage) {
-    return suggestion.externalEmailMessage.subject ?? 'Synced email';
+    return suggestion.externalEmailMessage.subject ?? t('aiWorkspace.labels.syncedEmail');
   }
 
   if (suggestion.externalCalendarEvent) {
-    return suggestion.externalCalendarEvent.summary ?? 'Synced calendar event';
+    return (
+      suggestion.externalCalendarEvent.summary ??
+      t('aiWorkspace.labels.syncedCalendarEvent')
+    );
   }
 
   if (suggestion.leadId) {
-    return `Lead ${suggestion.leadId}`;
+    return `${t('aiWorkspace.labels.lead')} ${suggestion.leadId}`;
   }
 
   if (suggestion.entityType && suggestion.entityId) {
     return `${formatEnumLabel(suggestion.entityType)} ${suggestion.entityId}`;
   }
 
-  return 'AI suggestion';
+  return t('aiWorkspace.labels.aiSuggestion');
 }
 
-function formatSender(email: ExternalEmailMessage) {
+function formatSender(email: ExternalEmailMessage, t: Translate) {
   if (email.fromName && email.fromEmail) {
     return `${email.fromName} <${email.fromEmail}>`;
   }
 
-  return email.fromEmail ?? email.fromName ?? 'Unknown sender';
+  return email.fromEmail ?? email.fromName ?? t('common.emptyStates.unknownSender');
 }
 
-function formatOrganizer(event: ExternalCalendarEvent) {
+function formatOrganizer(event: ExternalCalendarEvent, t: Translate) {
   if (event.organizerName && event.organizerEmail) {
     return `${event.organizerName} <${event.organizerEmail}>`;
   }
 
-  return event.organizerEmail ?? event.organizerName ?? 'Unknown organizer';
+  return (
+    event.organizerEmail ??
+    event.organizerName ??
+    t('common.emptyStates.unknownOrganizer')
+  );
 }
 
 function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
@@ -239,15 +246,15 @@ function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
       </div>
 
       <h3 className="mt-3 font-semibold text-slate-950">
-        {suggestion.title ?? 'Untitled AI suggestion'}
+        {suggestion.title ?? t('aiSuggestions.labels.untitled')}
       </h3>
       <p className="mt-1 text-sm text-slate-600">
-        {truncateText(getSuggestionContext(suggestion), 120)}
+        {truncateText(getSuggestionContext(suggestion, t), 120)}
       </p>
       <p className="mt-2 text-xs text-slate-500">
-        Confidence: {formatConfidence(suggestion.confidenceScore)}
+        {t('aiSuggestions.labels.confidence')}: {formatConfidence(suggestion.confidenceScore, t)}
         {' · '}
-        Created: {formatDateTime(suggestion.createdAt)}
+        {t('aiSuggestions.labels.created')}: {formatDateTime(suggestion.createdAt)}
       </p>
 
       {appliedLabels.length > 0 ? (
@@ -424,21 +431,21 @@ export default function AiWorkspacePage() {
     if (pendingResult.status === 'rejected') {
       nextErrors.suggestions = getErrorMessage(
         pendingResult.reason,
-        'Could not load AI suggestions.',
+        t('aiWorkspace.messages.suggestionsLoadFailed'),
       );
     }
 
     if (emailsResult.status === 'rejected') {
       nextErrors.emails = getErrorMessage(
         emailsResult.reason,
-        'Could not load synced emails.',
+        t('aiWorkspace.messages.emailsLoadFailed'),
       );
     }
 
     if (calendarResult.status === 'rejected') {
       nextErrors.calendar = getErrorMessage(
         calendarResult.reason,
-        'Could not load synced calendar events.',
+        t('aiWorkspace.messages.calendarLoadFailed'),
       );
     }
 
@@ -513,22 +520,30 @@ export default function AiWorkspacePage() {
       if (action === 'gmail') {
         const result = await syncExternalEmailMessages(token);
         setSyncMessage(
-          `Gmail sync completed. Fetched ${
-            result.messagesFetched ?? 0
-          } message(s), stored ${result.messagesStored ?? 0} message(s).`,
+          `${t('syncedEmails.messages.syncCompleted')} ${t(
+            'syncedEmails.messages.fetched',
+          )} ${result.messagesFetched ?? 0} ${t(
+            'syncedEmails.messages.messages',
+          )} ${t('syncedEmails.messages.stored')} ${
+            result.messagesStored ?? 0
+          } ${t('syncedEmails.messages.messages')}`,
         );
       } else {
         const result = await syncExternalCalendarEvents(token);
         setSyncMessage(
-          `Calendar sync completed. Fetched ${
-            result.eventsFetched ?? 0
-          } event(s), stored ${result.eventsStored ?? 0} event(s).`,
+          `${t('syncedCalendar.messages.syncCompleted')} ${t(
+            'syncedCalendar.messages.fetched',
+          )} ${result.eventsFetched ?? 0} ${t(
+            'syncedCalendar.messages.events',
+          )} ${t('syncedCalendar.messages.stored')} ${
+            result.eventsStored ?? 0
+          } ${t('syncedCalendar.messages.events')}`,
         );
       }
 
       await loadWorkspace();
     } catch (error) {
-      setSyncErrorMessage(getFriendlySyncError(error));
+      setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setSyncingAction(null);
     }
@@ -573,8 +588,7 @@ export default function AiWorkspacePage() {
 
       {!canRunSync ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Your role can view the workspace, but CRM write permissions are
-          required to run manual sync actions.
+          {t('aiWorkspace.messages.readOnlyRole')}
         </div>
       ) : null}
 
@@ -583,7 +597,7 @@ export default function AiWorkspacePage() {
       {!isLoading && !hasAnyData && !Object.keys(errors).length ? (
         <EmptyState
           title={t('aiWorkspace.emptyStates.workspace')}
-          description="Connect Google, sync email or calendar metadata, then generate AI suggestions for human review."
+          description={t('aiWorkspace.emptyStates.workspaceDescription')}
         />
       ) : null}
 
@@ -733,17 +747,17 @@ export default function AiWorkspacePage() {
                         className="rounded-xl border border-slate-200 bg-white p-4"
                       >
                         <h4 className="break-words font-semibold text-slate-950">
-                          {email.subject ?? 'No subject'}
+                          {email.subject ?? t('common.emptyStates.noSubject')}
                         </h4>
                         <p className="mt-1 break-words text-sm text-slate-600">
-                          From: {formatSender(email)}
+                          {t('externalSync.labels.from')}: {formatSender(email, t)}
                         </p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                           {truncateText(email.snippet, 120) ||
-                            'No snippet available.'}
+                            t('common.emptyStates.noSnippet')}
                         </p>
                         <p className="mt-2 text-xs text-slate-500">
-                          Synced: {formatDateTime(email.syncedAt)}
+                          {t('externalSync.labels.synced')}: {formatDateTime(email.syncedAt)}
                         </p>
                       </div>
                     ))}
@@ -783,18 +797,18 @@ export default function AiWorkspacePage() {
                         className="rounded-xl border border-slate-200 bg-white p-4"
                       >
                         <h4 className="break-words font-semibold text-slate-950">
-                          {event.summary ?? 'No title'}
+                          {event.summary ?? t('common.emptyStates.noTitle')}
                         </h4>
                         <p className="mt-1 text-sm text-slate-600">
                           {event.startAt
                             ? formatDateTime(event.startAt)
-                            : 'Not set'}
+                            : t('common.emptyStates.notSet')}
                         </p>
                         <p className="mt-2 break-words text-sm text-slate-600">
-                          Organizer: {formatOrganizer(event)}
+                          {t('externalSync.labels.organizer')}: {formatOrganizer(event, t)}
                         </p>
                         <p className="mt-1 break-words text-sm text-slate-600">
-                          Location: {event.location ?? 'Not set'}
+                          {t('externalSync.labels.location')}: {event.location ?? t('common.emptyStates.notSet')}
                         </p>
                       </div>
                     ))}

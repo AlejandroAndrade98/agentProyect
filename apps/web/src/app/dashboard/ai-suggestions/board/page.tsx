@@ -88,9 +88,9 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function getConfidenceLabel(suggestion: AiSuggestion) {
+function getConfidenceLabel(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.confidenceScore === null) {
-    return 'Not set';
+    return t('common.emptyStates.notSet');
   }
 
   return `${Math.round(suggestion.confidenceScore * 100)}%`;
@@ -158,15 +158,15 @@ function hasCompletedAction(suggestion: AiSuggestion, t: Translate) {
   return getAppliedLabels(suggestion, t).length > 0;
 }
 
-function getReplyDraftSubject(suggestion: AiSuggestion) {
+function getReplyDraftSubject(suggestion: AiSuggestion, t: Translate) {
   return (
     getMetadataString(suggestion.metadataJson?.suggestedSubject) ??
     suggestion.externalEmailMessage?.subject ??
-    'No subject'
+    t('common.emptyStates.noSubject')
   );
 }
 
-function getEmailSender(suggestion: AiSuggestion) {
+function getEmailSender(suggestion: AiSuggestion, t: Translate) {
   const senderName = getMetadataString(
     suggestion.externalEmailMessage?.fromName,
   );
@@ -178,7 +178,7 @@ function getEmailSender(suggestion: AiSuggestion) {
     return `${senderName} <${senderEmail}>`;
   }
 
-  return senderEmail ?? senderName ?? 'Unknown sender';
+  return senderEmail ?? senderName ?? t('common.emptyStates.unknownSender');
 }
 
 function getAttendeesCount(value: unknown) {
@@ -189,13 +189,13 @@ function getAttendeesCount(value: unknown) {
   return null;
 }
 
-function getSuggestionTitle(suggestion: AiSuggestion) {
+function getSuggestionTitle(suggestion: AiSuggestion, t: Translate) {
   if (suggestion.title) {
     return suggestion.title;
   }
 
   if (suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT') {
-    return getReplyDraftSubject(suggestion);
+    return getReplyDraftSubject(suggestion, t);
   }
 
   if (suggestion.externalEmailMessage?.subject) {
@@ -206,7 +206,7 @@ function getSuggestionTitle(suggestion: AiSuggestion) {
     return suggestion.externalCalendarEvent.summary;
   }
 
-  return 'Untitled AI suggestion';
+  return t('aiSuggestions.labels.untitled');
 }
 
 function getSourcePreview(suggestion: AiSuggestion, t: Translate) {
@@ -217,19 +217,19 @@ function getSourcePreview(suggestion: AiSuggestion, t: Translate) {
     const snippet =
       truncateText(suggestion.externalEmailMessage?.snippet, 120) ||
       truncateText(suggestion.outputText, 120) ||
-      'No snippet available.';
+      t('common.emptyStates.noSnippet');
 
     return (
       <div className="space-y-1 text-xs leading-5 text-slate-600">
         <p className="font-medium text-slate-800">
-          {suggestion.externalEmailMessage?.subject ?? 'No subject'}
+          {suggestion.externalEmailMessage?.subject ?? t('common.emptyStates.noSubject')}
         </p>
-        <p>{getEmailSender(suggestion)}</p>
+        <p>{getEmailSender(suggestion, t)}</p>
         {suggestion.type === 'GENERATE_EMAIL_REPLY_DRAFT' ? (
           <p>
             {t('aiSuggestions.labels.suggestedSubject')}:{' '}
             <span className="font-medium text-slate-800">
-              {getReplyDraftSubject(suggestion)}
+              {getReplyDraftSubject(suggestion, t)}
             </span>
           </p>
         ) : null}
@@ -245,10 +245,14 @@ function getSourcePreview(suggestion: AiSuggestion, t: Translate) {
     return (
       <div className="space-y-1 text-xs leading-5 text-slate-600">
         <p className="font-medium text-slate-800">
-          {event?.summary ?? 'No title'}
+          {event?.summary ?? t('common.emptyStates.noTitle')}
         </p>
         <p>{formatDateTime(event?.startAt)}</p>
-        <p>{event?.organizerName || event?.organizerEmail || 'Unknown organizer'}</p>
+        <p>
+          {event?.organizerName ||
+            event?.organizerEmail ||
+            t('common.emptyStates.unknownOrganizer')}
+        </p>
         <p>
           {t('aiSuggestions.labels.attendees')}:{' '}
           {attendeesCount === null
@@ -261,13 +265,15 @@ function getSourcePreview(suggestion: AiSuggestion, t: Translate) {
 
   return (
     <div className="space-y-1 text-xs leading-5 text-slate-600">
-      <p className="font-medium text-slate-800">Lead recommendation</p>
+      <p className="font-medium text-slate-800">
+        {t('aiSuggestions.labels.leadRecommendation')}
+      </p>
       <p>
         {suggestion.leadId
-          ? `Lead ${suggestion.leadId}`
+          ? `${t('aiSuggestions.labels.leadRecommendationForLead')} ${suggestion.leadId}`
           : suggestion.entityType && suggestion.entityId
             ? `${formatEnumLabel(suggestion.entityType)} / ${suggestion.entityId}`
-            : 'No linked source context available.'}
+            : t('aiSuggestions.labels.sourceUnavailable')}
       </p>
     </div>
   );
@@ -324,12 +330,12 @@ function SuggestionCard({ suggestion }: { suggestion: AiSuggestion }) {
             href={`/dashboard/ai-suggestions/${suggestion.id}`}
             className="text-sm font-semibold leading-5 text-slate-950 transition hover:text-blue-700"
           >
-            {getSuggestionTitle(suggestion)}
+            {getSuggestionTitle(suggestion, t)}
           </Link>
           <div className="mt-2 space-y-1 text-xs text-slate-500">
             <p>
               {t('aiSuggestions.labels.confidence')}:{' '}
-              {getConfidenceLabel(suggestion)}
+              {getConfidenceLabel(suggestion, t)}
             </p>
             <p>
               {t('aiSuggestions.labels.created')}{' '}
@@ -557,7 +563,7 @@ export default function AiSuggestionsBoardPage() {
             isLoading: false,
             errorMessage: getSafeErrorMessage(
               error,
-              `Could not load ${t(statusColumnConfig[key].titleKey)}.`,
+              t('aiWorkspace.messages.suggestionsLoadFailed'),
             ),
           },
         }));
@@ -610,7 +616,7 @@ export default function AiSuggestionsBoardPage() {
       );
     } catch (error) {
       setAcceptedErrorMessage(
-        getSafeErrorMessage(error, 'Could not load accepted suggestions.'),
+        getSafeErrorMessage(error, t('aiWorkspace.messages.suggestionsLoadFailed')),
       );
     } finally {
       setIsAcceptedLoading(false);

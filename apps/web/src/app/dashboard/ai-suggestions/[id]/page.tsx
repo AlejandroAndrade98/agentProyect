@@ -11,7 +11,12 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
-import { getAiStatusLabel, getAiTypeLabel } from '@/i18n/ai-display';
+import {
+  getAiStatusLabel,
+  getAiTypeLabel,
+  getPriorityLabel,
+  type Translate,
+} from '@/i18n/ai-display';
 import { useI18n } from '@/i18n/useI18n';
 import {
   acceptAiSuggestion,
@@ -52,20 +57,24 @@ function getStatusClasses(status: AiSuggestionStatus) {
   return classes[status];
 }
 
-function formatConfidence(value: number | null) {
+function formatConfidence(value: number | null, t: Translate) {
   if (value === null) {
-    return 'Not set';
+    return t('common.emptyStates.notSet');
   }
 
   return `${Math.round(value * 100)}%`;
 }
 
-function formatMetadataConfidence(value: unknown, fallback: number | null) {
+function formatMetadataConfidence(
+  value: unknown,
+  fallback: number | null,
+  t: Translate,
+) {
   if (typeof value === 'number') {
-    return formatConfidence(value);
+    return formatConfidence(value, t);
   }
 
-  return formatConfidence(fallback);
+  return formatConfidence(fallback, t);
 }
 
 function isLeadNextStepsOutput(
@@ -113,16 +122,16 @@ function isExternalCalendarEventAnalysisOutput(
   );
 }
 
-function formatBooleanFlag(value: unknown) {
+function formatBooleanFlag(value: unknown, t: Translate) {
   if (value === true) {
-    return 'Yes';
+    return t('common.labels.yes');
   }
 
   if (value === false) {
-    return 'No';
+    return t('common.labels.no');
   }
 
-  return 'Not set';
+  return t('common.emptyStates.notSet');
 }
 
 function getMetadataString(value: unknown) {
@@ -226,8 +235,7 @@ function SafetyPanel({
             {t('aiSuggestions.detail.humanControlled')}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-900">
-            This page reviews AI output and exposes only explicit human actions.
-            It does not send email or create CRM data by itself.
+            {t('aiSuggestions.detail.safetyDescription')}
           </p>
         </div>
 
@@ -276,12 +284,12 @@ export default function AiSuggestionDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load AI suggestion.');
+        setErrorMessage(t('aiSuggestions.detail.loadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [params.id, token]);
+  }, [params.id, t, token]);
 
   useEffect(() => {
     loadSuggestion();
@@ -303,7 +311,7 @@ export default function AiSuggestionDetailPage() {
         setTaskPriorityDraft(firstTask.priority ?? 'MEDIUM');
       }
 
-      setNoteTitleDraft('AI suggested note');
+      setNoteTitleDraft(t('aiSuggestions.detail.aiSuggestedNoteTitle'));
       setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
       return;
     }
@@ -325,7 +333,7 @@ export default function AiSuggestionDetailPage() {
         setTaskPriorityDraft('MEDIUM');
       }
 
-      setNoteTitleDraft('AI suggested email review note');
+      setNoteTitleDraft(t('aiSuggestions.detail.aiSuggestedEmailReviewNoteTitle'));
       setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
     }
 
@@ -347,10 +355,12 @@ export default function AiSuggestionDetailPage() {
         setTaskPriorityDraft('MEDIUM');
       }
 
-      setNoteTitleDraft('AI suggested calendar review note');
+      setNoteTitleDraft(
+        t('aiSuggestions.detail.aiSuggestedCalendarReviewNoteTitle'),
+      );
       setNoteContentDraft(suggestion.outputJson.suggestedNote ?? '');
     }
-  }, [suggestion]);
+  }, [suggestion, t]);
 
     async function handleReview(action: 'accept' | 'reject') {
     if (!token || !suggestion || suggestion.status !== 'PENDING_REVIEW') {
@@ -375,8 +385,8 @@ export default function AiSuggestionDetailPage() {
       setReviewNote('');
       setReviewMessage(
         action === 'accept'
-          ? 'Suggestion accepted for review. No CRM changes were applied.'
-          : 'Suggestion rejected. No CRM changes were applied.',
+          ? t('aiSuggestions.detail.reviewAccepted')
+          : t('aiSuggestions.detail.reviewRejected'),
       );
     } catch (error) {
       if (error instanceof ApiClientError) {
@@ -384,7 +394,7 @@ export default function AiSuggestionDetailPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not review AI suggestion.');
+        setErrorMessage(t('aiSuggestions.detail.reviewFailed'));
       }
     } finally {
       setIsReviewing(false);
@@ -406,14 +416,14 @@ export default function AiSuggestionDetailPage() {
     });
 
     setSuggestion(response.suggestion);
-    setApplyMessage('Next step applied to the lead.');
+    setApplyMessage(t('aiSuggestions.detail.nextStepAppliedSuccess'));
   } catch (error) {
     if (error instanceof ApiClientError) {
       setErrorMessage(error.message);
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not apply next step.');
+      setErrorMessage(t('aiSuggestions.detail.applyNextStepFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -441,14 +451,14 @@ async function handleCreateTask() {
     });
 
     setSuggestion(response.suggestion);
-    setApplyMessage('Task created from AI suggestion.');
+    setApplyMessage(t('aiSuggestions.detail.taskCreatedSuccess'));
   } catch (error) {
     if (error instanceof ApiClientError) {
       setErrorMessage(error.message);
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create task from suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createTaskFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -471,14 +481,14 @@ async function handleCreateNote() {
     });
 
     setSuggestion(response.suggestion);
-    setApplyMessage('Note created from AI suggestion.');
+    setApplyMessage(t('aiSuggestions.detail.noteCreatedSuccess'));
   } catch (error) {
     if (error instanceof ApiClientError) {
       setErrorMessage(error.message);
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create note from suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createNoteFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -514,7 +524,7 @@ async function handleCreateExternalEmailNote() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create note from external email suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalEmailNoteFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -555,7 +565,7 @@ async function handleCreateExternalEmailTask() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create task from external email suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalEmailTaskFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -587,7 +597,7 @@ async function handleCreateExternalEmailLead() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create lead from external email suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalEmailLeadFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -619,7 +629,7 @@ async function handleCreateExternalCalendarTask() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create task from external calendar suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalCalendarTaskFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -651,7 +661,7 @@ async function handleCreateExternalCalendarNote() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create note from external calendar suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalCalendarNoteFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -683,7 +693,7 @@ async function handleCreateExternalCalendarLead() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create lead from external calendar suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createExternalCalendarLeadFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -732,7 +742,7 @@ async function handleCreateGmailDraft() {
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create Gmail draft from suggestion.');
+      setErrorMessage(t('aiSuggestions.detail.createGmailDraftFailed'));
     }
   } finally {
     setIsApplying(null);
@@ -813,19 +823,20 @@ const replyDraftOutput =
 const replyDraftSubject =
   replyDraftOutput?.suggestedSubject ??
   getMetadataString(suggestion?.metadataJson?.suggestedSubject) ??
-  'Not set';
+  t('common.emptyStates.notSet');
 const replyDraftTone =
   replyDraftOutput?.tone ?? getMetadataString(suggestion?.metadataJson?.tone);
 const replyDraftConfidence = replyDraftOutput
-  ? formatConfidence(replyDraftOutput.confidence)
+  ? formatConfidence(replyDraftOutput.confidence, t)
   : formatMetadataConfidence(
       suggestion?.metadataJson?.confidence,
       suggestion?.confidenceScore ?? null,
+      t,
     );
 const replyDraftReasoning =
   replyDraftOutput?.reasoning ??
   getMetadataString(suggestion?.metadataJson?.reasoning) ??
-  'No reasoning available.';
+  t('aiSuggestions.detail.noReasoning');
 const replyDraftRecipientName = getMetadataString(
   suggestion?.externalEmailMessage?.fromName,
 );
@@ -835,7 +846,9 @@ const replyDraftRecipientEmail = getMetadataString(
 const replyDraftRecipient =
   replyDraftRecipientName && replyDraftRecipientEmail
     ? `${replyDraftRecipientName} <${replyDraftRecipientEmail}>`
-    : replyDraftRecipientEmail ?? replyDraftRecipientName ?? 'Unknown recipient';
+    : replyDraftRecipientEmail ??
+      replyDraftRecipientName ??
+      t('aiSuggestions.detail.unknownRecipient');
 
 const canApplySuggestion =
   Boolean(isLeadNextStepsSuggestion) &&
@@ -1015,17 +1028,16 @@ const canCreateGmailDraft =
                   {suggestion.confidenceScore !== null ? (
                     <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
                       {t('aiSuggestions.labels.confidence')}{' '}
-                      {formatConfidence(suggestion.confidenceScore)}
+                      {formatConfidence(suggestion.confidenceScore, t)}
                     </Badge>
                   ) : null}
                 </div>
 
                 <h1 className="max-w-4xl text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
-                  {suggestion.title ?? 'Untitled AI suggestion'}
+                  {suggestion.title ?? t('aiSuggestions.labels.untitled')}
                 </h1>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  Review the AI output first, then decide whether to accept,
-                  reject, or run one of the explicit apply actions.
+                  {t('aiSuggestions.detail.reviewOutputFirst')}
                 </p>
               </div>
 
@@ -1044,7 +1056,10 @@ const canCreateGmailDraft =
                 />
                 <InfoTile
                   label={t('aiSuggestions.labels.model')}
-                  value={String(suggestion.metadataJson?.model ?? 'Not set')}
+                  value={String(
+                    suggestion.metadataJson?.model ??
+                      t('common.emptyStates.notSet'),
+                  )}
                 />
               </div>
             </div>
@@ -1064,23 +1079,32 @@ const canCreateGmailDraft =
             eyebrow={t('aiSuggestions.detail.sourceContext')}
             title={
               isLeadNextStepsSuggestion
-                ? 'Lead suggestion context'
+                ? t('aiSuggestions.detail.leadSuggestionContext')
                 : isExternalEmailReplyDraftSuggestion
-                  ? 'Original email and reply draft'
+                  ? t('aiSuggestions.detail.originalEmailAndReplyDraft')
                   : isExternalEmailSuggestion
-                    ? 'Synced email metadata'
+                    ? t('aiSuggestions.detail.syncedEmailMetadata')
                     : isExternalCalendarSuggestion
-                      ? 'Synced calendar metadata'
-                      : 'Suggestion source'
+                      ? t('aiSuggestions.detail.syncedCalendarMetadata')
+                      : t('aiSuggestions.detail.suggestionSource')
             }
-            description="The AI suggestion is grounded in this loaded context. Full identifiers remain available in the detailed metadata cards below."
+            description={t('aiSuggestions.detail.sourceDescription')}
           />
 
           {isLeadNextStepsSuggestion ? (
             <div className="grid gap-4 md:grid-cols-3">
-              <InfoTile label="Lead ID" value={suggestion.leadId ?? 'Not linked'} />
-              <InfoTile label="Entity type" value={suggestion.entityType ?? 'Lead'} />
-              <InfoTile label="Entity ID" value={suggestion.entityId ?? 'Not set'} />
+              <InfoTile
+                label={t('aiSuggestions.detail.leadIdLabel')}
+                value={suggestion.leadId ?? t('aiSuggestions.detail.notLinked')}
+              />
+              <InfoTile
+                label={t('aiSuggestions.detail.entityType')}
+                value={suggestion.entityType ?? t('aiSuggestions.detail.lead')}
+              />
+              <InfoTile
+                label={t('aiSuggestions.detail.entityId')}
+                value={suggestion.entityId ?? t('common.emptyStates.notSet')}
+              />
             </div>
           ) : null}
 
@@ -1088,34 +1112,40 @@ const canCreateGmailDraft =
             <div className="grid gap-4 md:grid-cols-2">
               <InfoTile
                 label={t('aiSuggestions.detail.emailSubject')}
-                value={suggestion.externalEmailMessage?.subject ?? 'No subject'}
+                value={
+                  suggestion.externalEmailMessage?.subject ??
+                  t('common.emptyStates.noSubject')
+                }
               />
               <InfoTile
                 label={t('aiSuggestions.labels.sender')}
                 value={
                   suggestion.externalEmailMessage?.fromName ||
                   suggestion.externalEmailMessage?.fromEmail ||
-                  'Unknown sender'
+                  t('common.emptyStates.unknownSender')
                 }
               />
               <InfoTile
-                label="Internal date"
+                label={t('aiSuggestions.detail.internalDate')}
                 value={
                   suggestion.externalEmailMessage?.internalDate
                     ? formatDateTime(suggestion.externalEmailMessage.internalDate)
-                    : 'Not set'
+                    : t('common.emptyStates.notSet')
                 }
               />
               <InfoTile
-                label="Synced at"
+                label={t('aiSuggestions.detail.syncedAt')}
                 value={
                   suggestion.externalEmailMessage?.syncedAt
                     ? formatDateTime(suggestion.externalEmailMessage.syncedAt)
-                    : 'Not set'
+                    : t('common.emptyStates.notSet')
                 }
               />
               {isExternalEmailReplyDraftSuggestion ? (
-                <InfoTile label="Suggested subject" value={replyDraftSubject} />
+                <InfoTile
+                  label={t('aiSuggestions.labels.suggestedSubject')}
+                  value={replyDraftSubject}
+                />
               ) : null}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1123,7 +1153,7 @@ const canCreateGmailDraft =
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   {suggestion.externalEmailMessage?.snippet ??
-                    'No snippet available'}
+                    t('common.emptyStates.noSnippet')}
                 </p>
               </div>
             </div>
@@ -1140,33 +1170,33 @@ const canCreateGmailDraft =
                 value={
                   suggestion.externalCalendarEvent?.organizerName ||
                   suggestion.externalCalendarEvent?.organizerEmail ||
-                  'Unknown organizer'
+                  t('common.emptyStates.unknownOrganizer')
                 }
               />
               <InfoTile
-                label="Start"
+                label={t('externalSync.labels.start')}
                 value={
                   suggestion.externalCalendarEvent?.startAt
                     ? formatDateTime(suggestion.externalCalendarEvent.startAt)
-                    : 'Not set'
+                    : t('common.emptyStates.notSet')
                 }
               />
               <InfoTile
-                label="End"
+                label={t('externalSync.labels.end')}
                 value={
                   suggestion.externalCalendarEvent?.endAt
                     ? formatDateTime(suggestion.externalCalendarEvent.endAt)
-                    : 'Not set'
+                    : t('common.emptyStates.notSet')
                 }
               />
               <InfoTile
                 label={t('aiSuggestions.labels.attendees')}
                 value={String(
                   getArrayCount(suggestion.externalCalendarEvent?.attendeesJson) ??
-                    'Not set',
+                    t('common.emptyStates.notSet'),
                 )}
               />
-              <InfoTile label="Calendar link">
+              <InfoTile label={t('aiSuggestions.detail.calendarLink')}>
                 {suggestion.externalCalendarEvent?.htmlLink ? (
                   <a
                     href={suggestion.externalCalendarEvent.htmlLink}
@@ -1174,11 +1204,11 @@ const canCreateGmailDraft =
                     rel="noreferrer"
                     className="mt-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-900"
                   >
-                    Open event
+                    {t('aiSuggestions.detail.openEvent')}
                   </a>
                 ) : (
                   <p className="mt-2 text-sm font-medium text-slate-900">
-                    Not set
+                    {t('common.emptyStates.notSet')}
                   </p>
                 )}
               </InfoTile>
@@ -1200,47 +1230,55 @@ const canCreateGmailDraft =
 
                 <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
                   {t('aiSuggestions.labels.confidence')}:{' '}
-                  {formatConfidence(suggestion.confidenceScore)}
+                  {formatConfidence(suggestion.confidenceScore, t)}
                 </Badge>
               </div>
 
               <SectionIntro
                 eyebrow={t('aiSuggestions.detail.aiOutput')}
                 title={t('aiSuggestions.detail.generatedRecommendation')}
-                description="The complete AI-generated response is preserved here for review."
+                description={t('aiSuggestions.detail.completeAiResponse')}
               />
 
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">
-                {suggestion.outputText ?? 'No output text available.'}
+                {suggestion.outputText ?? t('aiSuggestions.detail.noOutputText')}
               </p>
             </article>
 
               {suggestion.outputJson && isLeadNextStepsOutput(suggestion.outputJson) ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-950">
-                    Structured recommendation
+                    {t('aiSuggestions.detail.structuredRecommendation')}
                   </h2>
 
                   <div className="mt-5 space-y-5 text-sm text-slate-700">
                     <div>
-                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.summary')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Recommended next step</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.recommendedNextStep')}
+                      </p>
                       <p className="mt-1 leading-6">
                         {suggestion.outputJson.recommendedNextStep}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedNote')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested tasks</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedTasks')}
+                      </p>
 
                       <div className="mt-2 space-y-3">
                         {suggestion.outputJson.suggestedTasks.map((task) => (
@@ -1251,8 +1289,10 @@ const canCreateGmailDraft =
                             <p className="font-medium text-slate-950">{task.title}</p>
                             <p className="mt-1 leading-6">{task.description}</p>
                             <p className="mt-2 text-xs text-slate-500">
-                              Priority: {formatEnumLabel(task.priority)} · Due in{' '}
-                              {task.dueInDays} day(s)
+                              {t('common.labels.priority')}:{' '}
+                              {getPriorityLabel(task.priority, t)} ·{' '}
+                              {t('common.labels.dueIn')} {task.dueInDays}{' '}
+                              {t('common.labels.days')}
                             </p>
                           </div>
                         ))}
@@ -1260,7 +1300,9 @@ const canCreateGmailDraft =
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.reasoningSummary')}
+                      </p>
                       <p className="mt-1 leading-6">
                         {suggestion.outputJson.reasoningSummary}
                       </p>
@@ -1272,25 +1314,30 @@ const canCreateGmailDraft =
               {isExternalEmailSuggestion || isExternalEmailReplyDraftSuggestion ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-950">
-                    External email metadata
+                    {t('aiSuggestions.detail.externalEmailMetadata')}
                   </h2>
 
                   <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
                     {suggestion.externalEmailMessage ? (
                       <>
                         <div>
-                          <p className="font-medium text-slate-950">Subject</p>
+                          <p className="font-medium text-slate-950">
+                            {t('aiSuggestions.detail.subject')}
+                          </p>
                           <p className="mt-1 text-slate-600">
-                            {suggestion.externalEmailMessage.subject ?? 'No subject'}
+                            {suggestion.externalEmailMessage.subject ??
+                              t('common.emptyStates.noSubject')}
                           </p>
                         </div>
 
                         <div>
-                          <p className="font-medium text-slate-950">From</p>
+                          <p className="font-medium text-slate-950">
+                            {t('externalSync.labels.from')}
+                          </p>
                           <p className="mt-1 text-slate-600">
                             {suggestion.externalEmailMessage.fromName ||
                               suggestion.externalEmailMessage.fromEmail ||
-                              'Unknown sender'}
+                              t('common.emptyStates.unknownSender')}
                           </p>
                           {suggestion.externalEmailMessage.fromEmail ? (
                             <p className="mt-1 break-all text-xs text-slate-500">
@@ -1300,24 +1347,30 @@ const canCreateGmailDraft =
                         </div>
 
                         <div className="md:col-span-2">
-                          <p className="font-medium text-slate-950">Snippet</p>
+                          <p className="font-medium text-slate-950">
+                            {t('aiSuggestions.detail.snippet')}
+                          </p>
                           <p className="mt-1 leading-6 text-slate-600">
                             {suggestion.externalEmailMessage.snippet ??
-                              'No snippet available'}
+                              t('common.emptyStates.noSnippet')}
                           </p>
                         </div>
 
                         <div>
-                          <p className="font-medium text-slate-950">Internal date</p>
+                          <p className="font-medium text-slate-950">
+                            {t('aiSuggestions.detail.internalDate')}
+                          </p>
                           <p className="mt-1 text-slate-600">
                             {suggestion.externalEmailMessage.internalDate
                               ? formatDateTime(suggestion.externalEmailMessage.internalDate)
-                              : 'Not set'}
+                              : t('common.emptyStates.notSet')}
                           </p>
                         </div>
 
                         <div>
-                          <p className="font-medium text-slate-950">Synced at</p>
+                          <p className="font-medium text-slate-950">
+                            {t('aiSuggestions.detail.syncedAt')}
+                          </p>
                           <p className="mt-1 text-slate-600">
                             {formatDateTime(suggestion.externalEmailMessage.syncedAt)}
                           </p>
@@ -1325,12 +1378,14 @@ const canCreateGmailDraft =
                       </>
                     ) : (
                       <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500">
-                        Email metadata relation was not loaded.
+                        {t('aiSuggestions.detail.emailMetadataMissing')}
                       </div>
                     )}
 
                     <div>
-                      <p className="font-medium text-slate-950">External email message ID</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.externalEmailMessageId')}
+                      </p>
                       <p className="mt-1 break-all text-slate-600">
                         {suggestion.externalEmailMessageId ?? 'Not linked'}
                       </p>
@@ -1338,52 +1393,76 @@ const canCreateGmailDraft =
 
                     <div>
                       <p className="font-medium text-slate-950">
-                        External provider message ID
+                        {t('aiSuggestions.detail.externalProviderMessageId')}
                       </p>
                       <p className="mt-1 break-all text-slate-600">
-                        {String(suggestion.metadataJson?.externalMessageId ?? 'Not set')}
+                        {String(
+                          suggestion.metadataJson?.externalMessageId ??
+                            t('common.emptyStates.notSet'),
+                        )}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">External thread ID</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.externalThreadId')}
+                      </p>
                       <p className="mt-1 break-all text-slate-600">
-                        {String(suggestion.metadataJson?.externalThreadId ?? 'Not set')}
+                        {String(
+                          suggestion.metadataJson?.externalThreadId ??
+                            t('common.emptyStates.notSet'),
+                        )}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Connected account ID</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.connectedAccountId')}
+                      </p>
                       <p className="mt-1 break-all text-slate-600">
-                        {String(suggestion.metadataJson?.connectedAccountId ?? 'Not set')}
+                        {String(
+                          suggestion.metadataJson?.connectedAccountId ??
+                            t('common.emptyStates.notSet'),
+                        )}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Analysis scope</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.analysisScope')}
+                      </p>
                       <p className="mt-1 text-slate-600">
                         {String(suggestion.metadataJson?.aiAnalysisScope ?? 'metadata_only')}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Body stored</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.bodyStored')}
+                      </p>
                       <p className="mt-1 text-slate-600">
-                        {formatBooleanFlag(suggestion.metadataJson?.bodyStored)}
+                        {formatBooleanFlag(suggestion.metadataJson?.bodyStored, t)}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">CRM records created</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.crmRecordsCreated')}
+                      </p>
                       <p className="mt-1 text-slate-600">
-                        {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated)}
+                        {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated, t)}
                       </p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Email sent automatically</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.emailSentAutomatically')}
+                      </p>
                       <p className="mt-1 text-slate-600">
-                        {formatBooleanFlag(suggestion.metadataJson?.emailSentAutomatically)}
+                        {formatBooleanFlag(
+                          suggestion.metadataJson?.emailSentAutomatically,
+                          t,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1395,15 +1474,13 @@ const canCreateGmailDraft =
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
                       <p className="text-sm font-medium text-blue-700">
-                        Email draft preview
+                        {t('aiSuggestions.detail.emailDraftPreview')}
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        Review suggested reply
+                        {t('aiSuggestions.detail.reviewEmailDraft')}
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Review the suggested reply before creating anything in Gmail.
-                        Creating a Gmail draft requires your explicit action, and no
-                        email is sent automatically.
+                        {t('aiSuggestions.detail.emailDraftSafetyDescription')}
                       </p>
                     </div>
 
@@ -1423,14 +1500,18 @@ const canCreateGmailDraft =
                   <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
                     <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-4 text-sm">
                       <div className="grid gap-1 md:grid-cols-[96px_1fr]">
-                        <p className="font-medium text-slate-500">To</p>
+                        <p className="font-medium text-slate-500">
+                          {t('aiSuggestions.detail.to')}
+                        </p>
                         <p className="break-words font-medium text-slate-950">
                           {replyDraftRecipient}
                         </p>
                       </div>
 
                       <div className="grid gap-1 md:grid-cols-[96px_1fr]">
-                        <p className="font-medium text-slate-500">Subject</p>
+                        <p className="font-medium text-slate-500">
+                          {t('aiSuggestions.detail.subject')}
+                        </p>
                         <p className="break-words font-medium text-slate-950">
                           {replyDraftSubject}
                         </p>
@@ -1439,22 +1520,26 @@ const canCreateGmailDraft =
 
                     <div className="bg-white p-5">
                       <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
-                        {suggestion.outputText ?? 'No reply draft available.'}
+                        {suggestion.outputText ?? t('common.emptyStates.notSet')}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-3">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">Tone</p>
+                      <p className="text-sm font-medium text-slate-950">
+                        {t('aiSuggestions.detail.tone')}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {replyDraftTone ? formatEnumLabel(replyDraftTone) : 'Not set'}
+                        {replyDraftTone
+                          ? formatEnumLabel(replyDraftTone)
+                          : t('common.emptyStates.notSet')}
                       </p>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-medium text-slate-950">
-                        Confidence
+                        {t('aiSuggestions.labels.confidence')}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {replyDraftConfidence}
@@ -1463,7 +1548,7 @@ const canCreateGmailDraft =
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-medium text-slate-950">
-                        Analysis scope
+                        {t('aiSuggestions.detail.analysisScope')}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {String(
@@ -1475,7 +1560,9 @@ const canCreateGmailDraft =
                   </div>
 
                   <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-medium text-slate-950">Reasoning</p>
+                    <p className="text-sm font-medium text-slate-950">
+                      {t('aiSuggestions.detail.reasoning')}
+                    </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                       {replyDraftReasoning}
                     </p>
@@ -1483,11 +1570,11 @@ const canCreateGmailDraft =
 
                   <div className="mt-5 grid gap-3 md:grid-cols-2">
                     {[
-                      'Human review required',
-                      'Metadata-only analysis',
-                      'No automatic email sending',
-                      'No automatic CRM changes',
-                      'Gmail draft creation requires explicit user action',
+                      t('common.safety.humanReviewRequired'),
+                      t('common.safety.metadataOnly'),
+                      t('common.safety.noAutomaticEmailSending'),
+                      t('common.safety.noAutomaticCrmChanges'),
+                      t('common.safety.explicitDraftAction'),
                     ].map((label) => (
                       <div
                         key={label}
@@ -1505,20 +1592,24 @@ const canCreateGmailDraft =
                           {t('aiSuggestions.completedActions.gmailDraftCreated')}
                         </p>
                         <p className="mt-2 leading-6">
-                          A Gmail draft was created. The email was NOT sent automatically.
+                          {t('aiSuggestions.detail.gmailDraftCreatedNotice')}
                         </p>
 
                         <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                           <div>
-                            <p className="font-medium">Gmail draft ID</p>
+                            <p className="font-medium">
+                              {t('aiSuggestions.detail.gmailDraftId')}
+                            </p>
                             <p className="mt-1 break-all text-emerald-800">
-                              {gmailDraftId ?? 'Created'}
+                              {gmailDraftId ?? t('common.labels.created')}
                             </p>
                           </div>
 
                           {gmailThreadId ? (
                             <div>
-                              <p className="font-medium">Gmail thread ID</p>
+                              <p className="font-medium">
+                                {t('aiSuggestions.detail.gmailThreadId')}
+                              </p>
                               <p className="mt-1 break-all text-emerald-800">
                                 {gmailThreadId}
                               </p>
@@ -1527,7 +1618,9 @@ const canCreateGmailDraft =
 
                           {gmailDraftCreatedAt ? (
                             <div>
-                              <p className="font-medium">Created at</p>
+                              <p className="font-medium">
+                                {t('common.labels.createdAt')}
+                              </p>
                               <p className="mt-1 text-emerald-800">
                                 {formatDateTime(gmailDraftCreatedAt)}
                               </p>
@@ -1536,7 +1629,9 @@ const canCreateGmailDraft =
 
                           {gmailDraftCreatedByUserId ? (
                             <div>
-                              <p className="font-medium">Created by user ID</p>
+                              <p className="font-medium">
+                                {t('aiSuggestions.detail.createdByUserId')}
+                              </p>
                               <p className="mt-1 break-all text-emerald-800">
                                 {gmailDraftCreatedByUserId}
                               </p>
@@ -1558,10 +1653,10 @@ const canCreateGmailDraft =
                     {canCreateGmailDraft ? (
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                         <p className="text-sm font-semibold text-blue-900">
-                          Create a Gmail draft
+                          {t('aiSuggestions.detail.createGmailDraftTitle')}
                         </p>
                         <p className="mt-1 text-sm leading-6 text-blue-800">
-                          A Gmail draft will be created, but no email will be sent automatically.
+                          {t('aiSuggestions.detail.createGmailDraftDescription')}
                         </p>
 
                         <button
@@ -1571,7 +1666,7 @@ const canCreateGmailDraft =
                           className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {isApplying === 'gmail-draft'
-                            ? 'Creating Gmail draft...'
+                            ? t('aiSuggestions.detail.creatingGmailDraft')
                             : t('common.actions.createGmailDraft')}
                         </button>
                       </div>
@@ -1583,50 +1678,62 @@ const canCreateGmailDraft =
               {isExternalCalendarSuggestion ? (
   <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
     <h2 className="text-lg font-semibold text-slate-950">
-      External calendar metadata
+      {t('aiSuggestions.detail.externalCalendarMetadata')}
     </h2>
 
     <div className="mt-5 grid gap-4 text-sm md:grid-cols-2">
       {suggestion.externalCalendarEvent ? (
         <>
           <div>
-            <p className="font-medium text-slate-950">Summary</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.detail.summary')}
+            </p>
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.summary ?? 'No title'}
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">Status</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.list.status')}
+            </p>
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.status
                 ? formatEnumLabel(suggestion.externalCalendarEvent.status)
-                : 'Not set'}
+                : t('common.emptyStates.notSet')}
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">Start</p>
+            <p className="font-medium text-slate-950">
+              {t('externalSync.labels.start')}
+            </p>
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.startAt
                 ? formatDateTime(suggestion.externalCalendarEvent.startAt)
-                : 'Not set'}
+                : t('common.emptyStates.notSet')}
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">End</p>
+            <p className="font-medium text-slate-950">
+              {t('externalSync.labels.end')}
+            </p>
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.endAt
                 ? formatDateTime(suggestion.externalCalendarEvent.endAt)
-                : 'Not set'}
+                : t('common.emptyStates.notSet')}
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">All day</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.detail.allDay')}
+            </p>
             <p className="mt-1 text-slate-600">
-              {suggestion.externalCalendarEvent.isAllDay ? 'Yes' : 'No'}
+              {suggestion.externalCalendarEvent.isAllDay
+                ? t('common.labels.yes')
+                : t('common.labels.no')}
             </p>
           </div>
 
@@ -1635,7 +1742,7 @@ const canCreateGmailDraft =
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.organizerName ||
                 suggestion.externalCalendarEvent.organizerEmail ||
-                'Unknown organizer'}
+                t('common.emptyStates.unknownOrganizer')}
             </p>
             {suggestion.externalCalendarEvent.organizerEmail ? (
               <p className="mt-1 break-all text-xs text-slate-500">
@@ -1647,7 +1754,8 @@ const canCreateGmailDraft =
           <div>
             <p className="font-medium text-slate-950">iCal UID</p>
             <p className="mt-1 break-all text-slate-600">
-              {suggestion.externalCalendarEvent.iCalUid ?? 'Not set'}
+              {suggestion.externalCalendarEvent.iCalUid ??
+                t('common.emptyStates.notSet')}
             </p>
           </div>
 
@@ -1660,7 +1768,9 @@ const canCreateGmailDraft =
 
           {suggestion.externalCalendarEvent.location ? (
             <div>
-              <p className="font-medium text-slate-950">Location</p>
+              <p className="font-medium text-slate-950">
+                {t('externalSync.labels.location')}
+              </p>
               <p className="mt-1 text-slate-600">
                 {suggestion.externalCalendarEvent.location}
               </p>
@@ -1669,70 +1779,98 @@ const canCreateGmailDraft =
 
           {suggestion.externalCalendarEvent.htmlLink ? (
             <div>
-              <p className="font-medium text-slate-950">Google Calendar link</p>
+              <p className="font-medium text-slate-950">
+                {t('aiSuggestions.detail.googleCalendarLink')}
+              </p>
               <a
                 href={suggestion.externalCalendarEvent.htmlLink}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-1 inline-flex text-blue-700 hover:text-blue-800"
               >
-                Open event
+                {t('aiSuggestions.detail.openEvent')}
               </a>
             </div>
           ) : null}
         </>
       ) : (
         <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500">
-          Calendar metadata relation was not loaded.
+          {t('aiSuggestions.detail.calendarMetadataMissing')}
         </div>
       )}
 
       <div>
-        <p className="font-medium text-slate-950">External calendar event ID</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.externalCalendarEventId')}
+        </p>
         <p className="mt-1 break-all text-slate-600">
           {suggestion.externalCalendarEventId ?? 'Not linked'}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">External calendar ID</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.externalCalendarId')}
+        </p>
         <p className="mt-1 break-all text-slate-600">
-          {String(suggestion.metadataJson?.externalCalendarId ?? 'Not set')}
+          {String(
+            suggestion.metadataJson?.externalCalendarId ??
+              t('common.emptyStates.notSet'),
+          )}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">External event ID</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.externalEventId')}
+        </p>
         <p className="mt-1 break-all text-slate-600">
-          {String(suggestion.metadataJson?.externalEventId ?? 'Not set')}
+          {String(
+            suggestion.metadataJson?.externalEventId ??
+              t('common.emptyStates.notSet'),
+          )}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">Connected account ID</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.connectedAccountId')}
+        </p>
         <p className="mt-1 break-all text-slate-600">
-          {String(suggestion.metadataJson?.connectedAccountId ?? 'Not set')}
+          {String(
+            suggestion.metadataJson?.connectedAccountId ??
+              t('common.emptyStates.notSet'),
+          )}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">Analysis scope</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.analysisScope')}
+        </p>
         <p className="mt-1 text-slate-600">
           {String(suggestion.metadataJson?.aiAnalysisScope ?? 'metadata_only')}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">CRM records created</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.crmRecordsCreated')}
+        </p>
         <p className="mt-1 text-slate-600">
-          {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated)}
+          {formatBooleanFlag(suggestion.metadataJson?.crmRecordsCreated, t)}
         </p>
       </div>
 
       <div>
-        <p className="font-medium text-slate-950">Email sent automatically</p>
+        <p className="font-medium text-slate-950">
+          {t('aiSuggestions.detail.emailSentAutomatically')}
+        </p>
         <p className="mt-1 text-slate-600">
-          {formatBooleanFlag(suggestion.metadataJson?.emailSentAutomatically)}
+          {formatBooleanFlag(
+            suggestion.metadataJson?.emailSentAutomatically,
+            t,
+          )}
         </p>
       </div>
     </div>
@@ -1746,14 +1884,13 @@ const canCreateGmailDraft =
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
                       <p className="text-sm font-medium text-blue-700">
-                        External calendar review
+                        {t('aiSuggestions.detail.externalCalendarReview')}
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        Synced calendar metadata analysis
+                        {t('aiSuggestions.detail.syncedCalendarMetadata')}
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        This recommendation was generated from synced calendar metadata only.
-                        It does not create CRM records, tasks, notes, or emails automatically.
+                        {t('aiSuggestions.detail.calendarReviewDescription')}
                       </p>
                     </div>
 
@@ -1764,14 +1901,18 @@ const canCreateGmailDraft =
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">Importance</p>
+                      <p className="text-sm font-medium text-slate-950">
+                        {t('aiSuggestions.detail.importance')}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {formatEnumLabel(suggestion.outputJson.importanceLevel)}
                       </p>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">Suggested action</p>
+                      <p className="text-sm font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedAction')}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
                       </p>
@@ -1780,12 +1921,16 @@ const canCreateGmailDraft =
 
                   <div className="mt-6 space-y-5 text-sm text-slate-700">
                     <div>
-                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.summary')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Detected signals</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.detectedSignals')}
+                      </p>
 
                       {suggestion.outputJson.detectedSignals.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -1799,17 +1944,23 @@ const canCreateGmailDraft =
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-1 leading-6 text-slate-500">No signals detected.</p>
+                        <p className="mt-1 leading-6 text-slate-500">
+                          {t('aiSuggestions.detail.noSignalsDetected')}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedNote')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested tasks</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedTasks')}
+                      </p>
 
                       {suggestion.outputJson.suggestedTasks.length > 0 ? (
                         <div className="mt-2 space-y-3">
@@ -1821,21 +1972,25 @@ const canCreateGmailDraft =
                               <p className="font-medium text-slate-950">{task.title}</p>
                               <p className="mt-1 leading-6">{task.description}</p>
                               <p className="mt-2 text-xs text-slate-500">
-                                Priority: {formatEnumLabel(task.priority)} · Due in{' '}
-                                {task.dueInDays} day(s)
+                                {t('common.labels.priority')}:{' '}
+                                {getPriorityLabel(task.priority, t)} ·{' '}
+                                {t('common.labels.dueIn')} {task.dueInDays}{' '}
+                                {t('common.labels.days')}
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <p className="mt-1 leading-6 text-slate-500">
-                          No task candidate suggested.
+                          {t('aiSuggestions.detail.noTaskCandidate')}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.reasoningSummary')}
+                      </p>
                       <p className="mt-1 leading-6">
                         {suggestion.outputJson.reasoningSummary}
                       </p>
@@ -1851,14 +2006,13 @@ const canCreateGmailDraft =
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
                       <p className="text-sm font-medium text-blue-700">
-                        External email review
+                        {t('aiSuggestions.detail.externalEmailReview')}
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        Synced email metadata analysis
+                        {t('aiSuggestions.detail.syncedEmailMetadata')}
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        This recommendation was generated from synced email metadata/snippet
-                        only. It does not create CRM records or send emails automatically.
+                        {t('aiSuggestions.detail.emailReviewDescription')}
                       </p>
                     </div>
 
@@ -1869,14 +2023,18 @@ const canCreateGmailDraft =
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">Importance</p>
+                      <p className="text-sm font-medium text-slate-950">
+                        {t('aiSuggestions.detail.importance')}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {formatEnumLabel(suggestion.outputJson.importanceLevel)}
                       </p>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-950">Suggested action</p>
+                      <p className="text-sm font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedAction')}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">
                         {formatEnumLabel(suggestion.outputJson.suggestedReviewAction)}
                       </p>
@@ -1885,12 +2043,16 @@ const canCreateGmailDraft =
 
                   <div className="mt-6 space-y-5 text-sm text-slate-700">
                     <div>
-                      <p className="font-medium text-slate-950">Summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.summary')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.summary}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Detected signals</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.detectedSignals')}
+                      </p>
 
                       {suggestion.outputJson.detectedSignals.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -1904,17 +2066,23 @@ const canCreateGmailDraft =
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-1 leading-6 text-slate-500">No signals detected.</p>
+                        <p className="mt-1 leading-6 text-slate-500">
+                          {t('aiSuggestions.detail.noSignalsDetected')}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested note</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedNote')}
+                      </p>
                       <p className="mt-1 leading-6">{suggestion.outputJson.suggestedNote}</p>
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Suggested tasks</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.suggestedTasks')}
+                      </p>
 
                       {suggestion.outputJson.suggestedTasks.length > 0 ? (
                         <div className="mt-2 space-y-3">
@@ -1926,21 +2094,25 @@ const canCreateGmailDraft =
                               <p className="font-medium text-slate-950">{task.title}</p>
                               <p className="mt-1 leading-6">{task.description}</p>
                               <p className="mt-2 text-xs text-slate-500">
-                                Priority: {formatEnumLabel(task.priority)} · Due in{' '}
-                                {task.dueInDays} day(s)
+                                {t('common.labels.priority')}:{' '}
+                                {getPriorityLabel(task.priority, t)} ·{' '}
+                                {t('common.labels.dueIn')} {task.dueInDays}{' '}
+                                {t('common.labels.days')}
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <p className="mt-1 leading-6 text-slate-500">
-                          No task candidate suggested.
+                          {t('aiSuggestions.detail.noTaskCandidate')}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <p className="font-medium text-slate-950">Reasoning summary</p>
+                      <p className="font-medium text-slate-950">
+                        {t('aiSuggestions.detail.reasoningSummary')}
+                      </p>
                       <p className="mt-1 leading-6">
                         {suggestion.outputJson.reasoningSummary}
                       </p>
@@ -1985,13 +2157,14 @@ const canCreateGmailDraft =
         suggestion.status === 'EDITED_AND_ACCEPTED') ? (
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-sm font-medium text-blue-700">Apply to CRM</p>
+            <p className="text-sm font-medium text-blue-700">
+              {t('aiSuggestions.detail.applyToCrm')}
+            </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Convert reviewed suggestion into official CRM data
+              {t('aiSuggestions.detail.convertToCrmData')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              These actions require an explicit human click. Nothing is applied
-              automatically, and no email is sent.
+              {t('aiSuggestions.detail.explicitApplyDescription')}
             </p>
           </div>
 
@@ -2000,16 +2173,16 @@ const canCreateGmailDraft =
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
                   <h3 className="font-semibold text-slate-950">
-                    Apply recommended next step
+                    {t('aiSuggestions.detail.applyRecommendedNextStep')}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Updates the official lead nextStep field.
+                    {t('aiSuggestions.detail.updatesLeadNextStep')}
                   </p>
                 </div>
 
                 {nextStepApplied ? (
                   <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    Applied
+                    {t('common.actions.applied')}
                   </Badge>
                 ) : null}
               </div>
@@ -2034,7 +2207,7 @@ const canCreateGmailDraft =
                 className="mt-3 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isApplying === 'lead-next-step'
-                  ? 'Applying...'
+                  ? t('common.actions.applying')
                   : nextStepApplied
                     ? t('aiSuggestions.completedActions.nextStepApplied')
                     : t('common.actions.applyNextStep')}
@@ -2045,23 +2218,25 @@ const canCreateGmailDraft =
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
                   <h3 className="font-semibold text-slate-950">
-                    Create suggested task
+                    {t('aiSuggestions.detail.createSuggestedTask')}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Creates an official task linked to this lead.
+                    {t('aiSuggestions.detail.createsOfficialTask')}
                   </p>
                 </div>
 
                 {taskApplied ? (
                   <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    Applied
+                    {t('common.actions.applied')}
                   </Badge>
                 ) : null}
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-slate-700">Title</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t('aiSuggestions.detail.title')}
+                  </span>
                   <input
                     value={taskTitleDraft}
                     onChange={(event) => setTaskTitleDraft(event.target.value)}
@@ -2072,7 +2247,7 @@ const canCreateGmailDraft =
 
                 <label className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Description
+                    {t('aiSuggestions.detail.description')}
                   </span>
                   <textarea
                     value={taskDescriptionDraft}
@@ -2087,7 +2262,7 @@ const canCreateGmailDraft =
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Priority
+                    {t('aiSuggestions.detail.priority')}
                   </span>
                   <select
                     value={taskPriorityDraft}
@@ -2103,16 +2278,16 @@ const canCreateGmailDraft =
                     disabled={taskApplied || !canApplySuggestion}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="CRITICAL">Critical</option>
+                    <option value="LOW">{t('aiSuggestions.detail.low')}</option>
+                    <option value="MEDIUM">{t('aiSuggestions.detail.medium')}</option>
+                    <option value="HIGH">{t('aiSuggestions.detail.high')}</option>
+                    <option value="CRITICAL">{t('aiSuggestions.detail.critical')}</option>
                   </select>
                 </label>
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Due date optional
+                    {t('aiSuggestions.detail.dueDateOptional')}
                   </span>
                   <input
                     type="datetime-local"
@@ -2138,8 +2313,8 @@ const canCreateGmailDraft =
                 {isApplying === 'task'
                   ? t('common.actions.creating')
                   : taskApplied
-                    ? 'Task created'
-                    : 'Create task'}
+                    ? t('aiSuggestions.detail.taskCreated')
+                    : t('aiSuggestions.detail.createTask')}
               </button>
             </section>
 
@@ -2147,23 +2322,25 @@ const canCreateGmailDraft =
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
                   <h3 className="font-semibold text-slate-950">
-                    Create suggested note
+                    {t('aiSuggestions.detail.createSuggestedNote')}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Creates an official note linked to this lead.
+                    {t('aiSuggestions.detail.createsOfficialNote')}
                   </p>
                 </div>
 
                 {noteApplied ? (
                   <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-                    Applied
+                    {t('common.actions.applied')}
                   </Badge>
                 ) : null}
               </div>
 
               <div className="mt-4 space-y-3">
                 <label className="block space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Title</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t('aiSuggestions.detail.title')}
+                  </span>
                   <input
                     value={noteTitleDraft}
                     onChange={(event) => setNoteTitleDraft(event.target.value)}
@@ -2173,7 +2350,9 @@ const canCreateGmailDraft =
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Content</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t('aiSuggestions.detail.content')}
+                  </span>
                   <textarea
                     value={noteContentDraft}
                     onChange={(event) => setNoteContentDraft(event.target.value)}
@@ -2198,8 +2377,8 @@ const canCreateGmailDraft =
                 {isApplying === 'note'
                   ? t('common.actions.creating')
                   : noteApplied
-                    ? 'Note created'
-                    : 'Create note'}
+                    ? t('aiSuggestions.detail.noteCreated')
+                    : t('aiSuggestions.detail.createNote')}
               </button>
             </section>
           </div>
@@ -2779,18 +2958,18 @@ const canCreateGmailDraft =
                       </>
                     ) : (
                       <p className="text-sm text-slate-500">
-                        You do not have permission to review this suggestion.
+                        {t('aiSuggestions.detail.noReviewPermission')}
                       </p>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  This suggestion has already been reviewed as{' '}
+                  {t('aiSuggestions.detail.alreadyReviewedPrefix')}{' '}
                   <span className="font-semibold">
-                    {formatEnumLabel(suggestion.status)}
+                    {getAiStatusLabel(suggestion.status, t)}
                   </span>
-                  . No CRM changes were applied automatically.
+                  . {t('aiSuggestions.detail.alreadyReviewedSuffix')}
                 </div>
               )}
             </article>
@@ -2837,7 +3016,8 @@ const canCreateGmailDraft =
                     {t('aiSuggestions.detail.reviewedBy')}
                   </dt>
                   <dd className="font-medium text-slate-800">
-                    {suggestion.reviewedBy?.name ?? 'Not reviewed'}
+                    {suggestion.reviewedBy?.name ??
+                      t('aiSuggestions.detail.notReviewed')}
                   </dd>
                 </div>
 
@@ -2855,7 +3035,8 @@ const canCreateGmailDraft =
                     {t('aiSuggestions.labels.model')}
                   </dt>
                   <dd className="font-medium text-slate-800">
-                    {suggestion.metadataJson?.model ?? 'Not set'}
+                    {suggestion.metadataJson?.model ??
+                      t('common.emptyStates.notSet')}
                   </dd>
                 </div>
 
@@ -2864,7 +3045,8 @@ const canCreateGmailDraft =
                     {t('aiSuggestions.detail.tokens')}
                   </dt>
                   <dd className="font-medium text-slate-800">
-                    Input {suggestion.tokensInput ?? 0} · Output{' '}
+                    {t('common.labels.input')} {suggestion.tokensInput ?? 0} ·{' '}
+                    {t('common.labels.output')}{' '}
                     {suggestion.tokensOutput ?? 0}
                   </dd>
                 </div>

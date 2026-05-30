@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { NoteForm } from '@/components/NoteForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   createNote,
@@ -23,6 +24,7 @@ import type {
 export default function NewNotePage() {
   const router = useRouter();
   const { token } = useAuth();
+  const { t } = useI18n();
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -80,7 +82,7 @@ export default function NewNotePage() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Could not load related CRM records.');
+          setErrorMessage(t('crm.notes.loadRelationsFailed'));
         }
       } finally {
         if (isMounted) {
@@ -94,11 +96,11 @@ export default function NewNotePage() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function handleCreateNote(values: CreateNoteInput) {
     if (!token) {
-      setErrorMessage('Your session is not ready. Please try again.');
+      setErrorMessage(t('crm.common.sessionNotReady'));
       return;
     }
 
@@ -114,7 +116,7 @@ export default function NewNotePage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not create note.');
+        setErrorMessage(t('crm.notes.createFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -128,19 +130,18 @@ export default function NewNotePage() {
           href="/dashboard/notes"
           className="text-sm font-medium text-blue-700 transition hover:text-blue-900"
         >
-          ← Back to notes
+          ← {t('crm.common.backToNotes')}
         </Link>
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            CRM Management
+            {t('crm.common.crmManagement')}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            New note
+            {t('crm.notes.new')}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Create a commercial note and optionally link it to a company,
-            contact, or lead.
+            {t('crm.notes.newDescription')}
           </p>
         </div>
       </section>
@@ -158,7 +159,7 @@ export default function NewNotePage() {
           companies={companies}
           contacts={contacts}
           leads={leads}
-          submitLabel="Create note"
+          submitLabel={t('crm.common.createNote')}
           isSubmitting={isSubmitting}
           onSubmit={handleCreateNote}
         />
