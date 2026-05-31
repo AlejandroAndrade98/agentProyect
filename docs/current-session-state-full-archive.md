@@ -5598,3 +5598,84 @@ Top blockers:
 - Worker/background sync not implemented.
 - Docker production commands need verification.
 - API port config mismatch: config exposes `API_PORT`, but `main.ts` listens on `4000` directly.
+
+
+## Phase 18D, Security Hardening and Rate Limiting
+
+Status: completed locally, validated, pending commit/push.
+
+This phase implemented base API security hardening without adding new dependencies and without changing Prisma schema, routes, or functional API contracts.
+
+Backend security implemented:
+
+- Added in-memory rate limiting for:
+  - `auth/login`
+  - `auth/refresh`
+  - Google OAuth start/callback
+  - manual Gmail sync
+  - manual Calendar sync
+  - AI suggestion generation
+  - explicit Gmail draft creation
+
+- Added basic anti-brute-force protection for login attempts using IP + email keys.
+- Added security headers similar to Helmet without installing Helmet.
+- Added `X-Request-Id` generation/acceptance.
+- Exposed `X-Request-Id` through CORS.
+- Added global exception filtering with token/secret redaction.
+- Added generic 500 responses for uncontrolled errors.
+- Added configurable request body limit using `REQUEST_BODY_LIMIT`, defaulting to `1mb`.
+
+Files/areas touched:
+
+- `apps/api/src/common/security`
+- `apps/api/src/main.ts`
+- `apps/api/src/config/configuration.ts`
+- auth controllers/modules
+- connected account OAuth controllers/modules
+- external sync controllers/modules
+- AI suggestions controllers/modules
+- `.env.example`
+- `.github/workflows/ci.yml`
+- `scripts/smoke-static.mjs`
+- deployment/env/audit docs
+- `docs/security-hardening.md`
+
+Safety and behavior preserved:
+
+- No Prisma schema changes.
+- No migrations.
+- No route changes.
+- No functional API contract changes.
+- No auth/RBAC behavior changes.
+- No Google OAuth behavior changes.
+- No AI behavior changes.
+- No email sending added.
+- No automatic Gmail draft creation added.
+- No automatic CRM record creation added.
+- No background jobs added.
+- Human-in-the-loop AI safety rules remain unchanged.
+
+Validation completed locally:
+
+- `corepack pnpm --filter @sales-ai/api build` passed.
+- `corepack pnpm db:validate` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm smoke:static` passed.
+- `corepack pnpm check:generated` passed.
+- `corepack pnpm build` passed.
+- `git diff --check` passed with only normal Windows line-ending warnings.
+- Build-generated artifacts were restored and the generated artifact guard passed again.
+
+Known limitation:
+
+- The current rate limiter is in-memory and per-process. For multi-instance production, this needs Redis/shared-store rate limiting or ingress/proxy-level rate limiting.
+
+Remaining production security follow-ups:
+
+- Structured logging.
+- Alerting for auth/rate-limit/server-error spikes.
+- RBAC and tenant isolation tests.
+- Runtime smoke tests in staging.
+- Google OAuth production hardening.
+- Backup/restore drill.
+- Background/scheduled sync workers.

@@ -13,6 +13,7 @@ jobs:
     env:
       NODE_ENV: test
       API_PORT: "4000"
+      REQUEST_BODY_LIMIT: 1mb
       WEB_PORT: "3000"
       NEXT_PUBLIC_API_URL: http://localhost:4000/api
       FRONTEND_URL: http://localhost:3000

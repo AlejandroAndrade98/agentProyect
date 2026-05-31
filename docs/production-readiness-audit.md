@@ -5,7 +5,9 @@ Scope: Sales AI Platform repository audit only. No application behavior, API con
 
 Phase 18B follow-up: API port alignment, web Docker start command, production env checklist, and deployment runbook were prepared after this audit.
 
-Phase 18C follow-up: a GitHub Actions CI foundation, static smoke script, and generated-artifact guard were added. Remaining blockers still include deployment automation, rate limiting, monitoring/logging, Google OAuth production verification/configuration, backup restore drills, staging runtime smoke tests, and background worker implementation.
+Phase 18C follow-up: a GitHub Actions CI foundation, static smoke script, and generated-artifact guard were added.
+
+Phase 18D follow-up: process-local rate limiting, auth brute-force protection, API security headers, request body limits, request IDs, and production-safe exception redaction were added. Remaining blockers still include distributed rate limiting for multi-instance deployments, deployment automation, structured monitoring/logging, Google OAuth production verification/configuration, backup restore drills, staging runtime smoke tests, tenant/RBAC test coverage, and background worker implementation.
 
 ## 1. Executive Summary
 
@@ -40,8 +42,8 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | AI usage governance | Mostly ready | Organization/user limits, credit balance, records, and transactions exist. | Credit unit is approximate; no billing integration or alerting. | Good for beta; add alerts and billing reconciliation later. |
 | Human-in-the-loop safety | Ready | AI suggestions require review; apply endpoints are explicit; safety metadata is stored. | Low if UI and API controls remain unchanged. | Keep safety tests for accept/reject/apply/Gmail draft paths. |
 | Email sending safety | Ready | No send email endpoint found; Gmail draft creation is explicit and accepted-suggestion only. | Low. | Preserve no-send invariant in tests. |
-| Logging/error handling | Needs small fix | Nest defaults and stored `lastError` fields exist; no structured logging strategy. | Sensitive provider/API errors can leak into DB/UI/logs; debugging production is harder. | Add structured logger policy, redaction, and error classification. |
-| Rate limiting | Blocker | No throttling middleware/module found. | Login, AI generation, OAuth, and sync endpoints can be abused. | Add API rate limiting and per-user/tenant AI/sync throttles. |
+| Logging/error handling | Partially ready | Global exception filter redacts sensitive values from 5xx logs, returns generic unknown 500 responses, and request IDs are emitted. | Full structured request logging, alerting, and provider error classification are still missing. | Add structured logger and monitoring/alert rules before public production. |
+| Rate limiting | Partially ready | Sensitive auth, OAuth, sync, AI generation, and Gmail draft creation endpoints use process-local throttling. | In-memory buckets do not coordinate across multiple API instances. | Add shared ingress/Redis-backed rate limiting before multi-instance or public production. |
 | Background jobs/sync | Blocker | `apps/worker` starts an application context; Redis/BullMQ dependency exists but no queues/jobs are wired. | Production sync, cleanup, retention, and retries are manual or absent. | Define worker responsibilities and queue architecture. |
 | CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. | No deployment automation, staging runtime smoke tests, or migration deploy gate yet. | Keep CI required for PRs; add staging deployment and runtime smoke checks in a later phase. |
 | Monitoring/health checks | Needs decision | API has `/api/health` with DB check. | No uptime, logs, alerts, queue, or external provider monitoring. | Add health endpoints for API/worker plus provider-level observability. |
@@ -242,7 +244,7 @@ Missing for production-grade AI governance:
 | Blocker | Why it matters | Suggested phase to fix |
 | --- | --- | --- |
 | Deployment automation not configured | CI validates builds and static smoke checks, but no staging/prod deploy path or runtime smoke gate exists yet. | 18G Private beta deployment |
-| No API rate limiting | Login, OAuth, sync, and AI endpoints can be abused. | 18D Security hardening/rate limiting |
+| No distributed API rate limiting | App-level in-memory throttling exists, but multi-instance production needs shared enforcement. | 18G Private beta deployment |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
 | Google OAuth production config not finalized | OAuth will fail or be limited to test users; sensitive scopes may need verification. | 18E Google OAuth production hardening |
 | No backup/restore plan | CRM data, OAuth tokens, AI usage, and audit records need recoverability. | 18B Production env and deployment config |

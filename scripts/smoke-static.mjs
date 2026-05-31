@@ -49,6 +49,7 @@ const requiredFiles = [
   "docs/production-readiness-audit.md",
   "docs/deployment-checklist.md",
   "docs/env-production-checklist.md",
+  "docs/security-hardening.md",
   "packages/database/prisma/schema.prisma",
   "apps/api/src/main.ts",
   "apps/api/src/app.module.ts",
@@ -70,6 +71,7 @@ const envExample = readText(".env.example");
 const requiredEnvKeys = [
   "NODE_ENV",
   "API_PORT",
+  "REQUEST_BODY_LIMIT",
   "NEXT_PUBLIC_API_URL",
   "DATABASE_URL",
   "DATABASE_URL_HOST",

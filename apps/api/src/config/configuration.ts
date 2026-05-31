@@ -5,6 +5,7 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('app', () => ({
   port: Number(process.env.API_PORT || 4000),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  requestBodyLimit: process.env.REQUEST_BODY_LIMIT || '1mb',
   databaseUrl: process.env.DATABASE_URL,
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,

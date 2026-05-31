@@ -33,6 +33,8 @@ Confirm:
 - `NEXT_PUBLIC_API_URL` points to the target API URL and includes `/api`.
 - `CORS_ORIGIN` includes the target frontend origin.
 - `GOOGLE_OAUTH_REDIRECT_URI` matches the production or staging API callback URL.
+- `REQUEST_BODY_LIMIT` is conservative for the deployed API.
+- Security hardening notes are reviewed in [security-hardening.md](./security-hardening.md).
 
 CI foundation:
 
@@ -49,6 +51,7 @@ Minimum required for API:
 
 - `NODE_ENV=production`
 - `API_PORT`
+- `REQUEST_BODY_LIMIT`
 - `DATABASE_URL`
 - `CORS_ORIGIN`
 - `JWT_ACCESS_SECRET`

@@ -10,6 +10,7 @@ Use this checklist for staging and production environment setup. Do not store re
 | --- | --- | --- | --- | --- | --- |
 | `NODE_ENV` | Yes | API, web, worker | Runtime mode. | `production` | Use `production` for deployed environments. |
 | `API_PORT` | Yes | API, Docker compose | API listen port. | `4000` | Managed platforms may provide a required port; set this to that value if needed. |
+| `REQUEST_BODY_LIMIT` | Recommended | API | Maximum JSON/urlencoded request body size accepted by the API. | `1mb` | Keep conservative; raise only for a documented upload/import endpoint. |
 | `WEB_PORT` | Docker only | Docker compose, Next container | Web listen port. | `3000` | For hosted Next platforms this may be ignored. |
 | `NEXT_PUBLIC_API_URL` | Yes | Web browser bundle | API base URL for frontend requests. | `https://api.example.com/api` | Must include `/api` with the current frontend client. |
 | `FRONTEND_URL` | Recommended | Runbooks/OAuth setup | Canonical frontend URL. | `https://app.example.com` | Documentation helper; current runtime primarily uses `CORS_ORIGIN`. |
@@ -96,4 +97,3 @@ Variables that must differ between staging and production:
 - `FRONTEND_URL`
 - `CORS_ORIGIN`
 - `MONITORING_ENVIRONMENT`
-

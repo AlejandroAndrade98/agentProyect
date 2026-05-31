@@ -502,3 +502,66 @@ Top blockers:
 - Worker/background sync not implemented.
 - Docker production commands need verification.
 - API port config mismatch: config exposes `API_PORT`, but `main.ts` listens on `4000` directly.
+
+## Latest completed phase
+
+Phase 18C CI/CD and Smoke Tests is completed and validated.
+
+Implemented:
+- GitHub Actions CI workflow for PRs and pushes to main.
+- Static smoke checks.
+- Generated artifact guard.
+- CI-safe dummy environment variables.
+- Validation commands for Prisma schema, web typecheck, API build, and full build.
+
+Validation passed:
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+No runtime behavior, backend routes, Prisma schema, auth/RBAC, OAuth, AI, email, Gmail, CRM automation, or background jobs changed.
+
+
+## Latest completed phase
+
+Phase 18D Security Hardening and Rate Limiting is completed and validated locally.
+
+Implemented:
+- In-memory rate limiting for sensitive API areas:
+  - auth login
+  - auth refresh
+  - Google OAuth start/callback
+  - manual Gmail/Calendar sync
+  - AI generation
+  - explicit Gmail draft creation
+- Basic anti-brute-force login protection by IP and email.
+- Security headers similar to Helmet without adding new dependencies.
+- `X-Request-Id` generation/acceptance and CORS exposure.
+- Global exception filter with token/secret redaction.
+- Generic 500 responses for uncontrolled server errors.
+- Configurable request body limit via `REQUEST_BODY_LIMIT=1mb`.
+- Security hardening documentation in `docs/security-hardening.md`.
+
+Validation passed locally:
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm build`
+- `git diff --check`
+
+Known production limitation:
+- Current rate limiting is per-process. Multi-instance production still needs Redis/shared rate limiting or ingress/proxy-level rate limiting.
+
+Remaining production security work:
+- Structured logging and redaction policy.
+- Alerts for 401/403/429/500 spikes.
+- RBAC and tenant-isolation tests.
+- Runtime smoke tests in staging.
+- Google OAuth production hardening.
+- Backup/restore drill.
+- Background/scheduled sync workers.

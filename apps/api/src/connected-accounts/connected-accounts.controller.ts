@@ -15,6 +15,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { CurrentUser } from '../auth/interfaces/current-user.interface';
+import { RateLimit } from '../common/security/rate-limit.decorator';
+import { RateLimitGuard } from '../common/security/rate-limit.guard';
 import { ConnectedAccountsService } from './connected-accounts.service';
 import { CreateDevConnectedAccountDto } from './dto/create-dev-connected-account.dto';
 import { QueryConnectedAccountsDto } from './dto/query-connected-accounts.dto';
@@ -60,6 +62,13 @@ export class ConnectedAccountsController {
 
   @Get('oauth/google/start')
   @Roles(...CONNECTED_ACCOUNTS_CONNECT_ROLES)
+  @RateLimit({
+    name: 'connectedAccounts.googleOAuthStart',
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   startGoogleOAuth(
     @CurrentUserDecorator() currentUser: CurrentUser,
     @Query() query: StartGoogleOAuthDto,
@@ -78,6 +87,13 @@ export class ConnectedAccountsController {
 
   @Post('dev-connect')
   @Roles(...CONNECTED_ACCOUNTS_CONNECT_ROLES)
+  @RateLimit({
+    name: 'connectedAccounts.devConnect',
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   devConnect(
     @CurrentUserDecorator() currentUser: CurrentUser,
     @Body() dto: CreateDevConnectedAccountDto,

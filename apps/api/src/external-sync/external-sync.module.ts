@@ -3,11 +3,12 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ConnectedAccountsModule } from '../connected-accounts/connected-accounts.module';
 import { DatabaseModule } from '../database/database.module';
+import { SecurityModule } from '../common/security/security.module';
 import { ExternalSyncController } from './external-sync.controller';
 import { ExternalSyncService } from './external-sync.service';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, ConnectedAccountsModule],
+  imports: [DatabaseModule, AuthModule, ConnectedAccountsModule, SecurityModule],
   controllers: [ExternalSyncController],
   providers: [ExternalSyncService],
   exports: [ExternalSyncService],

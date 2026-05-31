@@ -9,6 +9,8 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { CurrentUser as CurrentUserType } from '../auth/interfaces/current-user.interface';
+import { RateLimit } from '../common/security/rate-limit.decorator';
+import { RateLimitGuard } from '../common/security/rate-limit.guard';
 import { QueryExternalCalendarEventsDto } from './dto/query-external-calendar-events.dto';
 import { QueryExternalEmailMessagesDto } from './dto/query-external-email-messages.dto';
 import { ExternalSyncService } from './external-sync.service';
@@ -21,12 +23,26 @@ export class ExternalSyncController {
 
   @Post('email-messages/sync')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'externalSync.emailMessagesSync',
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   syncGmailMessages(@CurrentUser() currentUser: CurrentUserType) {
     return this.externalSyncService.syncGmailMessages(currentUser);
   }   
 
   @Post('calendar-events/sync')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'externalSync.calendarEventsSync',
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   syncGoogleCalendarEvents(@CurrentUser() currentUser: CurrentUserType) {
     return this.externalSyncService.syncGoogleCalendarEvents(currentUser);
   }

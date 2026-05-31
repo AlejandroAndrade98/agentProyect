@@ -19,6 +19,8 @@ import {
   CRM_READ_ROLES,
   CRM_WRITE_ROLES,
 } from '../auth/constants/role-groups';
+import { RateLimit } from '../common/security/rate-limit.decorator';
+import { RateLimitGuard } from '../common/security/rate-limit.guard';
 
 import { AiSuggestionsService } from './ai-suggestions.service';
 import { QueryAiSuggestionsDto } from './dto/query-ai-suggestions.dto';
@@ -55,6 +57,13 @@ export class AiSuggestionsController {
 
   @Post('leads/:leadId/next-steps')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'aiSuggestions.generateLeadNextSteps',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   generateLeadNextSteps(
     @Param('leadId') leadId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
@@ -69,6 +78,13 @@ export class AiSuggestionsController {
 
   @Post('external-sync/email-messages/:emailMessageId/analyze')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'aiSuggestions.analyzeExternalEmailMessage',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   analyzeExternalEmailMessage(
     @Param('emailMessageId') emailMessageId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
@@ -83,6 +99,13 @@ export class AiSuggestionsController {
 
   @Post('external-sync/email-messages/:emailMessageId/generate-reply-draft')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'aiSuggestions.generateExternalEmailReplyDraft',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   generateExternalEmailReplyDraft(
     @Param('emailMessageId') emailMessageId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
@@ -97,6 +120,13 @@ export class AiSuggestionsController {
 
   @Post('external-sync/calendar-events/:calendarEventId/analyze')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'aiSuggestions.analyzeExternalCalendarEvent',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   analyzeExternalCalendarEvent(
     @Param('calendarEventId') calendarEventId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
@@ -131,6 +161,13 @@ export class AiSuggestionsController {
 
   @Post(':id/create-gmail-draft')
   @Roles(...CRM_WRITE_ROLES)
+  @RateLimit({
+    name: 'aiSuggestions.createGmailDraft',
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    keyBy: 'userOrIp',
+  })
+  @UseGuards(RateLimitGuard)
   createGmailDraftFromEmailReplySuggestion(
     @Param('id') id: string,
     @CurrentUser() currentUser: CurrentUserPayload,

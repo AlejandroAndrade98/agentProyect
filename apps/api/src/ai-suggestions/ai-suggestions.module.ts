@@ -4,6 +4,7 @@ import { ActivityEventsModule } from '../activity-events/activity-events.module'
 import { AuthModule } from '../auth/auth.module';
 import { ConnectedAccountsModule } from '../connected-accounts/connected-accounts.module';
 import { DatabaseModule } from '../database/database.module';
+import { SecurityModule } from '../common/security/security.module';
 
 import { AiSuggestionProviderService } from './ai-suggestion-provider.service';
 import { AiSuggestionsController } from './ai-suggestions.controller';
@@ -18,6 +19,7 @@ import { AiUsageModule } from '../ai-usage/ai-usage.module';
     ActivityEventsModule,
     AiUsageModule,
     ConnectedAccountsModule,
+    SecurityModule,
   ],
   controllers: [AiSuggestionsController],
   providers: [
