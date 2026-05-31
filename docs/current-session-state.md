@@ -482,3 +482,23 @@ Behavior preserved:
 - No safety flags changed.
 - No AI generation changed.
 - AI-generated text still displays exactly as stored.
+
+## Latest completed phase
+
+Phase 18A Production Readiness Audit is completed and validated.
+
+Audit conclusion:
+- Local demo / early private beta level.
+- Private beta needs work.
+- Public production is blocked until production config, secrets, CI/CD, rate limiting, Google OAuth production readiness, backups, monitoring/logging, and background workers are addressed.
+
+Top blockers:
+- No CI/CD pipeline.
+- No API rate limiting.
+- Production secrets strategy not defined.
+- Google OAuth production config not finalized.
+- No backup/restore plan.
+- No monitoring/logging strategy.
+- Worker/background sync not implemented.
+- Docker production commands need verification.
+- API port config mismatch: config exposes `API_PORT`, but `main.ts` listens on `4000` directly.
