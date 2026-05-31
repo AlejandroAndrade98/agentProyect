@@ -27,7 +27,14 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(4000);
+  const configuredPort = Number(configService.get<string | number>('app.port'));
+  const port =
+    Number.isInteger(configuredPort) && configuredPort > 0
+      ? configuredPort
+      : 4000;
+
+  await app.listen(port);
+  console.log(`API listening on port ${port}`);
 }
 
 bootstrap();

@@ -7,4 +7,4 @@ COPY apps/web ./apps/web
 RUN pnpm install
 RUN pnpm run build
 EXPOSE 3000
-CMD ["pnpm", "start"]
+CMD ["pnpm", "--filter", "@sales-ai/web", "start"]

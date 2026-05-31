@@ -3,7 +3,7 @@
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('app', () => ({
-  port: process.env.API_PORT || 4000,
+  port: Number(process.env.API_PORT || 4000),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   databaseUrl: process.env.DATABASE_URL,
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
@@ -19,7 +19,9 @@ export default registerAs('app', () => ({
   connectedAccountTokenEncryptionKey:
     process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY,
   connectedAccountTokenEncryptionVersion:
-    process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION || 'v1',
+    process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION ||
+    process.env.CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION ||
+    'v1',
 
   aiProvider: process.env.AI_PROVIDER || 'mock',
   openAiApiKey: process.env.OPENAI_API_KEY,

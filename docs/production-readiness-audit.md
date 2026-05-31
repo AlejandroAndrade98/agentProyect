@@ -3,6 +3,8 @@
 Date: 2026-05-31  
 Scope: Sales AI Platform repository audit only. No application behavior, API contracts, Prisma schema, routes, dependencies, or deployment config were changed.
 
+Phase 18B follow-up: API port alignment, web Docker start command, production env checklist, and deployment runbook were prepared after this audit. Remaining blockers still include CI/CD, rate limiting, monitoring/logging, Google OAuth production verification/configuration, backup restore drills, and background worker implementation.
+
 ## 1. Executive Summary
 
 Current readiness level: Local demo to early private beta.
