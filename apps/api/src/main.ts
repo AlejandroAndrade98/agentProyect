@@ -7,10 +7,12 @@ import { AppModule } from './app.module';
 import { requestIdMiddleware } from './common/security/request-id.middleware';
 import { SafeExceptionFilter } from './common/security/safe-exception.filter';
 import { createSecurityHeadersMiddleware } from './common/security/security-headers.middleware';
+import { validateProductionConfiguration } from './config/production-config.validation';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
+  validateProductionConfiguration(configService);
 
   const corsOrigin =
     configService.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000';

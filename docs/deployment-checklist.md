@@ -33,8 +33,10 @@ Confirm:
 - `NEXT_PUBLIC_API_URL` points to the target API URL and includes `/api`.
 - `CORS_ORIGIN` includes the target frontend origin.
 - `GOOGLE_OAUTH_REDIRECT_URI` matches the production or staging API callback URL.
+- `FRONTEND_URL` points to the frontend URL that should receive successful Google OAuth callbacks.
 - `REQUEST_BODY_LIMIT` is conservative for the deployed API.
 - Security hardening notes are reviewed in [security-hardening.md](./security-hardening.md).
+- Google OAuth production readiness is reviewed in [google-oauth-production-checklist.md](./google-oauth-production-checklist.md).
 
 CI foundation:
 
@@ -54,6 +56,7 @@ Minimum required for API:
 - `REQUEST_BODY_LIMIT`
 - `DATABASE_URL`
 - `CORS_ORIGIN`
+- `FRONTEND_URL`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_EXPIRES_IN`
@@ -202,6 +205,7 @@ For self-hosted Docker only:
 
 Before enabling Google for beta:
 
+- Complete [google-oauth-production-checklist.md](./google-oauth-production-checklist.md).
 - Configure OAuth consent screen.
 - Add test users if app verification is not complete.
 - Register exact callback URL:
@@ -211,7 +215,8 @@ Before enabling Google for beta:
   ```
 
 - Set `GOOGLE_OAUTH_REDIRECT_URI` to the same URL.
-- Set `CORS_ORIGIN` first origin to the frontend app URL.
+- Set `FRONTEND_URL` to the frontend app URL.
+- Set `CORS_ORIGIN` to exact frontend origins; do not use wildcards.
 - Confirm requested scopes:
   - `openid`
   - `email`
@@ -220,6 +225,9 @@ Before enabling Google for beta:
   - `https://www.googleapis.com/auth/gmail.compose`
   - `https://www.googleapis.com/auth/calendar.events.readonly`
 - Test connect, manual Gmail sync, manual Calendar sync, disconnect, and reconnect.
+- Test token refresh by running sync after access token expiry or in a staging scenario that forces refresh.
+- Confirm Google OAuth callback redirects to `/dashboard/settings/connected-accounts?connected=google`.
+- Confirm Google verification/security assessment requirements before broad external production access.
 
 ## 10. OpenAI Checklist
 

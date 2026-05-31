@@ -28,11 +28,14 @@ export class ConnectedAccountsOAuthPublicController {
   ) {
     await this.connectedAccountsService.handleGoogleOAuthCallback(query);
 
+    const frontendUrl = this.configService.get<string>('app.frontendUrl');
     const corsOrigin =
       this.configService.get<string>('app.corsOrigin') ||
       'http://localhost:3000';
 
-    const frontendBaseUrl = corsOrigin.split(',')[0].trim().replace(/\/$/, '');
+    const frontendBaseUrl = (frontendUrl || corsOrigin.split(',')[0])
+      .trim()
+      .replace(/\/$/, '');
 
     return response.redirect(
       `${frontendBaseUrl}/dashboard/settings/connected-accounts?connected=google`,

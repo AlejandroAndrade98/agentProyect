@@ -5679,3 +5679,31 @@ Remaining production security follow-ups:
 - Google OAuth production hardening.
 - Backup/restore drill.
 - Background/scheduled sync workers.
+
+## Latest completed phase
+
+Phase 18E Google OAuth Production Hardening is completed and validated locally.
+
+Implemented:
+- Google OAuth production checklist.
+- Production-only config validation for Google OAuth settings.
+- `FRONTEND_URL` support for OAuth success redirects.
+- Fallback aliases for Google env vars while preserving canonical `GOOGLE_OAUTH_*` names.
+- Static smoke checks updated for Google OAuth production docs/config.
+- OAuth audit documented start/callback endpoints, state handling, scopes, token encryption, refresh behavior, and disconnect behavior.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+Remaining Google OAuth production blockers:
+- Google consent screen / branding setup.
+- Test users vs production publishing decision.
+- Google verification and possible security assessment for Gmail scopes.
+- Staging OAuth smoke test with real Google test account.
+- Monitoring for OAuth/token refresh/sync failures.

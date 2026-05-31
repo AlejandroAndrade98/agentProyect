@@ -7,7 +7,9 @@ Phase 18B follow-up: API port alignment, web Docker start command, production en
 
 Phase 18C follow-up: a GitHub Actions CI foundation, static smoke script, and generated-artifact guard were added.
 
-Phase 18D follow-up: process-local rate limiting, auth brute-force protection, API security headers, request body limits, request IDs, and production-safe exception redaction were added. Remaining blockers still include distributed rate limiting for multi-instance deployments, deployment automation, structured monitoring/logging, Google OAuth production verification/configuration, backup restore drills, staging runtime smoke tests, tenant/RBAC test coverage, and background worker implementation.
+Phase 18D follow-up: process-local rate limiting, auth brute-force protection, API security headers, request body limits, request IDs, and production-safe exception redaction were added.
+
+Phase 18E follow-up: Google OAuth production configuration was hardened with `FRONTEND_URL` callback support, production-only config validation, OAuth env aliases, and a production OAuth checklist. Remaining blockers still include Google verification/security assessment completion, distributed rate limiting for multi-instance deployments, deployment automation, structured monitoring/logging, backup restore drills, staging runtime smoke tests, tenant/RBAC test coverage, and background worker implementation.
 
 ## 1. Executive Summary
 
@@ -35,7 +37,7 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | CORS | Needs decision | `main.ts` reads `CORS_ORIGIN`, supports comma-separated origins, includes `X-App-Locale`. | Wrong origins can block production frontend or allow too much access. | Set exact production origins; avoid wildcards. |
 | Secrets management | Blocker | `.env.example` uses placeholder secrets; no production secret manager documented. | Weak/leaked secrets compromise JWTs, OAuth tokens, and database access. | Choose secret manager and generate strong JWT/token encryption keys. |
 | OAuth token encryption | Mostly ready | AES-256-GCM service validates a 32-byte base64 key and stores encrypted tokens. | No documented key rotation procedure; version mismatch blocks decrypt. | Document key generation, rotation, and emergency revoke procedure. |
-| Google OAuth production readiness | Needs decision | OAuth start/callback, state hashing, scopes, token exchange, refresh, and redirect exist. | Production redirect URI, consent screen, test users, and verification are not finalized. | Finalize Google Cloud OAuth app and redirect URIs before beta. |
+| Google OAuth production readiness | Partially ready | OAuth start/callback, state hashing, token exchange, encrypted token storage, token refresh, disconnect flows, `FRONTEND_URL` callback redirect support, production config validation, and production checklist exist. | Google Cloud consent screen, verification/security assessment, test users, and staging QA are still external setup tasks. | Complete Google OAuth checklist and staging reconnect/refresh/sync QA before beta. |
 | Gmail sync | Needs small fix | Manual sync endpoint stores Gmail metadata only, max 10, excludes trash/spam, refreshes token. | No background schedule; limited pagination; operational errors stored in DB. | Keep manual sync for beta; design worker sync for production. |
 | Calendar sync | Needs small fix | Manual calendar sync endpoint stores upcoming 30 days, max 10, refreshes token. | No incremental sync token use; no background schedule. | Implement worker-driven incremental sync before broader use. |
 | AI provider/OpenAI | Mostly ready | Mock/OpenAI provider flow exists, output locale is supported, usage is recorded. | OpenAI production key/model/cost policy not finalized. | Define AI provider env, model policy, timeout/retry limits, and error handling expectations. |
@@ -246,7 +248,7 @@ Missing for production-grade AI governance:
 | Deployment automation not configured | CI validates builds and static smoke checks, but no staging/prod deploy path or runtime smoke gate exists yet. | 18G Private beta deployment |
 | No distributed API rate limiting | App-level in-memory throttling exists, but multi-instance production needs shared enforcement. | 18G Private beta deployment |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
-| Google OAuth production config not finalized | OAuth will fail or be limited to test users; sensitive scopes may need verification. | 18E Google OAuth production hardening |
+| Google OAuth verification not completed | OAuth can remain limited to test users; Gmail scopes may require verification or security assessment for broad external use. | 18G Private beta deployment |
 | No backup/restore plan | CRM data, OAuth tokens, AI usage, and audit records need recoverability. | 18B Production env and deployment config |
 | No monitoring/logging strategy | Production failures are hard to detect/debug safely. | 18D Security hardening/rate limiting |
 | Worker/background sync not implemented | Production sync, retries, retention, and cleanup cannot rely only on manual requests. | 18F Background sync workers |

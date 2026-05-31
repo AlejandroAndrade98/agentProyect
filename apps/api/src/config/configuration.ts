@@ -5,16 +5,20 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('app', () => ({
   port: Number(process.env.API_PORT || 4000),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  frontendUrl: process.env.FRONTEND_URL,
   requestBodyLimit: process.env.REQUEST_BODY_LIMIT || '1mb',
   databaseUrl: process.env.DATABASE_URL,
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
 
-  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
-  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+  googleOAuthClientId:
+    process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+  googleOAuthClientSecret:
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
   googleOAuthRedirectUri:
     process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    process.env.GOOGLE_REDIRECT_URI ||
     'http://localhost:4000/api/connected-accounts/oauth/google/callback',
 
   connectedAccountTokenEncryptionKey:

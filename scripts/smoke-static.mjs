@@ -50,6 +50,7 @@ const requiredFiles = [
   "docs/deployment-checklist.md",
   "docs/env-production-checklist.md",
   "docs/security-hardening.md",
+  "docs/google-oauth-production-checklist.md",
   "packages/database/prisma/schema.prisma",
   "apps/api/src/main.ts",
   "apps/api/src/app.module.ts",
@@ -96,6 +97,16 @@ for (const envKey of requiredEnvKeys) {
   }
 }
 
+for (const documentedAlias of [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_REDIRECT_URI",
+]) {
+  if (!envExample.includes(documentedAlias)) {
+    fail(`Missing .env.example documented alias: ${documentedAlias}`);
+  }
+}
+
 const en = requireJson("apps/web/src/i18n/locales/en.json");
 const es = requireJson("apps/web/src/i18n/locales/es.json");
 const importantI18nNamespaces = [
@@ -126,6 +137,7 @@ for (const expectedText of [
   "corepack pnpm --filter @sales-ai/web exec tsc --noEmit",
   "corepack pnpm --filter @sales-ai/api build",
   "corepack pnpm build",
+  "google-oauth-production-checklist.md",
 ]) {
   if (!deploymentChecklist.includes(expectedText)) {
     fail(`Deployment checklist missing command: ${expectedText}`);

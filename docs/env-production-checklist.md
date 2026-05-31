@@ -13,7 +13,7 @@ Use this checklist for staging and production environment setup. Do not store re
 | `REQUEST_BODY_LIMIT` | Recommended | API | Maximum JSON/urlencoded request body size accepted by the API. | `1mb` | Keep conservative; raise only for a documented upload/import endpoint. |
 | `WEB_PORT` | Docker only | Docker compose, Next container | Web listen port. | `3000` | For hosted Next platforms this may be ignored. |
 | `NEXT_PUBLIC_API_URL` | Yes | Web browser bundle | API base URL for frontend requests. | `https://api.example.com/api` | Must include `/api` with the current frontend client. |
-| `FRONTEND_URL` | Recommended | Runbooks/OAuth setup | Canonical frontend URL. | `https://app.example.com` | Documentation helper; current runtime primarily uses `CORS_ORIGIN`. |
+| `FRONTEND_URL` | Yes for Google | OAuth callback redirect | Canonical frontend URL. | `https://app.example.com` | Used as the preferred frontend success redirect after Google OAuth. Falls back to the first `CORS_ORIGIN` only when unset. |
 | `CORS_ORIGIN` | Yes | API, OAuth callback redirect | Allowed browser origins. | `https://app.example.com` | Comma-separated exact origins. The first origin is used for Google OAuth callback redirect. |
 | `DATABASE_URL` | Yes | API, Prisma, worker | PostgreSQL connection URL. | `postgresql://USER:PASSWORD@HOST:5432/DB?schema=public` | Use managed Postgres and provider-required SSL settings. |
 | `DATABASE_URL_HOST` | No | Local Prisma helper script | Host-side DB URL for local scripts. | `postgresql://USER:PASSWORD@localhost:15432/DB?schema=public` | Usually not set in hosted production. |
@@ -26,9 +26,9 @@ Use this checklist for staging and production environment setup. Do not store re
 | `JWT_REFRESH_SECRET` | Currently optional | API config compatibility | Reserved refresh secret. | `replace_with_strong_refresh_secret` | Current refresh tokens are random DB tokens, but keep a strong value until config is cleaned up. |
 | `JWT_ACCESS_EXPIRES_IN` | Yes | API auth | Access token lifetime. | `15m` | Keep short for production. |
 | `JWT_REFRESH_EXPIRES_IN` | Yes | API auth | Refresh token lifetime. | `7d` | Required by refresh token creation. |
-| `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | Connected accounts | Google OAuth client ID. | `replace_with_google_client_id` | Must belong to the production OAuth client. |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | Yes for Google | Connected accounts | Google OAuth client secret. | `replace_with_google_client_secret` | Secret manager only. |
-| `GOOGLE_OAUTH_REDIRECT_URI` | Yes for Google | Connected accounts | Google callback URL. | `https://api.example.com/api/connected-accounts/oauth/google/callback` | Must exactly match Google Cloud authorized redirect URI. |
+| `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | Connected accounts | Google OAuth client ID. | `replace_with_google_client_id` | Must belong to the production OAuth web client. Alias `GOOGLE_CLIENT_ID` is supported, but prefer this canonical name. |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Yes for Google | Connected accounts | Google OAuth client secret. | `replace_with_google_client_secret` | Secret manager only. Alias `GOOGLE_CLIENT_SECRET` is supported. |
+| `GOOGLE_OAUTH_REDIRECT_URI` | Yes for Google | Connected accounts | Google callback URL. | `https://api.example.com/api/connected-accounts/oauth/google/callback` | Must exactly match Google Cloud authorized redirect URI. Alias `GOOGLE_REDIRECT_URI` is supported. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` | Yes for Google | Connected accounts, sync, Gmail draft | Encrypts OAuth access/refresh tokens. | `replace_with_32_byte_base64_key` | Must decode to exactly 32 bytes. Losing it makes stored tokens undecryptable. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` | Yes for Google | Connected accounts | Encryption key version marker. | `v1` | Increment only with a migration/rotation plan. Legacy `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_VERSION` is still supported. |
 | `AI_PROVIDER` | Yes | AI suggestions | Selects AI provider. | `mock` or `openai` | Use `mock` for staging smoke tests without AI spend; use `openai` only with a real key. |
@@ -71,13 +71,16 @@ Production notes:
 - Store secrets in the provider secret manager, not in `.env` files committed to git.
 - Record the `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` with the key in the secret manager.
 - Do not rotate the token encryption key until there is a token re-encryption/reconnect plan.
+- Never commit Google OAuth client secrets or downloaded OAuth client JSON files.
 
 ## URL Setup Notes
 
 - `NEXT_PUBLIC_API_URL` must be the public browser-reachable API URL and must include `/api`.
 - `CORS_ORIGIN` must include the deployed frontend URL exactly, with scheme.
-- If multiple frontend origins are needed, put the primary production app first because the Google OAuth callback redirects to the first CORS origin.
+- `FRONTEND_URL` should be set to the canonical frontend origin because the Google OAuth callback redirects there after success.
+- If `FRONTEND_URL` is not set, the callback falls back to the first `CORS_ORIGIN`.
 - `GOOGLE_OAUTH_REDIRECT_URI` must exactly match the API callback URL registered in Google Cloud.
+- Production startup validates Google OAuth env, frontend URL, exact CORS origins, and the 32-byte connected account encryption key when `NODE_ENV=production`.
 
 ## Staging vs Production
 
