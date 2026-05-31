@@ -437,3 +437,16 @@ Current i18n coverage:
 - Platform statuses, account types, and invitation statuses have translated display helpers.
 - Current frontend enum values were preserved: `TRIAL`, `ACTIVE`, `SUSPENDED`, `CANCELLED`, `INDIVIDUAL`, `COMPANY`.
 - No backend, Prisma, API, route, RBAC, organization creation, invitation, billing, usage, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17L.1 AI Output Language Preference is completed and validated in build/typecheck.
+
+New AI generations now respect the current app locale:
+- Frontend sends `X-App-Locale: en|es` from the existing i18n/localStorage preference.
+- Backend normalizes the locale safely and falls back to English for invalid/missing values.
+- Lead next steps, external email analysis, email reply draft generation, and external calendar analysis receive output locale.
+- Mock and OpenAI providers generate natural-language output in English or Spanish.
+- New `AiSuggestion.metadataJson` includes `outputLocale` and `outputLanguage`.
+- Existing saved AI outputs remain unchanged by design.
+- No auto CRM changes, no auto email sending, and no automatic Gmail draft creation were added.

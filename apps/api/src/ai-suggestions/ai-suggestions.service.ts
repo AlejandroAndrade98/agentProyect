@@ -49,6 +49,7 @@ import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
 import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
 import { ConnectedAccountTokenEncryptionService } from '../connected-accounts/connected-account-token-encryption.service';
+import type { OutputLocalePreference } from '../common/i18n/locale.util';
 
 const GMAIL_DRAFTS_URL =
   'https://gmail.googleapis.com/gmail/v1/users/me/drafts';
@@ -289,7 +290,11 @@ export class AiSuggestionsService {
     return suggestion;
   }
 
-  async generateLeadNextSteps(leadId: string, currentUser: CurrentUser) {
+  async generateLeadNextSteps(
+    leadId: string,
+    currentUser: CurrentUser,
+    outputLocale: OutputLocalePreference,
+  ) {
     const context =
       await this.leadAiContextService.buildLeadNextStepsContext(
         leadId,
@@ -309,6 +314,8 @@ export class AiSuggestionsService {
       leadId: context.lead.id,
       feature: AiUsageFeature.LEAD_NEXT_STEPS,
       estimatedCreditsRequired,
+      outputLocale: outputLocale.locale,
+      outputLanguage: outputLocale.languageName,
     },
   });
 
@@ -322,12 +329,15 @@ export class AiSuggestionsService {
           leadId: context.lead.id,
           feature: AiUsageFeature.LEAD_NEXT_STEPS,
           estimatedCreditsRequired,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       },
       () =>
         this.aiSuggestionProviderService.generateLeadNextSteps(
           context,
           inputText,
+          outputLocale,
         ),
     );
 
@@ -356,6 +366,8 @@ export class AiSuggestionsService {
             canApplyAutomatically: false,
             canSendEmailAutomatically: false,
             generatedFor: 'lead_next_steps',
+            outputLocale: outputLocale.locale,
+            outputLanguage: outputLocale.languageName,
           },
           tokensInput: generated.tokensInput,
           tokensOutput: generated.tokensOutput,
@@ -377,6 +389,8 @@ export class AiSuggestionsService {
           aiSuggestionId: suggestion.id,
           aiSuggestionType: suggestion.type,
           estimatedCreditsRequired,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       });
 
@@ -411,6 +425,7 @@ export class AiSuggestionsService {
   async analyzeExternalEmailMessage(
     emailMessageId: string,
     currentUser: CurrentUser,
+    outputLocale: OutputLocalePreference,
   ) {
     const emailMessage = await this.prisma.externalEmailMessage.findFirst({
       where: {
@@ -490,6 +505,8 @@ export class AiSuggestionsService {
         feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
         estimatedCreditsRequired,
         bodyStored: false,
+        outputLocale: outputLocale.locale,
+        outputLanguage: outputLocale.languageName,
       },
     });
 
@@ -506,6 +523,8 @@ export class AiSuggestionsService {
           feature: AiUsageFeature.EXTERNAL_EMAIL_ANALYSIS,
           estimatedCreditsRequired,
           bodyStored: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       },
       () =>
@@ -528,6 +547,7 @@ export class AiSuggestionsService {
           syncedAt: emailMessage.syncedAt,
         },
         inputText,
+        outputLocale,
         ),
     );
 
@@ -563,6 +583,8 @@ export class AiSuggestionsService {
             aiAnalysisScope: 'metadata_only',
             crmRecordsCreated: false,
             emailSentAutomatically: false,
+            outputLocale: outputLocale.locale,
+            outputLanguage: outputLocale.languageName,
           },
           tokensInput: generated.tokensInput,
           tokensOutput: generated.tokensOutput,
@@ -588,6 +610,8 @@ export class AiSuggestionsService {
           estimatedCreditsRequired,
           bodyStored: false,
           crmRecordsCreated: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       });
 
@@ -624,6 +648,7 @@ export class AiSuggestionsService {
   async generateExternalEmailReplyDraft(
     emailMessageId: string,
     currentUser: CurrentUser,
+    outputLocale: OutputLocalePreference,
   ) {
     const emailMessage = await this.prisma.externalEmailMessage.findFirst({
       where: {
@@ -707,6 +732,8 @@ export class AiSuggestionsService {
         draftCreatedAutomatically: false,
         emailSentAutomatically: false,
         crmRecordsCreated: false,
+        outputLocale: outputLocale.locale,
+        outputLanguage: outputLocale.languageName,
       },
     });
 
@@ -727,6 +754,8 @@ export class AiSuggestionsService {
           draftCreatedAutomatically: false,
           emailSentAutomatically: false,
           crmRecordsCreated: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       },
       () =>
@@ -749,6 +778,7 @@ export class AiSuggestionsService {
           syncedAt: emailMessage.syncedAt,
         },
         inputText,
+        outputLocale,
         ),
     );
 
@@ -791,6 +821,8 @@ export class AiSuggestionsService {
             externalThreadId: emailMessage.externalThreadId,
             bodyStored: false,
             crmRecordsCreated: false,
+            outputLocale: outputLocale.locale,
+            outputLanguage: outputLocale.languageName,
           },
           tokensInput: generated.tokensInput,
           tokensOutput: generated.tokensOutput,
@@ -819,6 +851,8 @@ export class AiSuggestionsService {
           draftCreatedAutomatically: false,
           emailSentAutomatically: false,
           crmRecordsCreated: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       });
 
@@ -1093,6 +1127,7 @@ export class AiSuggestionsService {
   async analyzeExternalCalendarEvent(
     calendarEventId: string,
     currentUser: CurrentUser,
+    outputLocale: OutputLocalePreference,
   ) {
     const calendarEvent = await this.prisma.externalCalendarEvent.findFirst({
       where: {
@@ -1178,6 +1213,8 @@ export class AiSuggestionsService {
         estimatedCreditsRequired,
         crmRecordsCreated: false,
         emailSentAutomatically: false,
+        outputLocale: outputLocale.locale,
+        outputLanguage: outputLocale.languageName,
       },
     });
 
@@ -1196,6 +1233,8 @@ export class AiSuggestionsService {
           estimatedCreditsRequired,
           crmRecordsCreated: false,
           emailSentAutomatically: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       },
       () =>
@@ -1221,6 +1260,7 @@ export class AiSuggestionsService {
           syncedAt: calendarEvent.syncedAt,
         },
         inputText,
+        outputLocale,
         ),
     );
 
@@ -1256,6 +1296,8 @@ export class AiSuggestionsService {
             aiAnalysisScope: 'metadata_only',
             crmRecordsCreated: false,
             emailSentAutomatically: false,
+            outputLocale: outputLocale.locale,
+            outputLanguage: outputLocale.languageName,
           },
           tokensInput: generated.tokensInput,
           tokensOutput: generated.tokensOutput,
@@ -1282,6 +1324,8 @@ export class AiSuggestionsService {
           estimatedCreditsRequired,
           crmRecordsCreated: false,
           emailSentAutomatically: false,
+          outputLocale: outputLocale.locale,
+          outputLanguage: outputLocale.languageName,
         },
       });
 

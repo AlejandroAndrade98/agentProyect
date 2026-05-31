@@ -16,8 +16,7 @@ import {
   type Locale,
   supportedLocales,
 } from './config';
-
-const LOCALE_STORAGE_KEY = 'sales-ai-platform-locale';
+import { LOCALE_STORAGE_KEY } from './stored-locale';
 
 type I18nContextValue = {
   locale: Locale;

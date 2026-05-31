@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -27,6 +28,7 @@ import { ReviewAiSuggestionDto } from './dto/review-ai-suggestion.dto';
 import { ApplyLeadNextStepDto } from './dto/apply-lead-next-step.dto';
 import { ApplySuggestedNoteDto } from './dto/apply-suggested-note.dto';
 import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
+import { normalizeOutputLocale } from '../common/i18n/locale.util';
 
 @Controller('ai-suggestions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -56,10 +58,12 @@ export class AiSuggestionsController {
   generateLeadNextSteps(
     @Param('leadId') leadId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
+    @Headers('x-app-locale') appLocale: string | undefined,
   ) {
     return this.aiSuggestionsService.generateLeadNextSteps(
       leadId,
       currentUser,
+      normalizeOutputLocale(appLocale),
     );
   }
 
@@ -68,10 +72,12 @@ export class AiSuggestionsController {
   analyzeExternalEmailMessage(
     @Param('emailMessageId') emailMessageId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
+    @Headers('x-app-locale') appLocale: string | undefined,
   ) {
     return this.aiSuggestionsService.analyzeExternalEmailMessage(
       emailMessageId,
       currentUser,
+      normalizeOutputLocale(appLocale),
     );
   }
 
@@ -80,10 +86,12 @@ export class AiSuggestionsController {
   generateExternalEmailReplyDraft(
     @Param('emailMessageId') emailMessageId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
+    @Headers('x-app-locale') appLocale: string | undefined,
   ) {
     return this.aiSuggestionsService.generateExternalEmailReplyDraft(
       emailMessageId,
       currentUser,
+      normalizeOutputLocale(appLocale),
     );
   }
 
@@ -92,10 +100,12 @@ export class AiSuggestionsController {
   analyzeExternalCalendarEvent(
     @Param('calendarEventId') calendarEventId: string,
     @CurrentUser() currentUser: CurrentUserPayload,
+    @Headers('x-app-locale') appLocale: string | undefined,
   ) {
     return this.aiSuggestionsService.analyzeExternalCalendarEvent(
       calendarEventId,
       currentUser,
+      normalizeOutputLocale(appLocale),
     );
   }
 

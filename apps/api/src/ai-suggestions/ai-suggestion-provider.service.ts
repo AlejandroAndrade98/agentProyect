@@ -8,6 +8,7 @@ import { LeadNextStepsContext } from './lead-ai-context.service';
 
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
+import type { OutputLocalePreference } from '../common/i18n/locale.util';
 
 export type LeadNextStepsSuggestionOutput = {
   summary: string;
@@ -249,6 +250,23 @@ export class AiSuggestionProviderService {
     process.env.AI_MAX_INPUT_CHARS || 10000,
   );
 
+  private isSpanishOutput(outputLocale: OutputLocalePreference) {
+    return outputLocale.locale === 'es';
+  }
+
+  private getLanguageInstruction(outputLocale: OutputLocalePreference) {
+    const languageRule = this.isSpanishOutput(outputLocale)
+      ? 'Write all natural-language output in Spanish.'
+      : 'Write all natural-language output in English.';
+
+    return [
+      languageRule,
+      'Titles, summaries, reasoning, next steps, suggested notes/tasks, draft body, and any natural-language fields must use the target language.',
+      'Keep JSON keys, IDs, enum values, provider names, model names, and CRM/API enum values unchanged.',
+      'Original email subjects/snippets and calendar titles are source context; do not forcibly translate source data unless it becomes part of your generated analysis.',
+    ].join('\n');
+  }
+
   private getOpenAiClient() {
     if (this.aiProvider !== 'openai') {
       return null;
@@ -364,14 +382,20 @@ export class AiSuggestionProviderService {
   async generateLeadNextSteps(
     context: LeadNextStepsContext,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<LeadNextStepsSuggestionOutput>> {
     this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
-    return this.generateLeadNextStepsWithOpenAi(context, inputText);
+    return this.generateLeadNextStepsWithOpenAi(
+      context,
+      inputText,
+      outputLocale,
+    );
     }
 
+    const isSpanish = this.isSpanishOutput(outputLocale);
     const hasNextStep = Boolean(context.lead.nextStep);
     const hasPendingTasks = context.tasks.some(
       (task) => task.status !== 'COMPLETED' && task.status !== 'CANCELLED',
@@ -388,32 +412,47 @@ export class AiSuggestionProviderService {
           : 'LOW';
 
     const recommendedNextStep = hasNextStep
-      ? `Continue with the current next step: ${context.lead.nextStep}`
-      : `Define a concrete follow-up for ${context.lead.title} and move the conversation toward the next commercial milestone.`;
+      ? isSpanish
+        ? `Continuar con el siguiente paso actual: ${context.lead.nextStep}`
+        : `Continue with the current next step: ${context.lead.nextStep}`
+      : isSpanish
+        ? `Definir un seguimiento concreto para ${context.lead.title} y avanzar la conversacion hacia el siguiente hito comercial.`
+        : `Define a concrete follow-up for ${context.lead.title} and move the conversation toward the next commercial milestone.`;
 
     const taskPriority = isHighPriority ? 'HIGH' : 'MEDIUM';
 
     const outputJson: LeadNextStepsSuggestionOutput = {
-      summary: `${context.lead.title} is currently in ${context.lead.status} with ${context.lead.priority} priority. ${
-        hasRecentNotes
-          ? 'There is recent CRM context available.'
-          : 'There are no recent notes linked to this lead.'
-      }`,
+      summary: isSpanish
+        ? `${context.lead.title} esta actualmente en ${context.lead.status} con prioridad ${context.lead.priority}. ${
+            hasRecentNotes
+              ? 'Hay contexto CRM reciente disponible.'
+              : 'No hay notas recientes vinculadas a esta oportunidad.'
+          }`
+        : `${context.lead.title} is currently in ${context.lead.status} with ${context.lead.priority} priority. ${
+            hasRecentNotes
+              ? 'There is recent CRM context available.'
+              : 'There are no recent notes linked to this lead.'
+          }`,
       riskLevel,
       recommendedNextStep,
       suggestedTasks: [
         {
-          title: `Follow up on ${context.lead.title}`,
-          description:
-            'Review the latest CRM context, confirm the customer need, and agree on the next concrete step.',
+          title: isSpanish
+            ? `Dar seguimiento a ${context.lead.title}`
+            : `Follow up on ${context.lead.title}`,
+          description: isSpanish
+            ? 'Revisar el contexto CRM mas reciente, confirmar la necesidad del cliente y acordar el siguiente paso concreto.'
+            : 'Review the latest CRM context, confirm the customer need, and agree on the next concrete step.',
           priority: taskPriority,
           dueInDays: riskLevel === 'HIGH' ? 1 : 2,
         },
       ],
-      suggestedNote:
-        'AI suggested reviewing this lead context and confirming the next commercial action before updating CRM records.',
-      reasoningSummary:
-        'This suggestion was generated from lead status, priority, current next step, linked tasks, notes, company/contact context, and recent activity. It must be reviewed by a human before any CRM data is changed.',
+      suggestedNote: isSpanish
+        ? 'La IA sugirio revisar el contexto de esta oportunidad y confirmar la siguiente accion comercial antes de actualizar registros CRM.'
+        : 'AI suggested reviewing this lead context and confirming the next commercial action before updating CRM records.',
+      reasoningSummary: isSpanish
+        ? 'Esta sugerencia se genero a partir del estado de la oportunidad, prioridad, siguiente paso actual, tareas vinculadas, notas, contexto de empresa/contacto y actividad reciente. Debe ser revisada por una persona antes de cambiar cualquier dato CRM.'
+        : 'This suggestion was generated from lead status, priority, current next step, linked tasks, notes, company/contact context, and recent activity. It must be reviewed by a human before any CRM data is changed.',
       confidenceScore: hasRecentNotes ? 0.78 : 0.68,
       humanApprovalRequired: true,
     };
@@ -421,16 +460,24 @@ export class AiSuggestionProviderService {
     return {
       provider: 'mock-ai-provider',
       model: 'mock-lead-next-steps-v1',
-      title: `AI next steps suggestion: ${context.lead.title}`,
+      title: isSpanish
+        ? `Sugerencia de proximos pasos de IA: ${context.lead.title}`
+        : `AI next steps suggestion: ${context.lead.title}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Recommended next step: ${outputJson.recommendedNextStep}`,
+        isSpanish
+          ? `Siguiente paso recomendado: ${outputJson.recommendedNextStep}`
+          : `Recommended next step: ${outputJson.recommendedNextStep}`,
         '',
-        `Risk level: ${outputJson.riskLevel}`,
+        isSpanish
+          ? `Nivel de riesgo: ${outputJson.riskLevel}`
+          : `Risk level: ${outputJson.riskLevel}`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        isSpanish
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: Math.ceil(inputText.length / 4),
@@ -442,6 +489,7 @@ export class AiSuggestionProviderService {
     private async generateLeadNextStepsWithOpenAi(
     context: LeadNextStepsContext,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<LeadNextStepsSuggestionOutput>> {
     const client = this.getOpenAiClient();
 
@@ -464,6 +512,7 @@ export class AiSuggestionProviderService {
               'Do not send emails.',
               'Every recommendation must require human review.',
               'Set humanApprovalRequired to true.',
+              this.getLanguageInstruction(outputLocale),
             ].join('\n'),
           },
           {
@@ -494,16 +543,24 @@ export class AiSuggestionProviderService {
     return {
       provider: 'openai',
       model: this.openAiModel,
-      title: `AI next steps suggestion: ${context.lead.title}`,
+      title: this.isSpanishOutput(outputLocale)
+        ? `Sugerencia de proximos pasos de IA: ${context.lead.title}`
+        : `AI next steps suggestion: ${context.lead.title}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Recommended next step: ${outputJson.recommendedNextStep}`,
+        this.isSpanishOutput(outputLocale)
+          ? `Siguiente paso recomendado: ${outputJson.recommendedNextStep}`
+          : `Recommended next step: ${outputJson.recommendedNextStep}`,
         '',
-        `Risk level: ${outputJson.riskLevel}`,
+        this.isSpanishOutput(outputLocale)
+          ? `Nivel de riesgo: ${outputJson.riskLevel}`
+          : `Risk level: ${outputJson.riskLevel}`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        this.isSpanishOutput(outputLocale)
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
@@ -515,17 +572,27 @@ export class AiSuggestionProviderService {
   async generateExternalEmailAnalysis(
     email: ExternalEmailMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalEmailAnalysisOutput>> {
     this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
-      return this.generateExternalEmailAnalysisWithOpenAi(email, inputText);
+      return this.generateExternalEmailAnalysisWithOpenAi(
+        email,
+        inputText,
+        outputLocale,
+      );
     }
     
-    const subject = email.subject?.trim() || '(No subject)';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const subject =
+      email.subject?.trim() || (isSpanish ? '(Sin asunto)' : '(No subject)');
     const snippet = email.snippet?.trim() || '';
-    const sender = email.fromName || email.fromEmail || 'Unknown sender';
+    const sender =
+      email.fromName ||
+      email.fromEmail ||
+      (isSpanish ? 'Remitente desconocido' : 'Unknown sender');
 
     const combinedText = `${subject} ${snippet}`.toLowerCase();
 
@@ -595,24 +662,31 @@ export class AiSuggestionProviderService {
         ? []
         : [
             {
-              title: `Review email from ${sender}`,
-              description:
-                'Review this synced email metadata and decide whether it should become an official CRM action.',
+              title: isSpanish
+                ? `Revisar correo de ${sender}`
+                : `Review email from ${sender}`,
+              description: isSpanish
+                ? 'Revisar los metadatos de este correo sincronizado y decidir si debe convertirse en una accion CRM oficial.'
+                : 'Review this synced email metadata and decide whether it should become an official CRM action.',
               priority: importanceLevel,
               dueInDays: importanceLevel === 'HIGH' ? 1 : 2,
             },
           ];
 
     const outputJson: ExternalEmailAnalysisOutput = {
-      summary: `Email "${subject}" from ${sender} may require CRM review based on synced metadata.`,
+      summary: isSpanish
+        ? `El correo "${subject}" de ${sender} puede requerir revision CRM segun los metadatos sincronizados.`
+        : `Email "${subject}" from ${sender} may require CRM review based on synced metadata.`,
       importanceLevel,
       suggestedReviewAction,
       detectedSignals,
       suggestedTasks,
-      suggestedNote:
-        'AI reviewed synced email metadata only. A human should verify the context before creating any CRM record.',
-      reasoningSummary:
-        'This suggestion was generated from email metadata such as subject, snippet, sender, recipients, labels and internal date. Email body was not stored or analyzed. No CRM record or email draft was created automatically.',
+      suggestedNote: isSpanish
+        ? 'La IA reviso solo metadatos del correo sincronizado. Una persona debe verificar el contexto antes de crear cualquier registro CRM.'
+        : 'AI reviewed synced email metadata only. A human should verify the context before creating any CRM record.',
+      reasoningSummary: isSpanish
+        ? 'Esta sugerencia se genero a partir de metadatos del correo, como asunto, fragmento, remitente, destinatarios, etiquetas y fecha interna. El cuerpo del correo no se almaceno ni analizo. No se creo automaticamente ningun registro CRM ni borrador de correo.'
+        : 'This suggestion was generated from email metadata such as subject, snippet, sender, recipients, labels and internal date. Email body was not stored or analyzed. No CRM record or email draft was created automatically.',
       confidenceScore: detectedSignals.length > 0 ? 0.72 : 0.58,
       humanApprovalRequired: true,
       noAutomaticCrmChanges: true,
@@ -622,22 +696,32 @@ export class AiSuggestionProviderService {
     return {
       provider: 'mock-ai-provider',
       model: 'mock-external-email-analysis-v1',
-      title: `AI email review suggestion: ${subject}`,
+      title: isSpanish
+        ? `Revision de correo con IA: ${subject}`
+        : `AI email review suggestion: ${subject}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        isSpanish
+          ? `Accion de revision sugerida: ${outputJson.suggestedReviewAction}`
+          : `Suggested review action: ${outputJson.suggestedReviewAction}`,
         '',
-        `Importance: ${outputJson.importanceLevel}`,
+        isSpanish
+          ? `Importancia: ${outputJson.importanceLevel}`
+          : `Importance: ${outputJson.importanceLevel}`,
         '',
-        `Detected signals: ${
+        `${isSpanish ? 'Senales detectadas' : 'Detected signals'}: ${
           outputJson.detectedSignals.length > 0
             ? outputJson.detectedSignals.join(', ')
-            : 'None'
+            : isSpanish
+              ? 'Ninguna'
+              : 'None'
         }`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        isSpanish
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: Math.ceil(inputText.length / 4),
@@ -649,6 +733,7 @@ export class AiSuggestionProviderService {
   private async generateExternalEmailAnalysisWithOpenAi(
     email: ExternalEmailMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalEmailAnalysisOutput>> {
     const client = this.getOpenAiClient();
 
@@ -656,7 +741,9 @@ export class AiSuggestionProviderService {
       throw new Error('OpenAI client is not configured');
     }
 
-    const subject = email.subject?.trim() || '(No subject)';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const subject =
+      email.subject?.trim() || (isSpanish ? '(Sin asunto)' : '(No subject)');
 
     const response = await this.parseOpenAiResponse(() =>
       client.responses.parse({
@@ -676,6 +763,7 @@ export class AiSuggestionProviderService {
               'Set humanApprovalRequired true.',
               'Set noAutomaticCrmChanges true.',
               'Set noAutomaticEmailSending true.',
+              this.getLanguageInstruction(outputLocale),
             ].join('\n'),
           },
           {
@@ -706,22 +794,32 @@ export class AiSuggestionProviderService {
     return {
       provider: 'openai',
       model: this.openAiModel,
-      title: `AI email review suggestion: ${subject}`,
+      title: isSpanish
+        ? `Revision de correo con IA: ${subject}`
+        : `AI email review suggestion: ${subject}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        isSpanish
+          ? `Accion de revision sugerida: ${outputJson.suggestedReviewAction}`
+          : `Suggested review action: ${outputJson.suggestedReviewAction}`,
         '',
-        `Importance: ${outputJson.importanceLevel}`,
+        isSpanish
+          ? `Importancia: ${outputJson.importanceLevel}`
+          : `Importance: ${outputJson.importanceLevel}`,
         '',
-        `Detected signals: ${
+        `${isSpanish ? 'Senales detectadas' : 'Detected signals'}: ${
           outputJson.detectedSignals.length > 0
             ? outputJson.detectedSignals.join(', ')
-            : 'None'
+            : isSpanish
+              ? 'Ninguna'
+              : 'None'
         }`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        isSpanish
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),
@@ -733,16 +831,23 @@ export class AiSuggestionProviderService {
   async generateExternalEmailReplyDraft(
     email: ExternalEmailMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalEmailReplyDraftOutput>> {
     this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
 
     if (this.aiProvider === 'openai') {
-      return this.generateExternalEmailReplyDraftWithOpenAi(email, inputText);
+      return this.generateExternalEmailReplyDraftWithOpenAi(
+        email,
+        inputText,
+        outputLocale,
+      );
     }
 
-    const subject = email.subject?.trim() || '(No subject)';
-    const sender = email.fromName || email.fromEmail || 'there';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const subject =
+      email.subject?.trim() || (isSpanish ? '(Sin asunto)' : '(No subject)');
+    const sender = email.fromName || email.fromEmail || (isSpanish ? 'equipo' : 'there');
     const suggestedSubject = subject
       .toLowerCase()
       .startsWith('re:')
@@ -751,17 +856,26 @@ export class AiSuggestionProviderService {
 
     const outputJson: ExternalEmailReplyDraftOutput = {
       suggestedSubject,
-      replyText: [
-        `Hi ${sender},`,
-        '',
-        'Thanks for your message. I received it, and the details should be reviewed before any next steps are confirmed.',
-        '',
-        'Best,',
-      ].join('\n'),
+      replyText: isSpanish
+        ? [
+            `Hola ${sender},`,
+            '',
+            'Gracias por tu mensaje. Lo recibi y los detalles deben revisarse antes de confirmar cualquier siguiente paso.',
+            '',
+            'Saludos,',
+          ].join('\n')
+        : [
+            `Hi ${sender},`,
+            '',
+            'Thanks for your message. I received it, and the details should be reviewed before any next steps are confirmed.',
+            '',
+            'Best,',
+          ].join('\n'),
       tone: 'PROFESSIONAL',
       confidence: email.snippet ? 0.68 : 0.58,
-      reasoning:
-        'This draft was generated from synced email metadata and snippet only. It avoids unavailable details, commitments, CRM changes, Gmail draft creation, and email sending until a human reviews it.',
+      reasoning: isSpanish
+        ? 'Este borrador se genero solo con metadatos y fragmento del correo sincronizado. Evita detalles no disponibles, compromisos, cambios CRM, creacion de borradores en Gmail y envio de correo hasta que una persona lo revise.'
+        : 'This draft was generated from synced email metadata and snippet only. It avoids unavailable details, commitments, CRM changes, Gmail draft creation, and email sending until a human reviews it.',
       humanApprovalRequired: true,
       canApplyAutomatically: false,
       canSendEmailAutomatically: false,
@@ -773,7 +887,9 @@ export class AiSuggestionProviderService {
     return {
       provider: 'mock-ai-provider',
       model: 'mock-external-email-reply-draft-v1',
-      title: `AI email reply draft suggestion: ${subject}`,
+      title: isSpanish
+        ? `Borrador de respuesta con IA: ${subject}`
+        : `AI email reply draft suggestion: ${subject}`,
       outputJson,
       outputText: outputJson.replyText,
       confidenceScore: outputJson.confidence,
@@ -786,6 +902,7 @@ export class AiSuggestionProviderService {
   private async generateExternalEmailReplyDraftWithOpenAi(
     email: ExternalEmailMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalEmailReplyDraftOutput>> {
     const client = this.getOpenAiClient();
 
@@ -793,7 +910,9 @@ export class AiSuggestionProviderService {
       throw new Error('OpenAI client is not configured');
     }
 
-    const subject = email.subject?.trim() || '(No subject)';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const subject =
+      email.subject?.trim() || (isSpanish ? '(Sin asunto)' : '(No subject)');
 
     const response = await this.parseOpenAiResponse(() =>
       client.responses.parse({
@@ -820,6 +939,7 @@ export class AiSuggestionProviderService {
               'Set draftCreatedAutomatically false.',
               'Set aiAnalysisScope metadata_only.',
               'You must return only the structured output requested by the schema.',
+              this.getLanguageInstruction(outputLocale),
             ].join('\n'),
           },
           {
@@ -850,7 +970,9 @@ export class AiSuggestionProviderService {
     return {
       provider: 'openai',
       model: this.openAiModel,
-      title: `AI email reply draft suggestion: ${subject}`,
+      title: isSpanish
+        ? `Borrador de respuesta con IA: ${subject}`
+        : `AI email reply draft suggestion: ${subject}`,
       outputJson,
       outputText: outputJson.replyText,
       confidenceScore: outputJson.confidence,
@@ -863,6 +985,7 @@ export class AiSuggestionProviderService {
     async generateExternalCalendarEventAnalysis(
     event: ExternalCalendarEventMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalCalendarEventAnalysisOutput>> {
     this.assertSupportedProvider();
     this.assertInputWithinLimit(inputText);
@@ -871,14 +994,19 @@ export class AiSuggestionProviderService {
       return this.generateExternalCalendarEventAnalysisWithOpenAi(
         event,
         inputText,
+        outputLocale,
       );
     }
 
-    const eventSummary = event.summary?.trim() || '(No title)';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const eventSummary =
+      event.summary?.trim() || (isSpanish ? '(Sin titulo)' : '(No title)');
     const description = event.description?.trim() || '';
     const location = event.location?.trim() || '';
     const organizer =
-      event.organizerName || event.organizerEmail || 'Unknown organizer';
+      event.organizerName ||
+      event.organizerEmail ||
+      (isSpanish ? 'Organizador desconocido' : 'Unknown organizer');
 
     const combinedText =
       `${eventSummary} ${description} ${location} ${organizer}`.toLowerCase();
@@ -953,24 +1081,31 @@ export class AiSuggestionProviderService {
         ? []
         : [
             {
-              title: `Review calendar event: ${eventSummary}`,
-              description:
-                'Review this synced calendar event metadata and decide whether it should become an official CRM task, note, or follow-up action.',
+              title: isSpanish
+                ? `Revisar evento de calendario: ${eventSummary}`
+                : `Review calendar event: ${eventSummary}`,
+              description: isSpanish
+                ? 'Revisar los metadatos de este evento sincronizado y decidir si debe convertirse en una tarea, nota o accion de seguimiento oficial en CRM.'
+                : 'Review this synced calendar event metadata and decide whether it should become an official CRM task, note, or follow-up action.',
               priority: importanceLevel,
               dueInDays: importanceLevel === 'HIGH' ? 0 : 1,
             },
           ];
 
     const outputJson: ExternalCalendarEventAnalysisOutput = {
-      summary: `Calendar event "${eventSummary}" organized by ${organizer} may require CRM review based on synced calendar metadata.`,
+      summary: isSpanish
+        ? `El evento de calendario "${eventSummary}" organizado por ${organizer} puede requerir revision CRM segun los metadatos sincronizados.`
+        : `Calendar event "${eventSummary}" organized by ${organizer} may require CRM review based on synced calendar metadata.`,
       importanceLevel,
       suggestedReviewAction,
       detectedSignals,
       suggestedTasks,
-      suggestedNote:
-        'AI reviewed synced calendar metadata only. A human should verify the meeting context before creating any CRM record.',
-      reasoningSummary:
-        'This suggestion was generated from calendar metadata such as title, description, location, organizer, attendees, and start/end time. No CRM record, task, note, lead, or email was created automatically.',
+      suggestedNote: isSpanish
+        ? 'La IA reviso solo metadatos del calendario sincronizado. Una persona debe verificar el contexto de la reunion antes de crear cualquier registro CRM.'
+        : 'AI reviewed synced calendar metadata only. A human should verify the meeting context before creating any CRM record.',
+      reasoningSummary: isSpanish
+        ? 'Esta sugerencia se genero a partir de metadatos del calendario, como titulo, descripcion, ubicacion, organizador, asistentes y hora de inicio/fin. No se creo automaticamente ningun registro CRM, tarea, nota, oportunidad ni correo.'
+        : 'This suggestion was generated from calendar metadata such as title, description, location, organizer, attendees, and start/end time. No CRM record, task, note, lead, or email was created automatically.',
       confidenceScore: detectedSignals.length > 0 ? 0.74 : 0.56,
       humanApprovalRequired: true,
       noAutomaticCrmChanges: true,
@@ -980,22 +1115,32 @@ export class AiSuggestionProviderService {
     return {
       provider: 'mock-ai-provider',
       model: 'mock-external-calendar-analysis-v1',
-      title: `AI calendar review suggestion: ${eventSummary}`,
+      title: isSpanish
+        ? `Revision de calendario con IA: ${eventSummary}`
+        : `AI calendar review suggestion: ${eventSummary}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        isSpanish
+          ? `Accion de revision sugerida: ${outputJson.suggestedReviewAction}`
+          : `Suggested review action: ${outputJson.suggestedReviewAction}`,
         '',
-        `Importance: ${outputJson.importanceLevel}`,
+        isSpanish
+          ? `Importancia: ${outputJson.importanceLevel}`
+          : `Importance: ${outputJson.importanceLevel}`,
         '',
-        `Detected signals: ${
+        `${isSpanish ? 'Senales detectadas' : 'Detected signals'}: ${
           outputJson.detectedSignals.length > 0
             ? outputJson.detectedSignals.join(', ')
-            : 'None'
+            : isSpanish
+              ? 'Ninguna'
+              : 'None'
         }`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        isSpanish
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: Math.ceil(inputText.length / 4),
@@ -1007,6 +1152,7 @@ export class AiSuggestionProviderService {
   private async generateExternalCalendarEventAnalysisWithOpenAi(
     event: ExternalCalendarEventMetadataForAi,
     inputText: string,
+    outputLocale: OutputLocalePreference,
   ): Promise<GeneratedAiSuggestion<ExternalCalendarEventAnalysisOutput>> {
     const client = this.getOpenAiClient();
 
@@ -1014,7 +1160,9 @@ export class AiSuggestionProviderService {
       throw new Error('OpenAI client is not configured');
     }
 
-    const eventSummary = event.summary?.trim() || '(No title)';
+    const isSpanish = this.isSpanishOutput(outputLocale);
+    const eventSummary =
+      event.summary?.trim() || (isSpanish ? '(Sin titulo)' : '(No title)');
 
     const response = await this.parseOpenAiResponse(() =>
       client.responses.parse({
@@ -1034,6 +1182,7 @@ export class AiSuggestionProviderService {
               'Set humanApprovalRequired true.',
               'Set noAutomaticCrmChanges true.',
               'Set noAutomaticEmailSending true.',
+              this.getLanguageInstruction(outputLocale),
             ].join('\n'),
           },
           {
@@ -1064,22 +1213,32 @@ export class AiSuggestionProviderService {
     return {
       provider: 'openai',
       model: this.openAiModel,
-      title: `AI calendar review suggestion: ${eventSummary}`,
+      title: isSpanish
+        ? `Revision de calendario con IA: ${eventSummary}`
+        : `AI calendar review suggestion: ${eventSummary}`,
       outputJson,
       outputText: [
         outputJson.summary,
         '',
-        `Suggested review action: ${outputJson.suggestedReviewAction}`,
+        isSpanish
+          ? `Accion de revision sugerida: ${outputJson.suggestedReviewAction}`
+          : `Suggested review action: ${outputJson.suggestedReviewAction}`,
         '',
-        `Importance: ${outputJson.importanceLevel}`,
+        isSpanish
+          ? `Importancia: ${outputJson.importanceLevel}`
+          : `Importance: ${outputJson.importanceLevel}`,
         '',
-        `Detected signals: ${
+        `${isSpanish ? 'Senales detectadas' : 'Detected signals'}: ${
           outputJson.detectedSignals.length > 0
             ? outputJson.detectedSignals.join(', ')
-            : 'None'
+            : isSpanish
+              ? 'Ninguna'
+              : 'None'
         }`,
         '',
-        `Reasoning: ${outputJson.reasoningSummary}`,
+        isSpanish
+          ? `Razonamiento: ${outputJson.reasoningSummary}`
+          : `Reasoning: ${outputJson.reasoningSummary}`,
       ].join('\n'),
       confidenceScore: outputJson.confidenceScore,
       tokensInput: response.usage?.input_tokens ?? Math.ceil(inputText.length / 4),

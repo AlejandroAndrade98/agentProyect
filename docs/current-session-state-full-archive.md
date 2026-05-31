@@ -5520,3 +5520,61 @@ Validation:
 - Generated build artifacts were restored/removed.
 - Locale JSON files parse correctly.
 - No mojibake or replacement characters were found.
+
+## Phase 17L.1, AI Output Language Preference
+
+Status: implemented and validated in build/typecheck, pending runtime smoke test if desired.
+
+This phase made newly generated AI outputs respect the current app language preference.
+
+Files updated:
+- `apps/web/src/i18n/stored-locale.ts`
+- `apps/web/src/i18n/I18nProvider.tsx`
+- `apps/web/src/lib/api/core.ts`
+- `apps/api/src/common/i18n/locale.util.ts`
+- `apps/api/src/main.ts`
+- `apps/api/src/ai-suggestions/ai-suggestions.controller.ts`
+- `apps/api/src/ai-suggestions/ai-suggestions.service.ts`
+- `apps/api/src/ai-suggestions/ai-suggestion-provider.service.ts`
+
+Implemented:
+- Frontend sends `X-App-Locale: en|es` using the existing selected locale.
+- Safe SSR/browser fallback defaults to `en`.
+- Backend CORS allows `X-App-Locale`.
+- Backend normalizes accepted locales to `en` or `es`.
+- Invalid or missing locale falls back to English.
+- AI generation flow receives output locale for:
+  - lead next steps
+  - external email analysis
+  - external email reply draft
+  - external calendar analysis
+- Mock provider generates English or Spanish natural-language output.
+- OpenAI provider explicitly instructs natural-language output in English or Spanish.
+- New suggestions store language metadata in `AiSuggestion.metadataJson`:
+  - `outputLocale`
+  - `outputLanguage`
+
+Preserved:
+- Existing saved AI outputs are not translated retroactively.
+- Backend enum values remain unchanged.
+- API enum values remain unchanged.
+- IDs, provider names, model names, and route paths remain unchanged.
+- No Prisma/schema change was needed.
+
+Safety rules preserved:
+- No automatic CRM changes.
+- No automatic email sending.
+- No automatic Gmail draft creation.
+- Human approval remains required.
+- `canApplyAutomatically` remains false.
+- `canSendEmailAutomatically` remains false.
+
+Validation:
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm --filter @sales-ai/api build` passed.
+- `corepack pnpm build` passed.
+- Build artifacts were restored afterward.
+
+Runtime note:
+- Live mock/OpenAI generation was not run in this turn because no authenticated runtime session/dev token was available.

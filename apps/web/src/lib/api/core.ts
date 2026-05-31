@@ -1,3 +1,5 @@
+import { getStoredAppLocale } from '@/i18n/stored-locale';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ??
   'http://localhost:4000/api';
@@ -43,6 +45,7 @@ export async function apiRequest<T>(
   const headers = new Headers();
 
   headers.set('Content-Type', 'application/json');
+  headers.set('X-App-Locale', getStoredAppLocale());
 
   if (options.token) {
     headers.set('Authorization', `Bearer ${options.token}`);
