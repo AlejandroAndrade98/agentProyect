@@ -8,6 +8,16 @@ export function getStoredAppLocale(): Locale {
   }
 
   const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  const documentLocale = window.document.documentElement.lang;
+  const browserLocale = window.navigator.language.split('-')[0];
 
-  return isSupportedLocale(storedLocale) ? storedLocale : defaultLocale;
+  if (isSupportedLocale(storedLocale)) {
+    return storedLocale;
+  }
+
+  if (isSupportedLocale(documentLocale)) {
+    return documentLocale;
+  }
+
+  return isSupportedLocale(browserLocale) ? browserLocale : defaultLocale;
 }

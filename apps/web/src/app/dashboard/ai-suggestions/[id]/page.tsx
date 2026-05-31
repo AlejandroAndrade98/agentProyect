@@ -142,6 +142,22 @@ function getArrayCount(value: unknown) {
   return Array.isArray(value) ? value.length : null;
 }
 
+function getOutputLanguageLabel(
+  outputLocale: unknown,
+  outputLanguage: unknown,
+  t: Translate,
+) {
+  if (outputLocale === 'es') {
+    return t('aiSuggestions.detail.outputLanguageSpanish');
+  }
+
+  if (outputLocale === 'en') {
+    return t('aiSuggestions.detail.outputLanguageEnglish');
+  }
+
+  return getMetadataString(outputLanguage) ?? t('common.emptyStates.notSet');
+}
+
 type AppliedActionName =
   | 'UPDATE_LEAD_NEXT_STEP'
   | 'CREATE_TASK'
@@ -207,6 +223,38 @@ function InfoTile({
         </p>
       )}
     </div>
+  );
+}
+
+function DecisionMetricCard({
+  label,
+  value,
+  helper,
+  tone = 'slate',
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+  tone?: 'slate' | 'blue' | 'emerald' | 'amber' | 'rose';
+}) {
+  const toneClasses = {
+    slate: 'border-slate-200 bg-white text-slate-950',
+    blue: 'border-blue-200 bg-blue-50 text-blue-950',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+    amber: 'border-amber-200 bg-amber-50 text-amber-950',
+    rose: 'border-rose-200 bg-rose-50 text-rose-950',
+  };
+
+  return (
+    <article className={`rounded-2xl border p-4 shadow-sm ${toneClasses[tone]}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-base font-semibold">{value}</p>
+      {helper ? (
+        <p className="mt-2 text-xs leading-5 opacity-70">{helper}</p>
+      ) : null}
+    </article>
   );
 }
 
@@ -982,11 +1030,50 @@ const canCreateGmailDraft =
   !gmailDraftApplied &&
   canUpdateCrm(user);
 
+const leadNextStepsOutput =
+  suggestion?.outputJson && isLeadNextStepsOutput(suggestion.outputJson)
+    ? suggestion.outputJson
+    : null;
+const externalEmailAnalysisOutput =
+  suggestion?.outputJson && isExternalEmailAnalysisOutput(suggestion.outputJson)
+    ? suggestion.outputJson
+    : null;
+const externalCalendarAnalysisOutput =
+  suggestion?.outputJson &&
+  isExternalCalendarEventAnalysisOutput(suggestion.outputJson)
+    ? suggestion.outputJson
+    : null;
+const outputLanguageLabel = getOutputLanguageLabel(
+  suggestion?.metadataJson?.outputLocale,
+  suggestion?.metadataJson?.outputLanguage,
+  t,
+);
+const suggestedActionLabel =
+  leadNextStepsOutput?.recommendedNextStep ??
+  (externalEmailAnalysisOutput?.suggestedReviewAction
+    ? formatEnumLabel(externalEmailAnalysisOutput.suggestedReviewAction)
+    : null) ??
+  (externalCalendarAnalysisOutput?.suggestedReviewAction
+    ? formatEnumLabel(externalCalendarAnalysisOutput.suggestedReviewAction)
+    : null) ??
+  replyDraftSubject;
+const importanceLabel =
+  leadNextStepsOutput?.riskLevel
+    ? getPriorityLabel(leadNextStepsOutput.riskLevel, t)
+    : externalEmailAnalysisOutput?.importanceLevel
+      ? getPriorityLabel(externalEmailAnalysisOutput.importanceLevel, t)
+      : externalCalendarAnalysisOutput?.importanceLevel
+        ? getPriorityLabel(externalCalendarAnalysisOutput.importanceLevel, t)
+        : replyDraftTone
+          ? formatEnumLabel(replyDraftTone)
+          : t('common.emptyStates.notSet');
+const completedActionCount = getAppliedActions(suggestion).length;
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title={t('aiSuggestions.detail.pageTitle')}
-        description={t('aiSuggestions.detail.pageSubtitle')}
+        title={t('aiSuggestions.detail.decisionDashboard')}
+        description={t('aiSuggestions.detail.decisionDashboardDescription')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -1014,8 +1101,8 @@ const canCreateGmailDraft =
 
       {!isLoading && !errorMessage && suggestion ? (
         <>
-        <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+        <article className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+          <div className="border-b border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-blue-50 px-6 py-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -1037,11 +1124,11 @@ const canCreateGmailDraft =
                   {suggestion.title ?? t('aiSuggestions.labels.untitled')}
                 </h1>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  {t('aiSuggestions.detail.reviewOutputFirst')}
+                  {t('aiSuggestions.detail.decisionHeroDescription')}
                 </p>
               </div>
 
-              <div className="grid min-w-full gap-3 text-sm sm:grid-cols-2 lg:min-w-[380px]">
+              <div className="grid min-w-full gap-3 text-sm sm:grid-cols-2 lg:min-w-[420px]">
                 <InfoTile
                   label={t('aiSuggestions.detail.created')}
                   value={formatDateTime(suggestion.createdAt)}
@@ -1061,10 +1148,50 @@ const canCreateGmailDraft =
                       t('common.emptyStates.notSet'),
                   )}
                 />
+                <InfoTile
+                  label={t('aiSuggestions.detail.outputLanguage')}
+                  value={outputLanguageLabel}
+                />
               </div>
             </div>
           </div>
         </article>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <DecisionMetricCard
+            label={t('aiSuggestions.detail.suggestedAction')}
+            value={suggestedActionLabel}
+            helper={t('aiSuggestions.detail.suggestedActionHelper')}
+            tone="blue"
+          />
+          <DecisionMetricCard
+            label={t('aiSuggestions.detail.importanceOrPriority')}
+            value={importanceLabel}
+            helper={t('aiSuggestions.detail.importanceOrPriorityHelper')}
+          />
+          <DecisionMetricCard
+            label={t('aiSuggestions.labels.confidence')}
+            value={formatConfidence(suggestion.confidenceScore, t)}
+            helper={t('aiSuggestions.detail.confidenceHelper')}
+          />
+          <DecisionMetricCard
+            label={t('aiSuggestions.detail.reviewStatus')}
+            value={getAiStatusLabel(suggestion.status, t)}
+            helper={t('aiSuggestions.detail.reviewStatusHelper')}
+            tone={suggestion.status === 'PENDING_REVIEW' ? 'amber' : 'emerald'}
+          />
+          <DecisionMetricCard
+            label={t('aiSuggestions.detail.outputLanguage')}
+            value={outputLanguageLabel}
+            helper={t('aiSuggestions.detail.outputLanguageHelper')}
+          />
+          <DecisionMetricCard
+            label={t('aiSuggestions.detail.completedActionsSummary')}
+            value={String(completedActionCount)}
+            helper={t('aiSuggestions.detail.completedActionsSummaryHelper')}
+            tone={completedActionCount > 0 ? 'emerald' : 'slate'}
+          />
+        </section>
 
         <SafetyPanel
           isMetadataOnly={
@@ -1163,7 +1290,10 @@ const canCreateGmailDraft =
             <div className="grid gap-4 md:grid-cols-2">
               <InfoTile
                 label={t('aiSuggestions.detail.calendarEvent')}
-                value={suggestion.externalCalendarEvent?.summary ?? 'No title'}
+                value={
+                  suggestion.externalCalendarEvent?.summary ??
+                  t('common.emptyStates.noTitle')
+                }
               />
               <InfoTile
                 label={t('aiSuggestions.labels.organizer')}
@@ -1218,7 +1348,7 @@ const canCreateGmailDraft =
 
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
           <section className="space-y-6">
-            <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <article className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/40 p-6 shadow-sm">
               <div className="mb-5 flex flex-wrap gap-2">
                 <Badge className={getStatusClasses(suggestion.status)}>
                   {getAiStatusLabel(suggestion.status, t)}
@@ -1236,11 +1366,11 @@ const canCreateGmailDraft =
 
               <SectionIntro
                 eyebrow={t('aiSuggestions.detail.aiOutput')}
-                title={t('aiSuggestions.detail.generatedRecommendation')}
-                description={t('aiSuggestions.detail.completeAiResponse')}
+                title={t('aiSuggestions.detail.aiRecommendation')}
+                description={t('aiSuggestions.detail.aiRecommendationDescription')}
               />
 
-              <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">
+              <p className="mt-4 whitespace-pre-line rounded-2xl border border-indigo-100 bg-white p-5 text-sm leading-7 text-slate-700 shadow-sm">
                 {suggestion.outputText ?? t('aiSuggestions.detail.noOutputText')}
               </p>
             </article>
@@ -1387,7 +1517,8 @@ const canCreateGmailDraft =
                         {t('aiSuggestions.detail.externalEmailMessageId')}
                       </p>
                       <p className="mt-1 break-all text-slate-600">
-                        {suggestion.externalEmailMessageId ?? 'Not linked'}
+                        {suggestion.externalEmailMessageId ??
+                          t('aiSuggestions.detail.notLinked')}
                       </p>
                     </div>
 
@@ -1689,7 +1820,8 @@ const canCreateGmailDraft =
               {t('aiSuggestions.detail.summary')}
             </p>
             <p className="mt-1 text-slate-600">
-              {suggestion.externalCalendarEvent.summary ?? 'No title'}
+              {suggestion.externalCalendarEvent.summary ??
+                t('common.emptyStates.noTitle')}
             </p>
           </div>
 
@@ -1738,7 +1870,9 @@ const canCreateGmailDraft =
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">Organizer</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.labels.organizer')}
+            </p>
             <p className="mt-1 text-slate-600">
               {suggestion.externalCalendarEvent.organizerName ||
                 suggestion.externalCalendarEvent.organizerEmail ||
@@ -1752,7 +1886,9 @@ const canCreateGmailDraft =
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">iCal UID</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.detail.iCalUid')}
+            </p>
             <p className="mt-1 break-all text-slate-600">
               {suggestion.externalCalendarEvent.iCalUid ??
                 t('common.emptyStates.notSet')}
@@ -1760,7 +1896,9 @@ const canCreateGmailDraft =
           </div>
 
           <div>
-            <p className="font-medium text-slate-950">Synced at</p>
+            <p className="font-medium text-slate-950">
+              {t('aiSuggestions.detail.syncedAt')}
+            </p>
             <p className="mt-1 text-slate-600">
               {formatDateTime(suggestion.externalCalendarEvent.syncedAt)}
             </p>
@@ -1804,7 +1942,8 @@ const canCreateGmailDraft =
           {t('aiSuggestions.detail.externalCalendarEventId')}
         </p>
         <p className="mt-1 break-all text-slate-600">
-          {suggestion.externalCalendarEventId ?? 'Not linked'}
+          {suggestion.externalCalendarEventId ??
+            t('aiSuggestions.detail.notLinked')}
         </p>
       </div>
 
@@ -2129,7 +2268,7 @@ const canCreateGmailDraft =
 
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-950">
-                {t('aiSuggestions.detail.reviewAction')}
+                {t('aiSuggestions.detail.humanReview')}
               </h2>
 
                           {suggestion.metadataJson?.review &&
@@ -2137,11 +2276,14 @@ const canCreateGmailDraft =
             'note' in suggestion.metadataJson.review ? (
               <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-slate-950">
-                  Review note
+                  {t('aiSuggestions.detail.reviewNoteTitle')}
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-slate-700">
-                  {String(suggestion.metadataJson.review.note ?? 'No note')}
+                  {String(
+                    suggestion.metadataJson.review.note ??
+                      t('aiSuggestions.detail.noNote'),
+                  )}
                 </p>
                     </article>
                   ) : null}
@@ -2980,8 +3122,11 @@ const canCreateGmailDraft =
           <aside className="space-y-4">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-slate-950">
-                {t('aiSuggestions.detail.suggestionInfo')}
+                {t('aiSuggestions.detail.advancedMetadata')}
               </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {t('aiSuggestions.detail.advancedMetadataDescription')}
+              </p>
 
               <dl className="mt-4 space-y-3 text-sm">
                 <div>
@@ -3037,6 +3182,15 @@ const canCreateGmailDraft =
                   <dd className="font-medium text-slate-800">
                     {suggestion.metadataJson?.model ??
                       t('common.emptyStates.notSet')}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-slate-500">
+                    {t('aiSuggestions.detail.outputLanguage')}
+                  </dt>
+                  <dd className="font-medium text-slate-800">
+                    {outputLanguageLabel}
                   </dd>
                 </div>
 

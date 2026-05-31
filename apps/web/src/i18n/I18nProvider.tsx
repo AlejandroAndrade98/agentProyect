@@ -39,6 +39,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         ? browserLocale
         : defaultLocale;
 
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, initialLocale);
     setLocaleState(initialLocale);
   }, []);
 
