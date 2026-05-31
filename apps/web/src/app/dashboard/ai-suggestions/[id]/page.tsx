@@ -3,7 +3,6 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
@@ -44,6 +43,14 @@ import type {
   LeadNextStepsSuggestionOutput,
 } from '@/types/ai-suggestions';
 import { canUpdateCrm } from '@/lib/permissions';
+
+import { AiAdvancedMetadataSection } from './components/AiAdvancedMetadataSection';
+import { AiRecommendationSection } from './components/AiRecommendationSection';
+import { AiSafetyPanel } from './components/AiSafetyPanel';
+import { AiSourceContextSection } from './components/AiSourceContextSection';
+import { AiSuggestionHero } from './components/AiSuggestionHero';
+import { AiSuggestionSummaryCards } from './components/AiSuggestionSummaryCards';
+import { InfoTile, SectionIntro } from './components/DetailPrimitives';
 
 function getStatusClasses(status: AiSuggestionStatus) {
   const classes: Record<AiSuggestionStatus, string> = {
@@ -138,10 +145,6 @@ function getMetadataString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function getArrayCount(value: unknown) {
-  return Array.isArray(value) ? value.length : null;
-}
-
 function getOutputLanguageLabel(
   outputLocale: unknown,
   outputLanguage: unknown,
@@ -172,135 +175,6 @@ type AppliedActionName =
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR_EVENT'
   | 'CREATE_LEAD_FROM_EXTERNAL_CALENDAR'
   | 'CREATE_GMAIL_DRAFT_FROM_EMAIL_REPLY_SUGGESTION';
-
-function SectionIntro({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="mb-5">
-      {eyebrow ? (
-        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-          {eyebrow}
-        </p>
-      ) : null}
-      <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">
-        {title}
-      </h2>
-      {description ? (
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          {description}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function InfoTile({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string | null;
-  children?: ReactNode;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      {children ?? (
-        <p className="mt-2 break-words text-sm font-medium text-slate-900">
-          {value || t('aiSuggestions.labels.notSet')}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function DecisionMetricCard({
-  label,
-  value,
-  helper,
-  tone = 'slate',
-}: {
-  label: string;
-  value: string;
-  helper?: string;
-  tone?: 'slate' | 'blue' | 'emerald' | 'amber' | 'rose';
-}) {
-  const toneClasses = {
-    slate: 'border-slate-200 bg-white text-slate-950',
-    blue: 'border-blue-200 bg-blue-50 text-blue-950',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-950',
-    amber: 'border-amber-200 bg-amber-50 text-amber-950',
-    rose: 'border-rose-200 bg-rose-50 text-rose-950',
-  };
-
-  return (
-    <article className={`rounded-2xl border p-4 shadow-sm ${toneClasses[tone]}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
-        {label}
-      </p>
-      <p className="mt-2 break-words text-base font-semibold">{value}</p>
-      {helper ? (
-        <p className="mt-2 text-xs leading-5 opacity-70">{helper}</p>
-      ) : null}
-    </article>
-  );
-}
-
-function SafetyPanel({
-  isMetadataOnly,
-}: {
-  isMetadataOnly: boolean;
-}) {
-  const { t } = useI18n();
-  const items = [
-    t('common.safety.humanReviewRequired'),
-    t('common.safety.noAutomaticEmailSending'),
-    t('common.safety.noAutomaticCrmRecords'),
-    t('common.safety.explicitDraftAction'),
-    isMetadataOnly ? t('common.safety.metadataOnly') : null,
-  ].filter((item): item is string => Boolean(item));
-
-  return (
-    <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            {t('aiSuggestions.detail.safety')}
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-blue-950">
-            {t('aiSuggestions.detail.humanControlled')}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-900">
-            {t('aiSuggestions.detail.safetyDescription')}
-          </p>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
-          {items.map((item) => (
-            <div
-              key={item}
-              className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm font-medium text-blue-900"
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
 
 export default function AiSuggestionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -1068,6 +942,16 @@ const importanceLabel =
           ? formatEnumLabel(replyDraftTone)
           : t('common.emptyStates.notSet');
 const completedActionCount = getAppliedActions(suggestion).length;
+const statusLabel = suggestion
+  ? getAiStatusLabel(suggestion.status, t)
+  : t('common.emptyStates.notSet');
+const typeLabel = suggestion
+  ? getAiTypeLabel(suggestion.type, t)
+  : t('common.emptyStates.notSet');
+const confidenceLabel = formatConfidence(suggestion?.confidenceScore ?? null, t);
+const statusClassName = suggestion
+  ? getStatusClasses(suggestion.status)
+  : 'bg-slate-100 text-slate-700 ring-slate-200';
 
   return (
     <div className="space-y-8">
@@ -1101,99 +985,26 @@ const completedActionCount = getAppliedActions(suggestion).length;
 
       {!isLoading && !errorMessage && suggestion ? (
         <>
-        <article className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
-          <div className="border-b border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-blue-50 px-6 py-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <Badge className={getStatusClasses(suggestion.status)}>
-                    {getAiStatusLabel(suggestion.status, t)}
-                  </Badge>
-                  <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
-                    {getAiTypeLabel(suggestion.type, t)}
-                  </Badge>
-                  {suggestion.confidenceScore !== null ? (
-                    <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                      {t('aiSuggestions.labels.confidence')}{' '}
-                      {formatConfidence(suggestion.confidenceScore, t)}
-                    </Badge>
-                  ) : null}
-                </div>
+        <AiSuggestionHero
+          suggestion={suggestion}
+          statusClassName={statusClassName}
+          statusLabel={statusLabel}
+          typeLabel={typeLabel}
+          confidenceLabel={confidenceLabel}
+          outputLanguageLabel={outputLanguageLabel}
+        />
 
-                <h1 className="max-w-4xl text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
-                  {suggestion.title ?? t('aiSuggestions.labels.untitled')}
-                </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  {t('aiSuggestions.detail.decisionHeroDescription')}
-                </p>
-              </div>
+        <AiSuggestionSummaryCards
+          suggestedActionLabel={suggestedActionLabel}
+          importanceLabel={importanceLabel}
+          confidenceLabel={confidenceLabel}
+          statusLabel={statusLabel}
+          isPendingReview={suggestion.status === 'PENDING_REVIEW'}
+          outputLanguageLabel={outputLanguageLabel}
+          completedActionCount={completedActionCount}
+        />
 
-              <div className="grid min-w-full gap-3 text-sm sm:grid-cols-2 lg:min-w-[420px]">
-                <InfoTile
-                  label={t('aiSuggestions.detail.created')}
-                  value={formatDateTime(suggestion.createdAt)}
-                />
-                <InfoTile
-                  label={t('aiSuggestions.detail.reviewed')}
-                  value={formatDateTime(suggestion.reviewedAt)}
-                />
-                <InfoTile
-                  label={t('aiSuggestions.labels.provider')}
-                  value={suggestion.provider}
-                />
-                <InfoTile
-                  label={t('aiSuggestions.labels.model')}
-                  value={String(
-                    suggestion.metadataJson?.model ??
-                      t('common.emptyStates.notSet'),
-                  )}
-                />
-                <InfoTile
-                  label={t('aiSuggestions.detail.outputLanguage')}
-                  value={outputLanguageLabel}
-                />
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <DecisionMetricCard
-            label={t('aiSuggestions.detail.suggestedAction')}
-            value={suggestedActionLabel}
-            helper={t('aiSuggestions.detail.suggestedActionHelper')}
-            tone="blue"
-          />
-          <DecisionMetricCard
-            label={t('aiSuggestions.detail.importanceOrPriority')}
-            value={importanceLabel}
-            helper={t('aiSuggestions.detail.importanceOrPriorityHelper')}
-          />
-          <DecisionMetricCard
-            label={t('aiSuggestions.labels.confidence')}
-            value={formatConfidence(suggestion.confidenceScore, t)}
-            helper={t('aiSuggestions.detail.confidenceHelper')}
-          />
-          <DecisionMetricCard
-            label={t('aiSuggestions.detail.reviewStatus')}
-            value={getAiStatusLabel(suggestion.status, t)}
-            helper={t('aiSuggestions.detail.reviewStatusHelper')}
-            tone={suggestion.status === 'PENDING_REVIEW' ? 'amber' : 'emerald'}
-          />
-          <DecisionMetricCard
-            label={t('aiSuggestions.detail.outputLanguage')}
-            value={outputLanguageLabel}
-            helper={t('aiSuggestions.detail.outputLanguageHelper')}
-          />
-          <DecisionMetricCard
-            label={t('aiSuggestions.detail.completedActionsSummary')}
-            value={String(completedActionCount)}
-            helper={t('aiSuggestions.detail.completedActionsSummaryHelper')}
-            tone={completedActionCount > 0 ? 'emerald' : 'slate'}
-          />
-        </section>
-
-        <SafetyPanel
+        <AiSafetyPanel
           isMetadataOnly={
             Boolean(isExternalEmailSuggestion) ||
             Boolean(isExternalEmailReplyDraftSuggestion) ||
@@ -1201,179 +1012,26 @@ const completedActionCount = getAppliedActions(suggestion).length;
           }
         />
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionIntro
-            eyebrow={t('aiSuggestions.detail.sourceContext')}
-            title={
-              isLeadNextStepsSuggestion
-                ? t('aiSuggestions.detail.leadSuggestionContext')
-                : isExternalEmailReplyDraftSuggestion
-                  ? t('aiSuggestions.detail.originalEmailAndReplyDraft')
-                  : isExternalEmailSuggestion
-                    ? t('aiSuggestions.detail.syncedEmailMetadata')
-                    : isExternalCalendarSuggestion
-                      ? t('aiSuggestions.detail.syncedCalendarMetadata')
-                      : t('aiSuggestions.detail.suggestionSource')
-            }
-            description={t('aiSuggestions.detail.sourceDescription')}
-          />
-
-          {isLeadNextStepsSuggestion ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              <InfoTile
-                label={t('aiSuggestions.detail.leadIdLabel')}
-                value={suggestion.leadId ?? t('aiSuggestions.detail.notLinked')}
-              />
-              <InfoTile
-                label={t('aiSuggestions.detail.entityType')}
-                value={suggestion.entityType ?? t('aiSuggestions.detail.lead')}
-              />
-              <InfoTile
-                label={t('aiSuggestions.detail.entityId')}
-                value={suggestion.entityId ?? t('common.emptyStates.notSet')}
-              />
-            </div>
-          ) : null}
-
-          {isExternalEmailSuggestion || isExternalEmailReplyDraftSuggestion ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoTile
-                label={t('aiSuggestions.detail.emailSubject')}
-                value={
-                  suggestion.externalEmailMessage?.subject ??
-                  t('common.emptyStates.noSubject')
-                }
-              />
-              <InfoTile
-                label={t('aiSuggestions.labels.sender')}
-                value={
-                  suggestion.externalEmailMessage?.fromName ||
-                  suggestion.externalEmailMessage?.fromEmail ||
-                  t('common.emptyStates.unknownSender')
-                }
-              />
-              <InfoTile
-                label={t('aiSuggestions.detail.internalDate')}
-                value={
-                  suggestion.externalEmailMessage?.internalDate
-                    ? formatDateTime(suggestion.externalEmailMessage.internalDate)
-                    : t('common.emptyStates.notSet')
-                }
-              />
-              <InfoTile
-                label={t('aiSuggestions.detail.syncedAt')}
-                value={
-                  suggestion.externalEmailMessage?.syncedAt
-                    ? formatDateTime(suggestion.externalEmailMessage.syncedAt)
-                    : t('common.emptyStates.notSet')
-                }
-              />
-              {isExternalEmailReplyDraftSuggestion ? (
-                <InfoTile
-                  label={t('aiSuggestions.labels.suggestedSubject')}
-                  value={replyDraftSubject}
-                />
-              ) : null}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t('aiSuggestions.detail.snippet')}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {suggestion.externalEmailMessage?.snippet ??
-                    t('common.emptyStates.noSnippet')}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
-          {isExternalCalendarSuggestion ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoTile
-                label={t('aiSuggestions.detail.calendarEvent')}
-                value={
-                  suggestion.externalCalendarEvent?.summary ??
-                  t('common.emptyStates.noTitle')
-                }
-              />
-              <InfoTile
-                label={t('aiSuggestions.labels.organizer')}
-                value={
-                  suggestion.externalCalendarEvent?.organizerName ||
-                  suggestion.externalCalendarEvent?.organizerEmail ||
-                  t('common.emptyStates.unknownOrganizer')
-                }
-              />
-              <InfoTile
-                label={t('externalSync.labels.start')}
-                value={
-                  suggestion.externalCalendarEvent?.startAt
-                    ? formatDateTime(suggestion.externalCalendarEvent.startAt)
-                    : t('common.emptyStates.notSet')
-                }
-              />
-              <InfoTile
-                label={t('externalSync.labels.end')}
-                value={
-                  suggestion.externalCalendarEvent?.endAt
-                    ? formatDateTime(suggestion.externalCalendarEvent.endAt)
-                    : t('common.emptyStates.notSet')
-                }
-              />
-              <InfoTile
-                label={t('aiSuggestions.labels.attendees')}
-                value={String(
-                  getArrayCount(suggestion.externalCalendarEvent?.attendeesJson) ??
-                    t('common.emptyStates.notSet'),
-                )}
-              />
-              <InfoTile label={t('aiSuggestions.detail.calendarLink')}>
-                {suggestion.externalCalendarEvent?.htmlLink ? (
-                  <a
-                    href={suggestion.externalCalendarEvent.htmlLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-900"
-                  >
-                    {t('aiSuggestions.detail.openEvent')}
-                  </a>
-                ) : (
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {t('common.emptyStates.notSet')}
-                  </p>
-                )}
-              </InfoTile>
-            </div>
-          ) : null}
-        </article>
+        <AiSourceContextSection
+          suggestion={suggestion}
+          isLeadNextStepsSuggestion={Boolean(isLeadNextStepsSuggestion)}
+          isExternalEmailSuggestion={Boolean(isExternalEmailSuggestion)}
+          isExternalEmailReplyDraftSuggestion={Boolean(
+            isExternalEmailReplyDraftSuggestion,
+          )}
+          isExternalCalendarSuggestion={Boolean(isExternalCalendarSuggestion)}
+          replyDraftSubject={replyDraftSubject}
+        />
 
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
           <section className="space-y-6">
-            <article className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/40 p-6 shadow-sm">
-              <div className="mb-5 flex flex-wrap gap-2">
-                <Badge className={getStatusClasses(suggestion.status)}>
-                  {getAiStatusLabel(suggestion.status, t)}
-                </Badge>
-
-                <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
-                  {getAiTypeLabel(suggestion.type, t)}
-                </Badge>
-
-                <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                  {t('aiSuggestions.labels.confidence')}:{' '}
-                  {formatConfidence(suggestion.confidenceScore, t)}
-                </Badge>
-              </div>
-
-              <SectionIntro
-                eyebrow={t('aiSuggestions.detail.aiOutput')}
-                title={t('aiSuggestions.detail.aiRecommendation')}
-                description={t('aiSuggestions.detail.aiRecommendationDescription')}
-              />
-
-              <p className="mt-4 whitespace-pre-line rounded-2xl border border-indigo-100 bg-white p-5 text-sm leading-7 text-slate-700 shadow-sm">
-                {suggestion.outputText ?? t('aiSuggestions.detail.noOutputText')}
-              </p>
-            </article>
+            <AiRecommendationSection
+              suggestion={suggestion}
+              statusClassName={statusClassName}
+              statusLabel={statusLabel}
+              typeLabel={typeLabel}
+              confidenceLabel={confidenceLabel}
+            />
 
               {suggestion.outputJson && isLeadNextStepsOutput(suggestion.outputJson) ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -3119,145 +2777,10 @@ const completedActionCount = getAppliedActions(suggestion).length;
 
 
 
-          <aside className="space-y-4">
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-slate-950">
-                {t('aiSuggestions.detail.advancedMetadata')}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {t('aiSuggestions.detail.advancedMetadataDescription')}
-              </p>
-
-              <dl className="mt-4 space-y-3 text-sm">
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.created')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {formatDateTime(suggestion.createdAt)}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.expires')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {formatDateTime(suggestion.expiresAt)}
-                  </dd>
-                </div>
-
-                                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.reviewedAt')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {formatDateTime(suggestion.reviewedAt)}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.reviewedBy')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {suggestion.reviewedBy?.name ??
-                      t('aiSuggestions.detail.notReviewed')}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.labels.provider')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {suggestion.provider}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.labels.model')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {suggestion.metadataJson?.model ??
-                      t('common.emptyStates.notSet')}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.outputLanguage')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {outputLanguageLabel}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.tokens')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {t('common.labels.input')} {suggestion.tokensInput ?? 0} ·{' '}
-                    {t('common.labels.output')}{' '}
-                    {suggestion.tokensOutput ?? 0}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.cost')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    ${suggestion.estimatedCostUsd ?? 0}
-                  </dd>
-                </div>
-              </dl>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-slate-950">
-                {t('aiSuggestions.detail.safetyFlags')}
-              </h2>
-
-              <dl className="mt-4 space-y-3 text-sm">
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.humanApprovalRequired')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {String(
-                      suggestion.metadataJson?.humanApprovalRequired ?? true,
-                    )}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.canApplyAutomatically')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {String(
-                      suggestion.metadataJson?.canApplyAutomatically ?? false,
-                    )}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-slate-500">
-                    {t('aiSuggestions.detail.canSendEmailAutomatically')}
-                  </dt>
-                  <dd className="font-medium text-slate-800">
-                    {String(
-                      suggestion.metadataJson?.canSendEmailAutomatically ??
-                        false,
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            </article>
-          </aside>
+          <AiAdvancedMetadataSection
+            suggestion={suggestion}
+            outputLanguageLabel={outputLanguageLabel}
+          />
         </div>
         </>
       ) : null}

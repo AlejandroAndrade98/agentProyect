@@ -450,3 +450,35 @@ New AI generations now respect the current app locale:
 - New `AiSuggestion.metadataJson` includes `outputLocale` and `outputLanguage`.
 - Existing saved AI outputs remain unchanged by design.
 - No auto CRM changes, no auto email sending, and no automatic Gmail draft creation were added.
+
+
+## Latest completed phase
+
+Phase 17L.3 AI Suggestion Detail Component Refactor is completed and validated.
+
+The AI Suggestion Detail page was refactored into focused frontend components:
+- `AiSuggestionHero`
+- `AiSuggestionSummaryCards`
+- `AiRecommendationSection`
+- `AiSourceContextSection`
+- `AiSafetyPanel`
+- `AiAdvancedMetadataSection`
+- `DetailPrimitives`
+
+`page.tsx` keeps the important logic:
+- fetch/state
+- permissions
+- handlers
+- accept/reject
+- apply actions
+- explicit Gmail draft creation
+
+Behavior preserved:
+- No API calls changed.
+- No routes changed.
+- No auth/RBAC changed.
+- No action visibility rules changed.
+- No disabled/applied states changed.
+- No safety flags changed.
+- No AI generation changed.
+- AI-generated text still displays exactly as stored.
