@@ -5478,3 +5478,45 @@ Current i18n coverage:
 - Accept Invitation is translated.
 - Shared UI leftovers such as PageHeader, LongTextCard, DashboardLayout, and formatter fallbacks are i18n-ready.
 - No backend, Prisma, API, route, auth logic, invitation logic, OAuth, email, Gmail, CRM automation, or background job behavior changed.
+
+## Phase 17K.6, i18n for Platform Admin
+
+Status: completed, validated in typecheck/build, pending commit/push.
+
+This phase translated the SUPER_ADMIN Platform Admin organization pages.
+
+Frontend files updated:
+- `apps/web/src/app/dashboard/platform/organizations/page.tsx`
+- `apps/web/src/app/dashboard/platform/organizations/new/page.tsx`
+- `apps/web/src/app/dashboard/platform/organizations/[id]/page.tsx`
+- `apps/web/src/i18n/ai-display.ts`
+- `apps/web/src/i18n/locales/en.json`
+- `apps/web/src/i18n/locales/es.json`
+
+Implemented:
+- Added `platform` locale namespace in English and Spanish.
+- Translated Platform organizations list.
+- Translated new organization page.
+- Translated organization detail page.
+- Translated filters, titles, buttons, empty states, metadata, status management, owner onboarding, users, and invitations.
+- Added display helpers:
+  - `getPlatformOrganizationStatusLabel`
+  - `getPlatformAccountTypeLabel`
+  - `getPlatformInvitationStatusLabel`
+
+Preserved:
+- Frontend enum values: `TRIAL`, `ACTIVE`, `SUSPENDED`, `CANCELLED`, `INDIVIDUAL`, `COMPANY`.
+- SUPER_ADMIN-only Platform visibility.
+- Organization creation behavior.
+- Organization detail/update behavior.
+- Status update behavior.
+- Owner invitation behavior.
+- Billing/usage behavior.
+
+Validation:
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm build` passed.
+- Generated build artifacts were restored/removed.
+- Locale JSON files parse correctly.
+- No mojibake or replacement characters were found.

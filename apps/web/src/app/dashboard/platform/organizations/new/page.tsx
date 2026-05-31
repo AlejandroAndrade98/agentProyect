@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { getPlatformAccountTypeLabel } from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
 import {
   ApiClientError,
   onboardPlatformOrganization,
@@ -48,6 +50,7 @@ function buildDefaultSlug(name: string) {
 export default function NewPlatformOrganizationPage() {
   const router = useRouter();
   const { token, user, isLoading } = useAuth();
+  const { t } = useI18n();
 
   const [organizationName, setOrganizationName] = useState('');
   const [slug, setSlug] = useState('');
@@ -87,9 +90,9 @@ export default function NewPlatformOrganizationPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Platform"
-          title="Create organization"
-          description="Loading platform context..."
+          eyebrow={t('platform.title')}
+          title={t('platform.newOrganization.title')}
+          description={t('platform.newOrganization.loading')}
         />
       </div>
     );
@@ -97,7 +100,7 @@ export default function NewPlatformOrganizationPage() {
 
   if (!canViewPlatform(user?.role)) {
   return (
-    <ErrorState message="Platform access required. Only super admins can create platform organizations." />
+    <ErrorState message={t('platform.accessRequired')} />
   );
 }
 
@@ -142,7 +145,7 @@ export default function NewPlatformOrganizationPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not onboard organization.');
+        setErrorMessage(t('platform.newOrganization.onboardFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -160,15 +163,15 @@ export default function NewPlatformOrganizationPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Platform"
-        title="Create organization"
-        description="Create a new customer organization and generate the first OWNER invitation."
+        eyebrow={t('platform.title')}
+        title={t('platform.newOrganization.title')}
+        description={t('platform.newOrganization.subtitle')}
         actions={
           <Link
             href="/dashboard/platform/organizations"
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Back to organizations
+            {t('platform.newOrganization.back')}
           </Link>
         }
       />
@@ -185,10 +188,10 @@ export default function NewPlatformOrganizationPage() {
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
                 <Badge className="bg-emerald-100 text-emerald-700 ring-emerald-200">
-                  Created
+                  {t('platform.newOrganization.created')}
                 </Badge>
                 <Badge className="bg-blue-100 text-blue-700 ring-blue-200">
-                  Owner invitation pending
+                  {t('platform.newOrganization.ownerInvitationPending')}
                 </Badge>
               </div>
 
@@ -197,17 +200,16 @@ export default function NewPlatformOrganizationPage() {
               </h2>
 
               <p className="text-sm text-slate-600">
-                Owner invitation created for{' '}
-                <span className="font-medium text-slate-900">
-                  {createdOnboarding.ownerInvitation.email}
-                </span>
-                .
+                {t('platform.newOrganization.ownerInvitationCreatedFor').replace(
+                  '{email}',
+                  createdOnboarding.ownerInvitation.email,
+                )}
               </p>
 
               {acceptInvitationUrl ? (
                 <div className="mt-4 space-y-2">
                   <p className="text-sm font-medium text-slate-700">
-                    Development invitation link
+                    {t('platform.newOrganization.developmentInvitationLink')}
                   </p>
 
                   <div className="rounded-xl border border-emerald-200 bg-white p-3 text-sm text-slate-700">
@@ -218,7 +220,7 @@ export default function NewPlatformOrganizationPage() {
                     href={acceptInvitationUrl}
                     className="inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
                   >
-                    Open invitation
+                    {t('platform.newOrganization.openInvitation')}
                   </Link>
                 </div>
               ) : null}
@@ -228,7 +230,7 @@ export default function NewPlatformOrganizationPage() {
               href={`/dashboard/platform/organizations/${createdOnboarding.organization.id}`}
               className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
             >
-              View organization
+              {t('platform.newOrganization.viewOrganization')}
             </Link>
           </div>
         </section>
@@ -240,7 +242,7 @@ export default function NewPlatformOrganizationPage() {
       >
         <div className="grid gap-5 lg:grid-cols-2">
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Organization name
+            {t('platform.newOrganization.organizationName')}
             <input
               value={organizationName}
               onChange={(event) =>
@@ -253,7 +255,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Slug
+            {t('platform.newOrganization.slug')}
             <input
               value={slug}
               onChange={(event) => setSlug(event.target.value)}
@@ -264,7 +266,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Owner email
+            {t('platform.newOrganization.ownerEmail')}
             <input
               value={ownerEmail}
               onChange={(event) => setOwnerEmail(event.target.value)}
@@ -276,7 +278,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Account type
+            {t('platform.organizations.accountType')}
             <select
               value={accountType}
               onChange={(event) =>
@@ -284,13 +286,17 @@ export default function NewPlatformOrganizationPage() {
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
             >
-              <option value="COMPANY">Company</option>
-              <option value="INDIVIDUAL">Individual</option>
+              <option value="COMPANY">
+                {getPlatformAccountTypeLabel('COMPANY', t)}
+              </option>
+              <option value="INDIVIDUAL">
+                {getPlatformAccountTypeLabel('INDIVIDUAL', t)}
+              </option>
             </select>
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Billing email
+            {t('platform.newOrganization.billingEmail')}
             <input
               value={billingEmail}
               onChange={(event) => setBillingEmail(event.target.value)}
@@ -301,7 +307,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Support email
+            {t('platform.newOrganization.supportEmail')}
             <input
               value={supportEmail}
               onChange={(event) => setSupportEmail(event.target.value)}
@@ -312,7 +318,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Industry
+            {t('platform.newOrganization.industry')}
             <input
               value={industry}
               onChange={(event) => setIndustry(event.target.value)}
@@ -322,7 +328,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Plan
+            {t('platform.newOrganization.plan')}
             <input
               value={plan}
               onChange={(event) => setPlan(event.target.value)}
@@ -332,7 +338,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Timezone
+            {t('platform.newOrganization.timezone')}
             <input
               value={timezone}
               onChange={(event) => setTimezone(event.target.value)}
@@ -341,7 +347,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Locale
+            {t('platform.newOrganization.locale')}
             <input
               value={locale}
               onChange={(event) => setLocale(event.target.value)}
@@ -350,7 +356,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Max users
+            {t('platform.newOrganization.maxUsers')}
             <input
               value={maxUsers}
               onChange={(event) => setMaxUsers(event.target.value)}
@@ -361,7 +367,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Max active leads
+            {t('platform.newOrganization.maxActiveLeads')}
             <input
               value={maxActiveLeads}
               onChange={(event) => setMaxActiveLeads(event.target.value)}
@@ -372,7 +378,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            AI monthly credits limit
+            {t('platform.newOrganization.aiMonthlyCreditsLimit')}
             <input
               value={aiMonthlyCreditsLimit}
               onChange={(event) =>
@@ -385,7 +391,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            Default user AI credits limit
+            {t('platform.newOrganization.defaultUserAiCreditsLimit')}
             <input
               value={aiDefaultUserMonthlyCreditsLimit}
               onChange={(event) =>
@@ -398,7 +404,7 @@ export default function NewPlatformOrganizationPage() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700 lg:col-span-2">
-            AI credits balance
+            {t('platform.newOrganization.aiCreditsBalance')}
             <input
               value={aiCreditsBalance}
               onChange={(event) => setAiCreditsBalance(event.target.value)}
@@ -414,7 +420,7 @@ export default function NewPlatformOrganizationPage() {
             href="/dashboard/platform/organizations"
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Cancel
+            {t('common.actions.cancel')}
           </Link>
 
           <button
@@ -422,7 +428,9 @@ export default function NewPlatformOrganizationPage() {
             disabled={isSubmitting}
             className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating...' : 'Create organization'}
+            {isSubmitting
+              ? t('common.actions.creating')
+              : t('platform.organizations.create')}
           </button>
         </div>
       </form>

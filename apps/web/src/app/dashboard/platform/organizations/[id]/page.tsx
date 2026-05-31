@@ -9,6 +9,13 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getOrganizationRoleLabel,
+  getPlatformAccountTypeLabel,
+  getPlatformInvitationStatusLabel,
+  getPlatformOrganizationStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   createPlatformOwnerInvitation,
   getPlatformOrganization,
@@ -16,7 +23,7 @@ import {
   updatePlatformOrganizationStatus,
   revokePlatformOwnerInvitation,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import type {
   OrganizationAccountType,
   OrganizationStatus,
@@ -37,8 +44,8 @@ function canViewPlatform(role?: string) {
   return role === 'SUPER_ADMIN';
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+function formatNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 function getStatusClasses(status: OrganizationStatus) {
@@ -76,6 +83,12 @@ export default function PlatformOrganizationDetailPage({
   params: { id: string };
 }) {
   const { token, user } = useAuth();
+  const { locale, t } = useI18n();
+  const dateFormatOptions = {
+    locale,
+    fallback: t('common.emptyStates.notSet'),
+    invalidFallback: t('common.errors.invalidDate'),
+  };
 
   const [organization, setOrganization] =
     useState<PlatformOrganizationDetail | null>(null);
@@ -142,7 +155,7 @@ export default function PlatformOrganizationDetailPage({
 
     if (!canSeePlatform) {
       setIsLoading(false);
-      setErrorMessage('You do not have permission to view Platform Admin.');
+      setErrorMessage(t('platform.permissionDenied'));
       return;
     }
 
@@ -179,12 +192,12 @@ export default function PlatformOrganizationDetailPage({
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load platform organization.');
+        setErrorMessage(t('platform.organizationDetail.loadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [canSeePlatform, params.id, token]);
+  }, [canSeePlatform, params.id, token, t]);
 
   useEffect(() => {
     loadOrganization();
@@ -210,14 +223,14 @@ export default function PlatformOrganizationDetailPage({
       });
 
       setOrganization(response);
-      setSuccessMessage('Organization updated.');
+      setSuccessMessage(t('platform.organizationDetail.updated'));
     } catch (error) {
       if (error instanceof ApiClientError) {
         setErrorMessage(error.message);
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update organization.');
+        setErrorMessage(t('platform.organizationDetail.updateFailed'));
       }
     } finally {
       setIsSaving(false);
@@ -242,14 +255,14 @@ export default function PlatformOrganizationDetailPage({
       });
 
       setOrganization(response);
-      setSuccessMessage('Organization status updated.');
+      setSuccessMessage(t('platform.organizationDetail.statusUpdated'));
     } catch (error) {
       if (error instanceof ApiClientError) {
         setErrorMessage(error.message);
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not update organization status.');
+        setErrorMessage(t('platform.organizationDetail.statusUpdateFailed'));
       }
     } finally {
       setIsSaving(false);
@@ -277,7 +290,7 @@ export default function PlatformOrganizationDetailPage({
 
     setCreatedOwnerInvitation(response.ownerInvitation);
     setOwnerInvitationEmail('');
-    setSuccessMessage('Owner invitation created.');
+    setSuccessMessage(t('platform.organizationDetail.ownerInvitationCreated'));
 
     await loadOrganization();
   } catch (error) {
@@ -286,7 +299,7 @@ export default function PlatformOrganizationDetailPage({
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not create owner invitation.');
+      setErrorMessage(t('platform.organizationDetail.ownerInvitationCreateFailed'));
     }
   } finally {
     setIsCreatingOwnerInvitation(false);
@@ -311,14 +324,14 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
     );
 
     setOrganization(updatedOrganization);
-    setSuccessMessage('Owner invitation revoked.');
+    setSuccessMessage(t('platform.organizationDetail.ownerInvitationRevoked'));
   } catch (error) {
     if (error instanceof ApiClientError) {
       setErrorMessage(error.message);
     } else if (error instanceof Error) {
       setErrorMessage(error.message);
     } else {
-      setErrorMessage('Could not revoke owner invitation.');
+      setErrorMessage(t('platform.organizationDetail.ownerInvitationRevokeFailed'));
     }
   } finally {
     setIsRevokingOwnerInvitation(false);
@@ -328,14 +341,14 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
   return (
     <div className="space-y-8">
       <PageHeader
-        title={organization?.name ?? 'Platform organization'}
-        description="Global organization detail, account status, limits, credits, users, and invitations."
+        title={organization?.name ?? t('platform.organizationDetail.fallbackTitle')}
+        description={t('platform.organizationDetail.subtitle')}
         actions={
           <Link
             href="/dashboard/platform/organizations"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Back to organizations
+            {t('platform.organizationDetail.back')}
           </Link>
         }
       />
@@ -357,11 +370,14 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
               <div>
                 <div className="flex flex-wrap gap-2">
                   <Badge className={getStatusClasses(organization.status)}>
-                    {formatEnumLabel(organization.status)}
+                    {getPlatformOrganizationStatusLabel(
+                      organization.status,
+                      t,
+                    )}
                   </Badge>
 
                   <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                    {formatEnumLabel(organization.accountType)}
+                    {getPlatformAccountTypeLabel(organization.accountType, t)}
                   </Badge>
 
                   <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
@@ -374,55 +390,77 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  /{organization.slug} · Created{' '}
-                  {formatDateTime(organization.createdAt)}
+                  /{organization.slug} |{' '}
+                  {t('platform.organizationDetail.created')}{' '}
+                  {formatDateTime(organization.createdAt, dateFormatOptions)}
                 </p>
 
                 {organization.statusReason ? (
                   <p className="mt-3 text-sm text-slate-600">
-                    Status reason: {organization.statusReason}
+                    {t('platform.organizationDetail.statusReason')}:{' '}
+                    {organization.statusReason}
                   </p>
                 ) : null}
               </div>
 
               <div className="grid gap-1 text-sm text-slate-600 lg:text-right">
-                <span>Billing: {organization.billingEmail ?? 'Not set'}</span>
-                <span>Support: {organization.supportEmail ?? 'Not set'}</span>
-                <span>Timezone: {organization.timezone}</span>
-                <span>Locale: {organization.locale}</span>
+                <span>
+                  {t('platform.organizationDetail.billing')}:{' '}
+                  {organization.billingEmail ?? t('common.emptyStates.notSet')}
+                </span>
+                <span>
+                  {t('platform.organizationDetail.support')}:{' '}
+                  {organization.supportEmail ?? t('common.emptyStates.notSet')}
+                </span>
+                <span>
+                  {t('platform.organizationDetail.timezone')}:{' '}
+                  {organization.timezone}
+                </span>
+                <span>
+                  {t('platform.organizationDetail.locale')}: {organization.locale}
+                </span>
               </div>
             </div>
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              title="Users"
-              value={formatNumber(organization._count.users)}
-              description={`Max users: ${formatNumber(organization.maxUsers)}`}
+              title={t('platform.organizationDetail.users')}
+              value={formatNumber(organization._count.users, locale)}
+              description={`${t(
+                'platform.organizationDetail.maxUsers',
+              )}: ${formatNumber(organization.maxUsers, locale)}`}
             />
 
             <StatCard
-              title="Leads"
-              value={formatNumber(organization._count.leads)}
-              description={`Max active leads: ${formatNumber(
+              title={t('platform.organizationDetail.leads')}
+              value={formatNumber(organization._count.leads, locale)}
+              description={`${t(
+                'platform.organizationDetail.maxActiveLeads',
+              )}: ${formatNumber(
                 organization.maxActiveLeads,
+                locale,
               )}`}
             />
 
             <StatCard
-              title="AI credits balance"
-              value={formatNumber(organization.aiCreditsBalance)}
-              description={`Monthly limit: ${formatNumber(
+              title={t('platform.organizationDetail.aiCreditsBalance')}
+              value={formatNumber(organization.aiCreditsBalance, locale)}
+              description={`${t(
+                'platform.organizationDetail.monthlyLimit',
+              )}: ${formatNumber(
                 organization.aiMonthlyCreditsLimit,
+                locale,
               )}`}
             />
 
             <StatCard
-              title="AI usage records"
-              value={formatNumber(organization._count.aiUsageRecords)}
+              title={t('platform.organizationDetail.aiUsageRecords')}
+              value={formatNumber(organization._count.aiUsageRecords, locale)}
               description={`${formatNumber(
                 organization._count.aiCreditTransactions ?? 0,
-              )} credit transaction(s)`}
+                locale,
+              )} ${t('platform.organizationDetail.creditTransactions')}`}
             />
           </section>
 
@@ -432,13 +470,13 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
               className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
             >
               <h3 className="text-lg font-semibold text-slate-950">
-                Account settings
+                {t('platform.organizationDetail.accountSettings')}
               </h3>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Name
+                    {t('platform.organizationDetail.name')}
                   </span>
                   <input
                     value={form.name}
@@ -454,7 +492,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Industry
+                    {t('platform.organizationDetail.industry')}
                   </span>
                   <input
                     value={form.industry}
@@ -470,7 +508,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Plan
+                    {t('platform.organizationDetail.plan')}
                   </span>
                   <input
                     value={form.plan}
@@ -486,7 +524,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Account type
+                    {t('platform.organizations.accountType')}
                   </span>
                   <select
                     value={form.accountType}
@@ -500,7 +538,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                   >
                     {accountTypeOptions.map((option) => (
                       <option key={option} value={option}>
-                        {formatEnumLabel(option)}
+                        {getPlatformAccountTypeLabel(option, t)}
                       </option>
                     ))}
                   </select>
@@ -508,7 +546,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Billing email
+                    {t('platform.newOrganization.billingEmail')}
                   </span>
                   <input
                     value={form.billingEmail}
@@ -524,7 +562,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Support email
+                    {t('platform.newOrganization.supportEmail')}
                   </span>
                   <input
                     value={form.supportEmail}
@@ -540,7 +578,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Timezone
+                    {t('platform.newOrganization.timezone')}
                   </span>
                   <input
                     value={form.timezone}
@@ -556,7 +594,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Locale
+                    {t('platform.newOrganization.locale')}
                   </span>
                   <input
                     value={form.locale}
@@ -572,7 +610,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Max users
+                    {t('platform.organizationDetail.maxUsers')}
                   </span>
                   <input
                     type="number"
@@ -589,7 +627,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Max active leads
+                    {t('platform.organizationDetail.maxActiveLeads')}
                   </span>
                   <input
                     type="number"
@@ -606,7 +644,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    AI monthly credits limit
+                    {t('platform.newOrganization.aiMonthlyCreditsLimit')}
                   </span>
                   <input
                     type="number"
@@ -623,7 +661,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Default user AI credits limit
+                    {t('platform.newOrganization.defaultUserAiCreditsLimit')}
                   </span>
                   <input
                     type="number"
@@ -642,7 +680,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-slate-700">
-                    AI credits balance
+                    {t('platform.organizationDetail.aiCreditsBalance')}
                   </span>
                   <input
                     type="number"
@@ -663,7 +701,9 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                 disabled={isSaving}
                 className="mt-5 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSaving ? 'Saving...' : 'Save account settings'}
+                {isSaving
+                  ? t('common.actions.saving')
+                  : t('platform.organizationDetail.saveAccountSettings')}
               </button>
             </form>
 
@@ -672,13 +712,13 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
               className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
             >
               <h3 className="text-lg font-semibold text-slate-950">
-                Status management
+                {t('platform.organizationDetail.statusManagement')}
               </h3>
 
               <div className="mt-5 space-y-4">
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Status
+                    {t('platform.organizations.status')}
                   </span>
                   <select
                     value={statusForm.status}
@@ -692,7 +732,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                   >
                     {statusOptions.map((option) => (
                       <option key={option} value={option}>
-                        {formatEnumLabel(option)}
+                        {getPlatformOrganizationStatusLabel(option, t)}
                       </option>
                     ))}
                   </select>
@@ -700,7 +740,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700">
-                    Status reason
+                    {t('platform.organizationDetail.statusReason')}
                   </span>
                   <textarea
                     value={statusForm.statusReason}
@@ -716,9 +756,34 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                 </label>
 
                 <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                  <p>Activated at: {organization.activatedAt ?? 'Not set'}</p>
-                  <p>Suspended at: {organization.suspendedAt ?? 'Not set'}</p>
-                  <p>Cancelled at: {organization.cancelledAt ?? 'Not set'}</p>
+                  <p>
+                    {t('platform.organizationDetail.trialEndsAt')}:{' '}
+                    {formatDateTime(
+                      organization.trialEndsAt,
+                      dateFormatOptions,
+                    )}
+                  </p>
+                  <p>
+                    {t('platform.organizationDetail.activatedAt')}:{' '}
+                    {formatDateTime(
+                      organization.activatedAt,
+                      dateFormatOptions,
+                    )}
+                  </p>
+                  <p>
+                    {t('platform.organizationDetail.suspendedAt')}:{' '}
+                    {formatDateTime(
+                      organization.suspendedAt,
+                      dateFormatOptions,
+                    )}
+                  </p>
+                  <p>
+                    {t('platform.organizationDetail.cancelledAt')}:{' '}
+                    {formatDateTime(
+                      organization.cancelledAt,
+                      dateFormatOptions,
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -727,7 +792,9 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                 disabled={isSaving}
                 className="mt-5 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSaving ? 'Saving...' : 'Save status'}
+                {isSaving
+                  ? t('common.actions.saving')
+                  : t('platform.organizationDetail.saveStatus')}
               </button>
             </form>
           </section>
@@ -736,37 +803,41 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
     <div>
       <h3 className="text-lg font-semibold text-slate-950">
-        Owner onboarding
+        {t('platform.organizationDetail.ownerOnboarding')}
       </h3>
       <p className="mt-1 text-sm text-slate-500">
-        Manage the first organization owner invitation from Platform Admin.
+        {t('platform.organizationDetail.ownerOnboardingDescription')}
       </p>
     </div>
 
     {activeOwner ? (
       <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">
-        Active owner found
+        {t('platform.organizationDetail.activeOwnerFound')}
       </Badge>
     ) : pendingOwnerInvitation ? (
       <Badge className="bg-blue-50 text-blue-700 ring-blue-200">
-        Owner invitation pending
+        {t('platform.organizationDetail.ownerInvitationPending')}
       </Badge>
     ) : (
       <Badge className="bg-amber-50 text-amber-700 ring-amber-200">
-        Owner setup needed
+        {t('platform.organizationDetail.ownerSetupNeeded')}
       </Badge>
     )}
   </div>
 
   <div className="mt-5 grid gap-4 lg:grid-cols-2">
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-medium text-slate-700">Current owner status</p>
+      <p className="text-sm font-medium text-slate-700">
+        {t('platform.organizationDetail.currentOwnerStatus')}
+      </p>
 
       {activeOwner ? (
         <div className="mt-3 text-sm text-slate-600">
           <p className="font-medium text-slate-950">{activeOwner.name}</p>
           <p>{activeOwner.email}</p>
-          <p className="mt-2">Active owner account already exists.</p>
+          <p className="mt-2">
+            {t('platform.organizationDetail.activeOwnerExists')}
+          </p>
         </div>
       ) : pendingOwnerInvitation ? (
         <div className="mt-3 text-sm text-slate-600">
@@ -775,13 +846,17 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
           </p>
 
           <p>
-            Pending invitation expires{' '}
-            {formatDateTime(pendingOwnerInvitation.expiresAt)}
+            {t('platform.organizationDetail.pendingInvitationExpires').replace(
+              '{date}',
+              formatDateTime(
+                pendingOwnerInvitation.expiresAt,
+                dateFormatOptions,
+              ),
+            )}
           </p>
 
           <p className="mt-2">
-            A new owner invitation cannot be generated until this one is
-            accepted, revoked, or expired.
+            {t('platform.organizationDetail.pendingInvitationBlocks')}
           </p>
 
           <button
@@ -791,13 +866,13 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
             className="mt-4 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRevokingOwnerInvitation
-              ? 'Revoking...'
-              : 'Revoke owner invitation'}
+              ? t('platform.organizationDetail.revoking')
+              : t('platform.organizationDetail.revokeOwnerInvitation')}
           </button>
         </div>
       ) : (
         <p className="mt-3 text-sm text-slate-600">
-          No active owner or pending owner invitation was found.
+          {t('platform.organizationDetail.noOwnerFound')}
         </p>
       )}
     </div>
@@ -808,7 +883,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
     >
       <label className="space-y-2">
         <span className="text-sm font-medium text-slate-700">
-          New owner email
+          {t('platform.organizationDetail.newOwnerEmail')}
         </span>
         <input
           value={ownerInvitationEmail}
@@ -837,21 +912,20 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
         className="mt-4 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isCreatingOwnerInvitation
-          ? 'Creating...'
-          : 'Generate owner invitation'}
+          ? t('common.actions.creating')
+          : t('platform.organizationDetail.generateOwnerInvitation')}
       </button>
 
       {!canCreateOwnerInvitation ? (
         <p className="mt-3 text-sm text-amber-700">
-          Owner invitations can only be created for TRIAL or ACTIVE
-          organizations.
+          {t('platform.organizationDetail.ownerInvitationRestricted')}
         </p>
       ) : null}
 
       {createdOwnerInvitationUrl ? (
         <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
           <p className="text-sm font-medium text-emerald-800">
-            Development invitation link
+            {t('platform.newOrganization.developmentInvitationLink')}
           </p>
           <p className="mt-2 break-all rounded-lg bg-white p-2 text-sm text-slate-700">
             {createdOwnerInvitationUrl}
@@ -860,7 +934,7 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
             href={createdOwnerInvitationUrl}
             className="mt-3 inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
-            Open invitation
+            {t('platform.newOrganization.openInvitation')}
           </Link>
         </div>
       ) : null}
@@ -870,7 +944,9 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
 
           <section className="grid gap-6 xl:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-slate-950">Users</h3>
+              <h3 className="text-lg font-semibold text-slate-950">
+                {t('platform.organizationDetail.users')}
+              </h3>
 
               <div className="mt-4 space-y-3">
                 {organization.users.length > 0 ? (
@@ -890,25 +966,31 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                         </div>
 
                         <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                          {formatEnumLabel(orgUser.role)}
+                          {getOrganizationRoleLabel(orgUser.role, t)}
                         </Badge>
                       </div>
 
                       <p className="mt-2 text-sm text-slate-500">
-                        Active: {orgUser.isActive ? 'Yes' : 'No'} · Created{' '}
-                        {formatDateTime(orgUser.createdAt)}
+                        {t('platform.organizationDetail.active')}:{' '}
+                        {orgUser.isActive
+                          ? t('common.labels.yes')
+                          : t('common.labels.no')}{' '}
+                        | {t('platform.organizationDetail.created')}{' '}
+                        {formatDateTime(orgUser.createdAt, dateFormatOptions)}
                       </p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">No users found.</p>
+                  <p className="text-sm text-slate-500">
+                    {t('platform.organizationDetail.noUsers')}
+                  </p>
                 )}
               </div>
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-lg font-semibold text-slate-950">
-                Invitations
+                {t('platform.organizationDetail.invitations')}
               </h3>
 
               <div className="mt-4 space-y-3">
@@ -924,23 +1006,28 @@ async function handleRevokeOwnerInvitation(invitationId: string) {
                             {invitation.email}
                           </p>
                           <p className="text-sm text-slate-500">
-                            Role: {formatEnumLabel(invitation.role)}
+                            {t('platform.organizationDetail.role')}:{' '}
+                            {getOrganizationRoleLabel(invitation.role, t)}
                           </p>
                         </div>
 
                         <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-                          {formatEnumLabel(invitation.status)}
+                          {getPlatformInvitationStatusLabel(
+                            invitation.status,
+                            t,
+                          )}
                         </Badge>
                       </div>
 
                       <p className="mt-2 text-sm text-slate-500">
-                        Expires {formatDateTime(invitation.expiresAt)}
+                        {t('platform.organizationDetail.expires')}{' '}
+                        {formatDateTime(invitation.expiresAt, dateFormatOptions)}
                       </p>
                     </div>
                   ))
                 ) : (
                   <p className="text-sm text-slate-500">
-                    No invitations found.
+                    {t('platform.organizationDetail.noInvitations')}
                   </p>
                 )}
               </div>

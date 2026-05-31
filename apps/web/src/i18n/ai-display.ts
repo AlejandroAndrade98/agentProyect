@@ -165,6 +165,25 @@ const connectedAccountCapabilityKeys: Record<string, string> = {
   CALENDAR: 'settings.connectedAccounts.capabilitiesLabels.calendar',
 };
 
+const platformOrganizationStatusKeys: Record<string, string> = {
+  TRIAL: 'platform.statuses.trial',
+  ACTIVE: 'platform.statuses.active',
+  SUSPENDED: 'platform.statuses.suspended',
+  CANCELLED: 'platform.statuses.cancelled',
+};
+
+const platformAccountTypeKeys: Record<string, string> = {
+  INDIVIDUAL: 'platform.accountTypes.individual',
+  COMPANY: 'platform.accountTypes.company',
+};
+
+const platformInvitationStatusKeys: Record<string, string> = {
+  PENDING: 'platform.invitations.statuses.pending',
+  ACCEPTED: 'platform.invitations.statuses.accepted',
+  EXPIRED: 'platform.invitations.statuses.expired',
+  REVOKED: 'platform.invitations.statuses.revoked',
+};
+
 export function getAiStatusLabel(status: AiSuggestionStatus, t: Translate) {
   return t(statusKeys[status]);
 }
@@ -276,4 +295,28 @@ export function getConnectedAccountCapabilityLabel(
   const key = connectedAccountCapabilityKeys[capability];
 
   return key ? t(key) : formatEnumLabel(capability);
+}
+
+export function getPlatformOrganizationStatusLabel(
+  status: string,
+  t: Translate,
+) {
+  const key = platformOrganizationStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
+}
+
+export function getPlatformAccountTypeLabel(accountType: string, t: Translate) {
+  const key = platformAccountTypeKeys[accountType];
+
+  return key ? t(key) : formatEnumLabel(accountType);
+}
+
+export function getPlatformInvitationStatusLabel(
+  status: string,
+  t: Translate,
+) {
+  const key = platformInvitationStatusKeys[status];
+
+  return key ? t(key) : formatEnumLabel(status);
 }

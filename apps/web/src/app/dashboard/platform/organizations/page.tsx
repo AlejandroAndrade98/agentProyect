@@ -10,10 +10,16 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  getOrganizationRoleLabel,
+  getPlatformAccountTypeLabel,
+  getPlatformOrganizationStatusLabel,
+} from '@/i18n/ai-display';
+import { useI18n } from '@/i18n/useI18n';
+import {
   ApiClientError,
   getPlatformOrganizations,
 } from '@/lib/api-client';
-import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import type {
   OrganizationAccountType,
   OrganizationStatus,
@@ -38,8 +44,8 @@ function canViewPlatform(role?: string) {
   return role === 'SUPER_ADMIN';
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+function formatNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 function getStatusClasses(status: OrganizationStatus) {
@@ -55,10 +61,19 @@ function getStatusClasses(status: OrganizationStatus) {
 
 function OrganizationCard({
   organization,
+  locale,
+  t,
 }: {
   organization: PlatformOrganizationListItem;
+  locale: string;
+  t: (key: string) => string;
 }) {
   const primaryAdmin = organization.users[0];
+  const dateFormatOptions = {
+    locale,
+    fallback: t('common.emptyStates.notSet'),
+    invalidFallback: t('common.errors.invalidDate'),
+  };
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/30">
@@ -66,11 +81,11 @@ function OrganizationCard({
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Badge className={getStatusClasses(organization.status)}>
-              {formatEnumLabel(organization.status)}
+              {getPlatformOrganizationStatusLabel(organization.status, t)}
             </Badge>
 
             <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
-              {formatEnumLabel(organization.accountType)}
+              {getPlatformAccountTypeLabel(organization.accountType, t)}
             </Badge>
 
             <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">
@@ -86,27 +101,41 @@ function OrganizationCard({
               {organization.name}
             </Link>
             <p className="mt-1 text-sm text-slate-500">
-              /{organization.slug} · Created {formatDateTime(organization.createdAt)}
+              /{organization.slug} | {t('platform.organizations.created')}{' '}
+              {formatDateTime(organization.createdAt, dateFormatOptions)}
             </p>
           </div>
 
           <p className="text-sm text-slate-600">
-            Primary admin:{' '}
+            {t('platform.organizations.primaryAdmin')}:{' '}
           <span className="font-medium text-slate-900">
             {primaryAdmin
-              ? `${primaryAdmin.name} (${primaryAdmin.email}) · ${formatEnumLabel(
+              ? `${primaryAdmin.name} (${primaryAdmin.email}) | ${getOrganizationRoleLabel(
                   primaryAdmin.role,
+                  t,
                 )}`
-              : 'No primary admin found'}
+              : t('platform.organizations.noPrimaryAdmin')}
           </span>
           </p>
         </div>
 
         <div className="grid gap-2 text-sm text-slate-600 xl:text-right">
-          <span>{formatNumber(organization._count.users)} user(s)</span>
-          <span>{formatNumber(organization._count.leads)} lead(s)</span>
-          <span>{formatNumber(organization._count.aiUsageRecords)} AI usage record(s)</span>
-          <span>{formatNumber(organization.aiCreditsBalance)} credits</span>
+          <span>
+            {formatNumber(organization._count.users, locale)}{' '}
+            {t('platform.organizations.users')}
+          </span>
+          <span>
+            {formatNumber(organization._count.leads, locale)}{' '}
+            {t('platform.organizations.leads')}
+          </span>
+          <span>
+            {formatNumber(organization._count.aiUsageRecords, locale)}{' '}
+            {t('platform.organizations.aiUsageRecords')}
+          </span>
+          <span>
+            {formatNumber(organization.aiCreditsBalance, locale)}{' '}
+            {t('platform.organizations.credits')}
+          </span>
         </div>
       </div>
     </article>
@@ -115,6 +144,7 @@ function OrganizationCard({
 
 export default function PlatformOrganizationsPage() {
   const { token, user } = useAuth();
+  const { locale, t } = useI18n();
 
   const [organizations, setOrganizations] = useState<
     PlatformOrganizationListItem[]
@@ -139,7 +169,7 @@ export default function PlatformOrganizationsPage() {
 
     if (!canSeePlatform) {
       setIsLoading(false);
-      setErrorMessage('You do not have permission to view Platform Admin.');
+      setErrorMessage(t('platform.permissionDenied'));
       return;
     }
 
@@ -165,12 +195,12 @@ export default function PlatformOrganizationsPage() {
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Could not load platform organizations.');
+        setErrorMessage(t('platform.organizations.loadFailed'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [accountType, canSeePlatform, page, search, status, token]);
+  }, [accountType, canSeePlatform, page, search, status, token, t]);
 
   useEffect(() => {
     loadOrganizations();
@@ -179,15 +209,15 @@ export default function PlatformOrganizationsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Platform"
-        title="Organizations"
-        description="Review organizations, account status, usage limits, and platform-level ownership."
+        eyebrow={t('platform.title')}
+        title={t('platform.organizations.title')}
+        description={t('platform.organizations.subtitle')}
         actions={
           <Link
             href="/dashboard/platform/organizations/new"
             className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
-            Create organization
+            {t('platform.organizations.new')}
           </Link>
         }
       />
@@ -195,20 +225,24 @@ export default function PlatformOrganizationsPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-[1fr_220px_220px]">
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Search</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('platform.organizations.search')}
+            </span>
             <input
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search by name, slug, billing or support email"
+              placeholder={t('platform.organizations.searchPlaceholder')}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Status</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t('platform.organizations.status')}
+            </span>
             <select
               value={status}
               onChange={(event) => {
@@ -219,7 +253,9 @@ export default function PlatformOrganizationsPage() {
             >
               {statusOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? formatEnumLabel(option) : 'All statuses'}
+                  {option
+                    ? getPlatformOrganizationStatusLabel(option, t)
+                    : t('platform.organizations.allStatuses')}
                 </option>
               ))}
             </select>
@@ -227,7 +263,7 @@ export default function PlatformOrganizationsPage() {
 
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">
-              Account type
+              {t('platform.organizations.accountType')}
             </span>
             <select
               value={accountType}
@@ -241,7 +277,9 @@ export default function PlatformOrganizationsPage() {
             >
               {accountTypeOptions.map((option) => (
                 <option key={option || 'all'} value={option}>
-                  {option ? formatEnumLabel(option) : 'All account types'}
+                  {option
+                    ? getPlatformAccountTypeLabel(option, t)
+                    : t('platform.organizations.allAccountTypes')}
                 </option>
               ))}
             </select>
@@ -256,8 +294,8 @@ export default function PlatformOrganizationsPage() {
       {!isLoading && !errorMessage ? (
         organizations.length === 0 ? (
           <EmptyState
-            title="No organizations found"
-            description="Try changing your filters or search terms."
+            title={t('platform.organizations.noFound')}
+            description={t('platform.organizations.empty')}
           />
         ) : (
           <section className="space-y-3">
@@ -265,6 +303,8 @@ export default function PlatformOrganizationsPage() {
               <OrganizationCard
                 key={organization.id}
                 organization={organization}
+                locale={locale}
+                t={t}
               />
             ))}
 
@@ -275,11 +315,12 @@ export default function PlatformOrganizationsPage() {
                 onClick={() => setPage((currentPage) => currentPage - 1)}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Previous
+                {t('common.pagination.previous')}
               </button>
 
               <span className="text-sm text-slate-500">
-                Page {page} of {totalPages}
+                {t('common.pagination.page')} {page}{' '}
+                {t('common.pagination.of')} {totalPages}
               </span>
 
               <button
@@ -288,7 +329,7 @@ export default function PlatformOrganizationsPage() {
                 onClick={() => setPage((currentPage) => currentPage + 1)}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Next
+                {t('common.pagination.next')}
               </button>
             </div>
           </section>

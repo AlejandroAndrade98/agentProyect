@@ -425,3 +425,15 @@ Current i18n coverage:
 - Shared display helpers cover AI suggestion types/statuses, priorities, task statuses, sync statuses, and applied action labels.
 - Dynamic API data, AI-generated output, backend enum values, routes, and API payloads remain unchanged.
 - No backend, Prisma, API, email, Gmail, CRM automation, or background job behavior changed.
+
+## Latest completed phase
+
+Phase 17K.6 i18n for Platform Admin is completed and validated.
+
+Current i18n coverage:
+- Platform Admin organization list is translated.
+- Platform Admin new organization page is translated.
+- Platform Admin organization detail page is translated.
+- Platform statuses, account types, and invitation statuses have translated display helpers.
+- Current frontend enum values were preserved: `TRIAL`, `ACTIVE`, `SUSPENDED`, `CANCELLED`, `INDIVIDUAL`, `COMPANY`.
+- No backend, Prisma, API, route, RBAC, organization creation, invitation, billing, usage, email, Gmail, CRM automation, or background job behavior changed.
