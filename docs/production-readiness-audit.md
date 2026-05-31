@@ -3,7 +3,9 @@
 Date: 2026-05-31  
 Scope: Sales AI Platform repository audit only. No application behavior, API contracts, Prisma schema, routes, dependencies, or deployment config were changed.
 
-Phase 18B follow-up: API port alignment, web Docker start command, production env checklist, and deployment runbook were prepared after this audit. Remaining blockers still include CI/CD, rate limiting, monitoring/logging, Google OAuth production verification/configuration, backup restore drills, and background worker implementation.
+Phase 18B follow-up: API port alignment, web Docker start command, production env checklist, and deployment runbook were prepared after this audit.
+
+Phase 18C follow-up: a GitHub Actions CI foundation, static smoke script, and generated-artifact guard were added. Remaining blockers still include deployment automation, rate limiting, monitoring/logging, Google OAuth production verification/configuration, backup restore drills, staging runtime smoke tests, and background worker implementation.
 
 ## 1. Executive Summary
 
@@ -41,7 +43,7 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | Logging/error handling | Needs small fix | Nest defaults and stored `lastError` fields exist; no structured logging strategy. | Sensitive provider/API errors can leak into DB/UI/logs; debugging production is harder. | Add structured logger policy, redaction, and error classification. |
 | Rate limiting | Blocker | No throttling middleware/module found. | Login, AI generation, OAuth, and sync endpoints can be abused. | Add API rate limiting and per-user/tenant AI/sync throttles. |
 | Background jobs/sync | Blocker | `apps/worker` starts an application context; Redis/BullMQ dependency exists but no queues/jobs are wired. | Production sync, cleanup, retention, and retries are manual or absent. | Define worker responsibilities and queue architecture. |
-| CI/CD | Blocker | No `.github/workflows` found. | Builds/tests can regress; deployments are manual and error-prone. | Add CI for install, build, typecheck, Prisma validate/migrate check, and smoke tests. |
+| CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. | No deployment automation, staging runtime smoke tests, or migration deploy gate yet. | Keep CI required for PRs; add staging deployment and runtime smoke checks in a later phase. |
 | Monitoring/health checks | Needs decision | API has `/api/health` with DB check. | No uptime, logs, alerts, queue, or external provider monitoring. | Add health endpoints for API/worker plus provider-level observability. |
 | Backups/recovery | Blocker | Docker volume exists; no backup/restore plan. | Data loss risk for CRM, OAuth tokens, AI records, and audit history. | Choose managed Postgres backups and document restore drills. |
 | Data privacy | Needs decision | Email/calendar metadata is stored; body is intentionally not stored in current sync metadata. | Privacy policy, retention enforcement, export/delete flows are incomplete. | Define retention, deletion, and privacy controls before public launch. |
@@ -239,7 +241,7 @@ Missing for production-grade AI governance:
 
 | Blocker | Why it matters | Suggested phase to fix |
 | --- | --- | --- |
-| No CI/CD pipeline | No automated gate for build/typecheck/migrations/smoke tests. | 18C CI/CD and smoke tests |
+| Deployment automation not configured | CI validates builds and static smoke checks, but no staging/prod deploy path or runtime smoke gate exists yet. | 18G Private beta deployment |
 | No API rate limiting | Login, OAuth, sync, and AI endpoints can be abused. | 18D Security hardening/rate limiting |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
 | Google OAuth production config not finalized | OAuth will fail or be limited to test users; sensitive scopes may need verification. | 18E Google OAuth production hardening |
@@ -261,7 +263,7 @@ Missing for production-grade AI governance:
 ### 18C CI/CD and smoke tests
 
 - Goal: prevent regressions before deployment.
-- Scope: GitHub Actions or chosen CI for install, typecheck, API build, web build, Prisma validate, and basic smoke tests.
+- Scope: GitHub Actions or chosen CI for install, typecheck, API build, web build, Prisma validate, generated-artifact guard, and basic smoke tests.
 - Risk: low.
 - Validation: CI passes on PR and main branch.
 

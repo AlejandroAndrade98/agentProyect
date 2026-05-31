@@ -18,6 +18,8 @@ Run locally or in CI before deployment:
 
 ```bash
 corepack pnpm install --frozen-lockfile
+corepack pnpm smoke:static
+corepack pnpm check:generated
 corepack pnpm db:validate
 corepack pnpm --filter @sales-ai/web exec tsc --noEmit
 corepack pnpm --filter @sales-ai/api build
@@ -31,6 +33,15 @@ Confirm:
 - `NEXT_PUBLIC_API_URL` points to the target API URL and includes `/api`.
 - `CORS_ORIGIN` includes the target frontend origin.
 - `GOOGLE_OAUTH_REDIRECT_URI` matches the production or staging API callback URL.
+
+CI foundation:
+
+- `.github/workflows/ci.yml` runs on pull requests and pushes to `main`.
+- CI uses Node 20 because the repository engines and version files require `>=20 <21`.
+- CI enables Corepack, installs with `corepack pnpm install --frozen-lockfile`, runs static smoke checks, verifies generated artifacts are clean, validates Prisma schema, typechecks the web app, builds the API, and runs the monorepo build.
+- CI uses dummy environment values only. It does not deploy, run migrations against a live database, connect Google OAuth, call OpenAI, send email, create Gmail drafts, create CRM records, or start background jobs.
+- No Postgres service is required for the current CI path because `db:validate` performs Prisma schema validation only.
+- Staging runtime smoke tests are still required before any deployment.
 
 ## 2. Required Runtime Configuration
 
@@ -247,4 +258,3 @@ Database rollback:
 - Prefer restore from backup for severe migration/data failures.
 - Prepare corrective migrations for small schema issues.
 - Do not run `migrate dev` or manual destructive SQL in production without an approved incident plan.
-

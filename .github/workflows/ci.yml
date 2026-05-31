@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      API_PORT: "4000"
+      WEB_PORT: "3000"
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sales_ai_ci?schema=public
+      DATABASE_URL_HOST: postgresql://postgres:postgres@localhost:5432/sales_ai_ci?schema=public
+      REDIS_URL: redis://localhost:6379
+      REDIS_URL_HOST: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci_dummy_access_secret_do_not_use_in_runtime
+      JWT_REFRESH_SECRET: ci_dummy_refresh_secret_do_not_use_in_runtime
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      GOOGLE_OAUTH_CLIENT_ID: ci_dummy_google_oauth_client_id
+      GOOGLE_OAUTH_CLIENT_SECRET: ci_dummy_google_oauth_client_secret
+      GOOGLE_OAUTH_REDIRECT_URI: http://localhost:4000/api/connected-accounts/oauth/google/callback
+      CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION: "1"
+      AI_PROVIDER: mock
+      OPENAI_API_KEY: ci_dummy_openai_key
+      OPENAI_MODEL: gpt-4o-mini
+      AI_MAX_INPUT_CHARS: "10000"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Static smoke checks
+        run: corepack pnpm smoke:static
+
+      - name: Generated artifact guard
+        run: corepack pnpm check:generated
+
+      - name: Prisma schema validation
+        run: corepack pnpm db:validate
+
+      - name: Web typecheck
+        run: corepack pnpm --filter @sales-ai/web exec tsc --noEmit
+
+      - name: API build
+        run: corepack pnpm --filter @sales-ai/api build
+
+      - name: Full monorepo build
+        run: corepack pnpm build
