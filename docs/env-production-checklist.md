@@ -73,6 +73,7 @@ Production notes:
 - Never reuse local/demo `.env` values in production.
 - Store secrets in the provider secret manager, not in `.env` files committed to git.
 - Record the `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` with the key in the secret manager.
+- Back up `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` and its version in the approved secret manager or password vault. A database backup cannot decrypt connected account tokens without the matching key.
 - Do not rotate the token encryption key until there is a token re-encryption/reconnect plan.
 - Never commit Google OAuth client secrets or downloaded OAuth client JSON files.
 
@@ -103,3 +104,13 @@ Variables that must differ between staging and production:
 - `FRONTEND_URL`
 - `CORS_ORIGIN`
 - `MONITORING_ENVIRONMENT`
+
+## Backup and Restore Notes
+
+- Follow [backup-restore-runbook.md](./backup-restore-runbook.md) before private beta.
+- `DATABASE_URL` values are secrets. Do not paste real values into docs, tickets, or shared logs.
+- Backup artifacts may contain personal/customer data, password hashes, AI output, Gmail metadata, Calendar metadata, and encrypted OAuth tokens.
+- Store backup artifacts in encrypted, access-restricted storage.
+- Never commit backup files or restore dumps.
+- Never restore production backups into local development without sanitization.
+- Keep the connected account token encryption key outside database backups and source control.

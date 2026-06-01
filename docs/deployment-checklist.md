@@ -39,6 +39,7 @@ Confirm:
 - Google OAuth production readiness is reviewed in [google-oauth-production-checklist.md](./google-oauth-production-checklist.md).
 - Observability runbook is reviewed in [observability-runbook.md](./observability-runbook.md).
 - Staging runtime smoke tests are reviewed in [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md).
+- Backup and restore runbook is reviewed in [backup-restore-runbook.md](./backup-restore-runbook.md).
 
 CI foundation:
 
@@ -96,7 +97,7 @@ Never run `prisma migrate dev` in production.
 
 Production migration flow:
 
-1. Take or verify a fresh managed Postgres backup.
+1. Take or verify a fresh managed Postgres backup. Follow [backup-restore-runbook.md](./backup-restore-runbook.md).
 2. Confirm the migration files in `packages/database/prisma/migrations` are the intended release set.
 3. Validate schema:
 
@@ -119,6 +120,7 @@ Rollback notes:
 - For destructive changes, create a separate rollback plan before deploying.
 - If a migration corrupts data or schema, restore from backup or apply an explicitly prepared corrective migration.
 - Do not roll back application code past a schema-incompatible migration without a compatibility plan.
+- Confirm `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` and `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` are available in the secret manager before restore. Database backup alone is not enough for encrypted Google tokens.
 
 ## 4. API Deployment Steps
 
@@ -207,11 +209,15 @@ Confirm at least one smoke request ID is visible in API logs and correlates with
 
 Before private beta:
 
+- Complete [backup-restore-runbook.md](./backup-restore-runbook.md).
 - Use managed Postgres automated daily backups.
 - Enable point-in-time recovery if available.
 - Document backup retention duration.
 - Run one restore drill into a separate staging database.
 - Confirm restored DB can boot the API and pass health checks.
+- Confirm restored DB passes `corepack pnpm smoke:runtime`.
+- Confirm backup storage is encrypted and access-restricted.
+- Confirm the connected account token encryption key and version are backed up in the secret manager or password vault.
 
 For self-hosted Docker only:
 
@@ -316,3 +322,19 @@ Validation passed:
 - `corepack pnpm smoke:runtime` fails gracefully without `SMOKE_API_URL`, as expected.
 
 No backend, Prisma, routes, auth, OAuth, AI behavior, email sending, or dependencies changed.
+
+Phase 18H Backup and Restore Runbook is completed and validated locally.
+
+Implemented:
+- Backup and restore runbook.
+- Critical data inventory from Prisma schema.
+- Encrypted Google OAuth token restore/key handling.
+- Postgres backup/restore placeholder commands.
+- Migration safety checklist.
+- Restore drill plan and RPO/RTO recommendations.
+- Incident response checklists.
+- Deployment, env, observability, production readiness, and static smoke references updated.
+
+No production database was contacted, no backup/restore command was run against real data, and no schema/runtime behavior changed.
+
+

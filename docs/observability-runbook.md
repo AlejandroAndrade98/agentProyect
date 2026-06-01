@@ -202,6 +202,14 @@ Configure these in the eventual log/monitoring provider:
 2. Check category, key strategy, route, and user/org if available.
 3. For public production or multi-instance deployments, confirm ingress/Redis-backed throttling exists.
 
+### Investigate backup or restore incident
+
+1. Follow [backup-restore-runbook.md](./backup-restore-runbook.md).
+2. Use request IDs, activity events, audit logs, and deployment timestamps to narrow the incident window.
+3. Confirm whether the issue is accidental deletion, bad migration, DB outage, corrupted OAuth token data, or AI credit inconsistency.
+4. Do not log or paste backup files, database URLs, encryption keys, password hashes, OAuth tokens, Gmail metadata, Calendar descriptions, or AI output.
+5. After restore, run `corepack pnpm smoke:runtime` against the restored environment and verify request IDs in logs.
+
 ## Production Provider Options
 
 No vendor is wired in this phase. Suitable later options:
@@ -251,3 +259,4 @@ See [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md) for the f
 - Request logs are emitted by the API process only.
 - Rate limiting is still process-local until a shared Redis/ingress limiter is added.
 - Background worker observability is minimal because scheduled workers are not implemented yet.
+- Backup and restore drills are documented but still need to be executed in staging before private beta.

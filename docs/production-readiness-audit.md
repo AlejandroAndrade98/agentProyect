@@ -15,6 +15,8 @@ Phase 18F follow-up: structured API logging, request completion logging, safe ev
 
 Phase 18G follow-up: a safe staging/local runtime smoke script and runbook were added. The smoke defaults to read-only checks, verifies request IDs, supports optional explicit CRM mutation cleanup, optional mock AI smoke, and optional manual external sync smoke. Remaining blockers still include actually running the smoke in staging, deployment automation, external monitoring/alert provisioning, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, backup restore drills, tenant/RBAC test coverage, and background worker implementation.
 
+Phase 18H follow-up: a provider-neutral backup and restore runbook was added, including critical data inventory, encrypted OAuth token key handling, Postgres backup/restore commands, migration safety, restore drill plan, RPO/RTO targets, privacy notes, and incident response checklists. Remaining blockers still include executing a staging restore drill, enabling/confirming managed backup/PITR settings with the deployment provider, deployment automation, external monitoring/alert provisioning, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, tenant/RBAC test coverage, and background worker implementation.
+
 ## 1. Executive Summary
 
 Current readiness level: Local demo to early private beta.
@@ -53,7 +55,7 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | Background jobs/sync | Blocker | `apps/worker` starts an application context; Redis/BullMQ dependency exists but no queues/jobs are wired. | Production sync, cleanup, retention, and retries are manual or absent. | Define worker responsibilities and queue architecture. |
 | CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. Runtime smoke script exists for local/staging. | No deployment automation, automated staging runtime smoke gate, or migration deploy gate yet. | Keep CI required for PRs; run `corepack pnpm smoke:runtime` after staging deploy and automate it later. |
 | Monitoring/health checks | Partially ready | API has `/api/health` with DB check, structured logs with request IDs, and a runtime smoke runbook for log correlation. | No external uptime monitor, dashboards, alert rules, or worker observability yet. | Add managed monitoring/alerts and run staging smoke logging checks before beta. |
-| Backups/recovery | Blocker | Docker volume exists; no backup/restore plan. | Data loss risk for CRM, OAuth tokens, AI records, and audit history. | Choose managed Postgres backups and document restore drills. |
+| Backups/recovery | Partially ready | Backup and restore runbook exists with critical data inventory, OAuth encryption key handling, migration safety, and restore drill plan. | Managed backup/PITR settings and an actual staging restore drill are not yet verified. | Enable managed Postgres backups/PITR and complete one restore drill before private beta. |
 | Data privacy | Needs decision | Email/calendar metadata is stored; body is intentionally not stored in current sync metadata. | Privacy policy, retention enforcement, export/delete flows are incomplete. | Define retention, deletion, and privacy controls before public launch. |
 | Billing/plans | Later | Organization plan and limits exist in schema; billing provider not implemented. | Not required for internal/private beta. | Defer billing integration until product packaging is fixed. |
 | Seed/demo data | Needs small fix | Seed script creates demo/platform data; `.env.example` is local-demo oriented. | Demo users/data can leak into production if seed is run accidentally. | Document production seeding policy; never seed demo credentials in prod. |
@@ -253,7 +255,7 @@ Missing for production-grade AI governance:
 | No distributed API rate limiting | App-level in-memory throttling exists, but multi-instance production needs shared enforcement. | 18G Private beta deployment |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
 | Google OAuth verification not completed | OAuth can remain limited to test users; Gmail scopes may require verification or security assessment for broad external use. | 18G Private beta deployment |
-| No backup/restore plan | CRM data, OAuth tokens, AI usage, and audit records need recoverability. | 18B Production env and deployment config |
+| No completed backup/restore drill | Backup and restore runbook exists, but CRM data, OAuth tokens, AI usage, and audit records still need a verified restore drill before beta. | Next deployment phase |
 | No monitoring/logging strategy | Production failures are hard to detect/debug safely. | 18D Security hardening/rate limiting |
 | Worker/background sync not implemented | Production sync, retries, retention, and cleanup cannot rely only on manual requests. | 18F Background sync workers |
 | Docker production commands need verification | Existing Dockerfiles are basic; web Docker runs `pnpm start` from repo root while root has no `start` script. | 18B Production env and deployment config |
@@ -299,9 +301,9 @@ Missing for production-grade AI governance:
 ### 18G Private beta deployment
 
 - Goal: deploy to a controlled beta environment.
-- Scope: staging/prod environments, monitoring, backups, OAuth test users, smoke checks, limited customer onboarding.
+- Scope: staging/prod environments, monitoring, managed backups, restore drill, OAuth test users, smoke checks, limited customer onboarding.
 - Risk: medium.
-- Validation: beta launch checklist and rollback drill.
+- Validation: beta launch checklist, restore drill, and rollback drill.
 
 ## 10. Validation
 

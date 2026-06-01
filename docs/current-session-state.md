@@ -622,3 +622,32 @@ Remaining observability blockers:
 - No uptime monitor configured.
 - Worker observability remains pending until workers exist.
 - Rate limiting remains process-local until Redis/shared limiter or ingress limiter.
+
+## Latest completed phase
+
+Phase 18H Backup and Restore Runbook is completed and validated.
+
+Implemented:
+- Provider-neutral Postgres backup/restore runbook.
+- Critical data inventory.
+- Migration safety checklist.
+- Restore drill plan.
+- Initial RPO/RTO recommendations.
+- Incident response checklist.
+- Backup security/privacy notes.
+- Special handling for `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` and key version.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+Remaining blockers:
+- Execute a real restore drill in staging or isolated DB.
+- Confirm managed backups/PITR with selected provider.
+- Define retention policy.
+- Design OAuth token encryption key rotation.

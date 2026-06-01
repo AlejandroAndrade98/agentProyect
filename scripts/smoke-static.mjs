@@ -54,6 +54,7 @@ const requiredFiles = [
   "docs/google-oauth-production-checklist.md",
   "docs/observability-runbook.md",
   "docs/staging-runtime-smoke-tests.md",
+  "docs/backup-restore-runbook.md",
   "scripts/smoke-runtime.mjs",
   "packages/database/prisma/schema.prisma",
   "apps/api/src/main.ts",
@@ -148,10 +149,21 @@ for (const expectedText of [
   "google-oauth-production-checklist.md",
   "observability-runbook.md",
   "staging-runtime-smoke-tests.md",
+  "backup-restore-runbook.md",
   "corepack pnpm smoke:runtime",
 ]) {
   if (!deploymentChecklist.includes(expectedText)) {
     fail(`Deployment checklist missing command: ${expectedText}`);
+  }
+}
+
+const productionReadinessAudit = readText("docs/production-readiness-audit.md");
+for (const expectedText of [
+  "backup and restore runbook",
+  "restore drill",
+]) {
+  if (!productionReadinessAudit.toLowerCase().includes(expectedText)) {
+    fail(`Production readiness audit missing backup/restore reference: ${expectedText}`);
   }
 }
 
