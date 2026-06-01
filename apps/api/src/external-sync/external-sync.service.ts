@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 
 import type { CurrentUser as CurrentUserType } from '../auth/interfaces/current-user.interface';
+import { SafeLoggerService } from '../common/observability/safe-logger.service';
 import { ConnectedAccountTokenEncryptionService } from '../connected-accounts/connected-account-token-encryption.service';
 import { PrismaService } from '../database/prisma.service';
 import { QueryExternalCalendarEventsDto } from './dto/query-external-calendar-events.dto';
@@ -126,9 +127,16 @@ export class ExternalSyncService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly tokenEncryptionService: ConnectedAccountTokenEncryptionService,
+    private readonly logger: SafeLoggerService,
   ) {}
 
   async syncGmailMessages(currentUser: CurrentUserType) {
+    this.logger.info('external_sync.gmail.started', {
+      event: 'external_sync.gmail.started',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+    });
+
     const account = await this.prisma.connectedAccount.findFirst({
       where: {
         organizationId: currentUser.organizationId,
@@ -238,6 +246,20 @@ export class ExternalSyncService {
         data: { lastError: null },
       });
 
+      this.logger.info('external_sync.gmail.completed', {
+        event: 'external_sync.gmail.completed',
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        connectedAccountId: account.id,
+        provider: account.provider,
+        messagesFetched: messageRefs.length,
+        messagesStored: storedCount,
+        messagesDeletedAsStale: staleDeleteResult.count,
+        bodyStored: false,
+        aiAnalysisRun: false,
+        crmRecordsCreated: false,
+      });
+
       return {
         connectedAccountId: account.id,
         provider: account.provider,
@@ -273,11 +295,26 @@ export class ExternalSyncService {
         data: { lastError: message },
       });
 
+      this.logger.warn('external_sync.gmail.failed', {
+        event: 'external_sync.gmail.failed',
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        connectedAccountId: account.id,
+        provider: account.provider,
+        errorMessage: message,
+      });
+
       throw new BadRequestException(message);
     }
   }
 
   async syncGoogleCalendarEvents(currentUser: CurrentUserType) {
+  this.logger.info('external_sync.calendar.started', {
+    event: 'external_sync.calendar.started',
+    organizationId: currentUser.organizationId,
+    userId: currentUser.id,
+  });
+
   const account = await this.prisma.connectedAccount.findFirst({
     where: {
       organizationId: currentUser.organizationId,
@@ -399,6 +436,20 @@ export class ExternalSyncService {
       data: { lastError: null },
     });
 
+    this.logger.info('external_sync.calendar.completed', {
+      event: 'external_sync.calendar.completed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: account.id,
+      provider: account.provider,
+      eventsFetched: events.length,
+      eventsStored: storedCount,
+      eventsDeletedAsStale: staleDeletedCount,
+      bodyStored: false,
+      aiAnalysisRun: false,
+      crmRecordsCreated: false,
+    });
+
     return {
       connectedAccountId: account.id,
       provider: account.provider,
@@ -435,6 +486,15 @@ export class ExternalSyncService {
     await this.prisma.connectedAccount.update({
       where: { id: account.id },
       data: { lastError: message },
+    });
+
+    this.logger.warn('external_sync.calendar.failed', {
+      event: 'external_sync.calendar.failed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: account.id,
+      provider: account.provider,
+      errorMessage: message,
     });
 
     throw new BadRequestException(message);
@@ -867,6 +927,12 @@ private async markDeletedOrTrashedRecentGmailMessages(params: {
     const data = (await response.json()) as GoogleRefreshTokenResponse;
 
     if (!response.ok || data.error) {
+      this.logger.warn('google.token_refresh.failed', {
+        event: 'google.token_refresh.failed',
+        statusCode: response.status,
+        errorCode: data.error,
+      });
+
       throw new Error(
         data.error_description ||
           data.error ||

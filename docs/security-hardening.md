@@ -55,6 +55,10 @@ Keep this limit conservative. Increase it only if a future import/upload endpoin
 
 The API accepts a safe `X-Request-Id` or generates one. It returns the value in `X-Request-Id` so API errors can be correlated with logs without exposing secrets.
 
+### Structured request logging
+
+The API emits structured request completion logs when `REQUEST_LOGGING_ENABLED=true`. Logs include request ID, method, path without query string, status code, duration, and authenticated user/organization IDs when available. Successful `/api/health` requests are skipped to avoid noise.
+
 ### Exception behavior and redaction
 
 The global exception filter keeps known HTTP exception responses intact, returns generic `Internal server error` for unknown failures, and logs server-side 5xx details with sensitive fields redacted.
@@ -68,6 +72,8 @@ Redaction covers common secret-bearing keys and string patterns such as:
 - passwords, secrets, API keys, and client secrets
 
 Do not log request bodies in production unless a future structured logger applies the same redaction policy.
+
+See [observability-runbook.md](./observability-runbook.md) for log events, alert recommendations, and troubleshooting flows.
 
 ## Still Needed Before Public Production
 

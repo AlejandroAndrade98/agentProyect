@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 
 import { CurrentUser } from '../auth/interfaces/current-user.interface';
+import { SafeLoggerService } from '../common/observability/safe-logger.service';
 import { PrismaService } from '../database/prisma.service';
 
 import {
@@ -55,7 +56,10 @@ type RecordFailedUsageInput = {
 
 @Injectable()
 export class AiUsageService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: SafeLoggerService,
+  ) {}
 
   estimateCreditsFromText(inputText: string, expectedOutputTokens = 250) {
     const estimatedInputTokens = Math.ceil(inputText.length / 4);
@@ -305,6 +309,22 @@ export class AiUsageService {
           estimatedCostUsd: input.estimatedCostUsd,
         },
       },
+    });
+
+    this.logger.info('ai.usage.recorded', {
+      event: 'ai.usage.recorded',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      feature: input.feature,
+      status: AiUsageStatus.SUCCESS,
+      provider: input.provider,
+      model: input.model,
+      tokensInput: input.tokensInput,
+      tokensOutput: input.tokensOutput,
+      totalTokens,
+      creditsUsed,
+      estimatedCostUsd: input.estimatedCostUsd,
+      aiSuggestionId: input.aiSuggestionId,
     });
 
     return usageRecord;
@@ -676,6 +696,15 @@ export class AiUsageService {
       metadataJson?: Prisma.InputJsonValue;
     },
   ) {
+    this.logger.warn('ai.usage.blocked', {
+      event: 'ai.usage.blocked',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      feature: input.feature,
+      status: AiUsageStatus.BLOCKED,
+      errorCode: input.errorCode,
+    });
+
     return this.prisma.aiUsageRecord.create({
       data: {
         organizationId: currentUser.organizationId,

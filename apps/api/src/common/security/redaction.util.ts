@@ -1,5 +1,5 @@
 const SENSITIVE_KEY_PATTERN =
-  /(authorization|cookie|password|secret|token|api[_-]?key|client[_-]?secret|code|oauth)/i;
+  /(authorization|cookie|password|secret|token|api[_-]?key|client[_-]?secret|oauth[_-]?code|authorization[_-]?code|code[_-]?verifier|pkce)/i;
 
 const BEARER_TOKEN_PATTERN = /Bearer\s+[A-Za-z0-9._~+/=-]+/gi;
 const JWT_PATTERN = /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g;

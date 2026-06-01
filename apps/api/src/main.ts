@@ -8,10 +8,13 @@ import { requestIdMiddleware } from './common/security/request-id.middleware';
 import { SafeExceptionFilter } from './common/security/safe-exception.filter';
 import { createSecurityHeadersMiddleware } from './common/security/security-headers.middleware';
 import { validateProductionConfiguration } from './config/production-config.validation';
+import { SafeLoggerService } from './common/observability/safe-logger.service';
+import { createRequestLoggingMiddleware } from './common/observability/request-logging.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
+  const logger = app.get(SafeLoggerService);
   validateProductionConfiguration(configService);
 
   const corsOrigin =
@@ -20,6 +23,14 @@ async function bootstrap() {
     configService.get<string>('app.requestBodyLimit') ?? '1mb';
 
   app.use(requestIdMiddleware);
+  app.use(
+    createRequestLoggingMiddleware(logger, {
+      enabled:
+        (
+          configService.get<string>('app.requestLoggingEnabled') ?? 'true'
+        ).toLowerCase() !== 'false',
+    }),
+  );
   app.use(
     createSecurityHeadersMiddleware({
       isProduction: process.env.NODE_ENV === 'production',
@@ -54,7 +65,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.useGlobalFilters(new SafeExceptionFilter());
+  app.useGlobalFilters(new SafeExceptionFilter(logger));
 
   const configuredPort = Number(configService.get<string | number>('app.port'));
   const port =
@@ -63,7 +74,13 @@ async function bootstrap() {
       : 4000;
 
   await app.listen(port);
-  console.log(`API listening on port ${port}`);
+  logger.info('api.started', {
+    event: 'api.started',
+    port,
+    requestLoggingEnabled:
+      (configService.get<string>('app.requestLoggingEnabled') ?? 'true')
+        .toLowerCase() !== 'false',
+  });
 }
 
 bootstrap();

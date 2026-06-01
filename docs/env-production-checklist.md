@@ -38,7 +38,10 @@ Use this checklist for staging and production environment setup. Do not store re
 | `SYNC_GMAIL_ENABLED` | Later | Future worker config | Placeholder for background Gmail sync. | `false` | Current sync is manual; do not enable nonexistent jobs. |
 | `SYNC_CALENDAR_ENABLED` | Later | Future worker config | Placeholder for background Calendar sync. | `false` | Current sync is manual; do not enable nonexistent jobs. |
 | `SYNC_WORKER_CONCURRENCY` | Later | Future worker config | Placeholder worker concurrency. | `1` | Use after 18F worker implementation. |
-| `LOG_LEVEL` | Recommended | Future logging config | Logging verbosity. | `info` | Current app does not fully wire structured logging yet. |
+| `LOG_LEVEL` | Recommended | API logging | Minimum emitted log level. | `info` | Use `info` for normal production; temporarily use `debug` only during controlled troubleshooting. |
+| `REQUEST_LOGGING_ENABLED` | Recommended | API logging | Enables structured request completion logs. | `true` | Keep enabled in production unless the platform provides an equivalent request log with request IDs. |
+| `LOG_FORMAT` | Recommended | API logging | Structured log output format. | `json` | Use `json` for production log ingestion; `pretty` is local-debug only. |
+| `LOG_REDACT_SENSITIVE` | Recommended | API logging | Redacts sensitive keys and token-like strings. | `true` | Keep enabled in production. Do not disable unless using a stronger external redaction layer. |
 | `SENTRY_DSN` | Optional | Future monitoring | Error monitoring DSN. | empty | Do not set until monitoring integration exists. |
 | `MONITORING_ENVIRONMENT` | Optional | Future monitoring | Monitoring environment tag. | `production` | Useful after monitoring integration. |
 | `EXPORTS_DIR` | If exports enabled | API/worker future storage | Export file path. | `/data/exports` | Prefer durable object storage over container disk. |

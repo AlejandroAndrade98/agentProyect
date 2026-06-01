@@ -5707,3 +5707,32 @@ Remaining Google OAuth production blockers:
 - Google verification and possible security assessment for Gmail scopes.
 - Staging OAuth smoke test with real Google test account.
 - Monitoring for OAuth/token refresh/sync failures.
+
+## Latest completed phase
+
+Phase 18F Logging and Monitoring Foundation is completed and validated locally.
+
+Implemented:
+- `SafeLoggerService` with JSON/pretty log formats, log levels, redaction, and safe identifier hashing.
+- Request completion logging using existing `X-Request-Id`.
+- Successful `/api/health` logs are kept quiet to reduce noise.
+- Global exception filter now uses structured safe logs.
+- Event logs for auth, rate limits, Google OAuth, connected account disconnects, Gmail/Calendar sync, token refresh failures, AI generation, AI usage, and explicit Gmail draft creation.
+- Logging config via `LOG_LEVEL`, `REQUEST_LOGGING_ENABLED`, `LOG_FORMAT`, and `LOG_REDACT_SENSITIVE`.
+- Observability runbook in `docs/observability-runbook.md`.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+Remaining observability blockers:
+- No external log/monitoring provider wired yet.
+- No dashboards or alert rules provisioned.
+- No uptime monitor configured.
+- Worker observability remains pending until workers exist.
+- Rate limiting remains process-local until Redis/shared limiter or ingress limiter.

@@ -50,6 +50,7 @@ import { ApplySuggestedTaskDto } from './dto/apply-suggested-task.dto';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
 import { ConnectedAccountTokenEncryptionService } from '../connected-accounts/connected-account-token-encryption.service';
 import type { OutputLocalePreference } from '../common/i18n/locale.util';
+import { SafeLoggerService } from '../common/observability/safe-logger.service';
 
 const GMAIL_DRAFTS_URL =
   'https://gmail.googleapis.com/gmail/v1/users/me/drafts';
@@ -146,6 +147,7 @@ export class AiSuggestionsService {
     private readonly aiUsageService: AiUsageService,
     private readonly configService: ConfigService,
     private readonly tokenEncryptionService: ConnectedAccountTokenEncryptionService,
+    private readonly logger: SafeLoggerService,
   ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryAiSuggestionsDto) {
@@ -1025,6 +1027,17 @@ export class AiSuggestionsService {
       ) ||
       this.buildReplySubject(email.subject);
 
+    this.logger.info('gmail_draft.create.started', {
+      event: 'gmail_draft.create.started',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      aiSuggestionId: suggestion.id,
+      connectedAccountId: account.id,
+      externalEmailMessageId: email.id,
+      emailSentAutomatically: false,
+      draftCreatedAutomatically: false,
+    });
+
     const accessToken = await this.getValidGoogleAccessToken(account);
     const gmailDraft = await this.createGmailDraft({
       accessToken,
@@ -1097,6 +1110,19 @@ export class AiSuggestionsService {
       });
 
       return updated;
+    });
+
+    this.logger.info('gmail_draft.create.completed', {
+      event: 'gmail_draft.create.completed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      aiSuggestionId: suggestion.id,
+      connectedAccountId: account.id,
+      externalEmailMessageId: email.id,
+      gmailDraftId: gmailDraft.id,
+      gmailThreadId,
+      emailSentAutomatically: false,
+      draftCreatedAutomatically: false,
     });
 
     return {
@@ -2663,8 +2689,30 @@ export class AiSuggestionsService {
     },
     generate: () => Promise<TGenerated>,
   ) {
+    this.logger.info('ai.generation.started', {
+      event: 'ai.generation.started',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      feature: input.feature,
+      provider: this.getConfiguredAiProvider(),
+      model: this.getConfiguredAiModel(),
+      estimatedCreditsRequired: input.estimatedCreditsRequired,
+    });
+
     try {
-      return await generate();
+      const generated = await generate();
+      const generatedInfo = this.getGeneratedSuggestionLogInfo(generated);
+
+      this.logger.info('ai.generation.completed', {
+        event: 'ai.generation.completed',
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        feature: input.feature,
+        estimatedCreditsRequired: input.estimatedCreditsRequired,
+        ...generatedInfo,
+      });
+
+      return generated;
     } catch (error) {
       const failure = this.toSafeAiProviderFailure(error);
 
@@ -2684,8 +2732,57 @@ export class AiSuggestionsService {
         }),
       });
 
+      this.logger.warn('ai.generation.failed', {
+        event: 'ai.generation.failed',
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        feature: input.feature,
+        provider: this.getConfiguredAiProvider(),
+        model: this.getConfiguredAiModel(),
+        estimatedCreditsRequired: input.estimatedCreditsRequired,
+        errorCode: failure.errorCode,
+        statusCode: failure.statusCode,
+      });
+
       throw new HttpException(failure.errorMessage, failure.statusCode);
     }
+  }
+
+  private getGeneratedSuggestionLogInfo(generated: unknown) {
+    if (!generated || typeof generated !== 'object') {
+      return {};
+    }
+
+    const candidate = generated as {
+      provider?: unknown;
+      model?: unknown;
+      tokensInput?: unknown;
+      tokensOutput?: unknown;
+      estimatedCostUsd?: unknown;
+    };
+
+    return {
+      provider:
+        typeof candidate.provider === 'string'
+          ? candidate.provider
+          : this.getConfiguredAiProvider(),
+      model:
+        typeof candidate.model === 'string'
+          ? candidate.model
+          : this.getConfiguredAiModel(),
+      tokensInput:
+        typeof candidate.tokensInput === 'number'
+          ? candidate.tokensInput
+          : undefined,
+      tokensOutput:
+        typeof candidate.tokensOutput === 'number'
+          ? candidate.tokensOutput
+          : undefined,
+      estimatedCostUsd:
+        typeof candidate.estimatedCostUsd === 'number'
+          ? candidate.estimatedCostUsd
+          : undefined,
+    };
   }
 
   private toSafeAiProviderFailure(error: unknown) {
@@ -3503,6 +3600,12 @@ export class AiSuggestionsService {
     const data = (await response.json()) as GoogleRefreshTokenResponse;
 
     if (!response.ok || data.error) {
+      this.logger.warn('google.token_refresh.failed', {
+        event: 'google.token_refresh.failed',
+        statusCode: response.status,
+        errorCode: data.error,
+      });
+
       throw new HttpException(
         'Google token refresh failed. Please reconnect Google and try again.',
         response.status === 400 || response.status === 401

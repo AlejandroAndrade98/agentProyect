@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
+import { ObservabilityModule } from './common/observability/observability.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
@@ -28,6 +29,7 @@ import { ExternalSyncModule } from './external-sync/external-sync.module';
       envFilePath: ['../../.env', '.env'],
       load: [configuration],
     }),
+    ObservabilityModule,
     DatabaseModule,
     HealthModule,
     AuthModule,

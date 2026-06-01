@@ -37,6 +37,7 @@ Confirm:
 - `REQUEST_BODY_LIMIT` is conservative for the deployed API.
 - Security hardening notes are reviewed in [security-hardening.md](./security-hardening.md).
 - Google OAuth production readiness is reviewed in [google-oauth-production-checklist.md](./google-oauth-production-checklist.md).
+- Observability runbook is reviewed in [observability-runbook.md](./observability-runbook.md).
 
 CI foundation:
 
@@ -64,6 +65,10 @@ Minimum required for API:
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION`
 - `AI_PROVIDER`
+- `LOG_LEVEL`
+- `REQUEST_LOGGING_ENABLED`
+- `LOG_FORMAT`
+- `LOG_REDACT_SENSITIVE`
 
 Required when Google OAuth is enabled:
 
@@ -244,8 +249,8 @@ Before enabling `AI_PROVIDER=openai`:
 
 Before production:
 
-- Add structured API logs with request IDs.
-- Add log redaction for tokens, auth headers, OAuth codes, provider tokens, and secrets.
+- Confirm structured API logs with request IDs are enabled.
+- Confirm log redaction for tokens, auth headers, OAuth codes, provider tokens, and secrets remains enabled.
 - Add uptime check for `/api/health`.
 - Add error monitoring for API and web.
 - Add alerts for:
@@ -255,6 +260,8 @@ Before production:
   - Google OAuth failure spike
   - AI provider failure spike
   - AI usage/credit exhaustion
+- Confirm logs do not contain email bodies, Gmail snippets, AI output text, OAuth tokens, authorization headers, cookies, passwords, or Gmail draft bodies.
+- Confirm staging smoke tests emit traceable `X-Request-Id` values.
 
 ## 12. Rollback Notes
 

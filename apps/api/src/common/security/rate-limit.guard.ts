@@ -10,12 +10,14 @@ import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import type { CurrentUser } from '../../auth/interfaces/current-user.interface';
+import { SafeLoggerService } from '../observability/safe-logger.service';
 import {
   RATE_LIMIT_METADATA_KEY,
   type RateLimitOptions,
 } from './rate-limit.decorator';
 
 type RequestWithUser = Request & {
+  requestId?: string;
   user?: CurrentUser;
 };
 
@@ -29,7 +31,10 @@ const MAX_BUCKETS_BEFORE_PRUNE = 10000;
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly logger: SafeLoggerService,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const options = this.reflector.getAllAndOverride<RateLimitOptions>(
@@ -61,6 +66,16 @@ export class RateLimitGuard implements CanActivate {
 
     if (existingBucket.count >= options.max) {
       this.setRateLimitHeaders(response, options.max, 0, existingBucket.resetAt);
+      this.logger.warn('rate_limit.exceeded', {
+        event: 'rate_limit.exceeded',
+        requestId: request.requestId,
+        category: options.name,
+        keyStrategy: options.keyBy ?? 'ip',
+        method: request.method,
+        path: (request.originalUrl || request.url).split('?')[0],
+        userId: request.user?.id,
+        organizationId: request.user?.organizationId,
+      });
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,

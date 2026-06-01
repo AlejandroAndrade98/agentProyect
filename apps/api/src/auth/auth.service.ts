@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
+import { SafeLoggerService } from '../common/observability/safe-logger.service';
 
 import { OrganizationStatus } from '@prisma/client';
 
@@ -20,6 +21,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private readonly logger: SafeLoggerService,
   ) {}
 
   async login(dto: LoginDto): Promise<AuthResponse> {
@@ -37,10 +39,26 @@ export class AuthService {
       });
 
     if (!user || !user.isActive || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      this.logger.warn('auth.login.failed', {
+        event: 'auth.login.failed',
+        reason: 'invalid_credentials',
+        emailHash: this.logger.hashIdentifier(email),
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    this.assertOrganizationAllowsAccess(user.organization);
+    try {
+      this.assertOrganizationAllowsAccess(user.organization);
+    } catch (error) {
+      this.logger.warn('auth.login.failed', {
+        event: 'auth.login.failed',
+        reason: 'organization_access_blocked',
+        userId: user.id,
+        organizationId: user.organizationId,
+        ...this.logger.toErrorFields(error),
+      });
+      throw error;
+    }
 
     const payload = {
       sub: user.id,
@@ -54,6 +72,13 @@ export class AuthService {
     });
 
     const refreshToken = await this.createRefreshToken(user.id);
+
+    this.logger.info('auth.login.success', {
+      event: 'auth.login.success',
+      userId: user.id,
+      organizationId: user.organizationId,
+      role: user.role,
+    });
 
     return {
       accessToken,
@@ -71,7 +96,19 @@ export class AuthService {
   async refresh(dto: RefreshTokenDto): Promise<AuthResponse> {
     const tokenHash = this.hashToken(dto.refreshToken);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    let result: {
+      refreshToken: string;
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        organizationId: string;
+      };
+    };
+
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
       const updateResult = await tx.refreshToken.updateMany({
         where: { tokenHash, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -123,7 +160,14 @@ export class AuthService {
           organizationId: user.organizationId,
         },
       };
-    });
+      });
+    } catch (error) {
+      this.logger.warn('auth.refresh.failed', {
+        event: 'auth.refresh.failed',
+        ...this.logger.toErrorFields(error),
+      });
+      throw error;
+    }
 
     const payload = {
       sub: result.user.id,
@@ -136,6 +180,13 @@ export class AuthService {
       expiresIn: this.configService.get<string>('app.jwtAccessExpiresIn'),
     });
 
+    this.logger.info('auth.refresh.success', {
+      event: 'auth.refresh.success',
+      userId: result.user.id,
+      organizationId: result.user.organizationId,
+      role: result.user.role,
+    });
+
     return {
       accessToken,
       refreshToken: result.refreshToken,
@@ -146,9 +197,14 @@ export class AuthService {
   async logout(dto: RefreshTokenDto): Promise<{ message: string }> {
     const tokenHash = this.hashToken(dto.refreshToken);
 
-    await this.prisma.refreshToken.updateMany({
+    const result = await this.prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+
+    this.logger.info('auth.logout', {
+      event: 'auth.logout',
+      refreshTokensRevoked: result.count,
     });
 
     return { message: 'Logged out successfully' };

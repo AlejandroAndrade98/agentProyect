@@ -51,6 +51,7 @@ const requiredFiles = [
   "docs/env-production-checklist.md",
   "docs/security-hardening.md",
   "docs/google-oauth-production-checklist.md",
+  "docs/observability-runbook.md",
   "packages/database/prisma/schema.prisma",
   "apps/api/src/main.ts",
   "apps/api/src/app.module.ts",
@@ -78,6 +79,10 @@ const requiredEnvKeys = [
   "DATABASE_URL_HOST",
   "REDIS_URL",
   "CORS_ORIGIN",
+  "LOG_LEVEL",
+  "REQUEST_LOGGING_ENABLED",
+  "LOG_FORMAT",
+  "LOG_REDACT_SENSITIVE",
   "JWT_ACCESS_SECRET",
   "JWT_REFRESH_SECRET",
   "GOOGLE_OAUTH_CLIENT_ID",
@@ -138,6 +143,7 @@ for (const expectedText of [
   "corepack pnpm --filter @sales-ai/api build",
   "corepack pnpm build",
   "google-oauth-production-checklist.md",
+  "observability-runbook.md",
 ]) {
   if (!deploymentChecklist.includes(expectedText)) {
     fail(`Deployment checklist missing command: ${expectedText}`);

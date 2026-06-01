@@ -33,6 +33,7 @@ import { StartGoogleOAuthDto } from './dto/start-google-oauth.dto';
 
 import { ConnectedAccountTokenEncryptionService } from './connected-account-token-encryption.service';
 import { GoogleOAuthCallbackDto } from './dto/google-oauth-callback.dto';
+import { SafeLoggerService } from '../common/observability/safe-logger.service';
 
 const connectedAccountSelect = {
   id: true,
@@ -127,6 +128,7 @@ export class ConnectedAccountsService {
   private readonly prisma: PrismaService,
   private readonly configService: ConfigService,
   private readonly tokenEncryptionService: ConnectedAccountTokenEncryptionService,
+  private readonly logger: SafeLoggerService,
   ) {}
 
   async findAll(currentUser: CurrentUser, query: QueryConnectedAccountsDto) {
@@ -310,6 +312,15 @@ export class ConnectedAccountsService {
     state: rawState,
   });
 
+  this.logger.info('oauth.google.start', {
+    event: 'oauth.google.start',
+    organizationId: currentUser.organizationId,
+    userId: currentUser.id,
+    capabilities,
+    scopeCount: scopes.length,
+    expiresAt: expiresAt.toISOString(),
+  });
+
   return {
     authorizationUrl,
     provider: ConnectedAccountProvider.GOOGLE,
@@ -320,6 +331,10 @@ export class ConnectedAccountsService {
 
 async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
   if (!query.state) {
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'missing_state',
+    });
     throw new BadRequestException('Missing OAuth state');
   }
 
@@ -332,10 +347,22 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
         query.error_description || 'Google OAuth authorization failed',
     });
 
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'provider_error',
+      errorCode: query.error,
+      stateHashPrefix: stateHash.slice(0, 12),
+    });
+
     throw new BadRequestException('Google OAuth authorization was not completed');
   }
 
   if (!query.code) {
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'missing_code',
+      stateHashPrefix: stateHash.slice(0, 12),
+    });
     throw new BadRequestException('Missing OAuth authorization code');
   }
 
@@ -371,6 +398,11 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
   });
 
   if (!oauthState || oauthState.provider !== ConnectedAccountProvider.GOOGLE) {
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'invalid_state',
+      stateHashPrefix: stateHash.slice(0, 12),
+    });
     throw new BadRequestException('Invalid OAuth state');
   }
 
@@ -378,6 +410,13 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
     oauthState.status !== ConnectedAccountOAuthStateStatus.PENDING ||
     oauthState.usedAt
   ) {
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'state_already_used',
+      organizationId: oauthState.organizationId,
+      userId: oauthState.userId,
+      stateStatus: oauthState.status,
+    });
     throw new BadRequestException('OAuth state has already been used');
   }
 
@@ -391,6 +430,13 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
         errorCode: 'OAUTH_STATE_EXPIRED',
         errorMessage: 'OAuth state expired before callback was completed',
       },
+    });
+
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'state_expired',
+      organizationId: oauthState.organizationId,
+      userId: oauthState.userId,
     });
 
     throw new BadRequestException('OAuth state has expired');
@@ -474,6 +520,14 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
             ? error.message
             : 'Google OAuth token exchange failed',
       },
+    });
+
+    this.logger.warn('oauth.google.callback.failed', {
+      event: 'oauth.google.callback.failed',
+      reason: 'token_exchange_failed',
+      organizationId: oauthState.organizationId,
+      userId: oauthState.userId,
+      ...this.logger.toErrorFields(error),
     });
 
     throw new BadRequestException('Google OAuth token exchange failed');
@@ -582,6 +636,14 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
     });
 
     return createdAccount;
+  });
+
+  this.logger.info('oauth.google.callback.success', {
+    event: 'oauth.google.callback.success',
+    organizationId: account.organizationId,
+    userId: account.userId,
+    connectedAccountId: account.id,
+    capabilities: account.capabilities,
   });
 
   return account;
@@ -729,6 +791,14 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
       return updated;
     });
 
+    this.logger.info('connected_account.disconnect_requested', {
+      event: 'connected_account.disconnect_requested',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: updatedAccount.id,
+      provider: updatedAccount.provider,
+    });
+
     return updatedAccount;
   }
 
@@ -804,6 +874,15 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
       });
 
       return updated;
+    });
+
+    this.logger.info('connected_account.disconnected', {
+      event: 'connected_account.disconnected',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: updatedAccount.id,
+      provider: updatedAccount.provider,
+      tokensCleared: true,
     });
 
     return updatedAccount;
