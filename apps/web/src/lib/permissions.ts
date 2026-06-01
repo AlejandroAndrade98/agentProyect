@@ -24,6 +24,14 @@ const CONNECTED_ACCOUNTS_MANAGE_ROLES: UserRole[] = [
   'ADMIN',
 ];
 
+const CONNECTED_ACCOUNTS_DISCONNECT_REQUEST_ROLES: UserRole[] = [
+  'SUPER_ADMIN',
+  'OWNER',
+  'ADMIN',
+  'SALES',
+  'VIEWER',
+];
+
 function hasRole(user: CurrentUser | null, roles: UserRole[]) {
   if (!user) {
     return false;
@@ -54,6 +62,10 @@ export function canManageProducts(user: CurrentUser | null) {
 
 export function canConnectConnectedAccount(user: CurrentUser | null) {
   return hasRole(user, CONNECTED_ACCOUNTS_CONNECT_ROLES);
+}
+
+export function canRequestConnectedAccountDisconnect(user: CurrentUser | null) {
+  return hasRole(user, CONNECTED_ACCOUNTS_DISCONNECT_REQUEST_ROLES);
 }
 
 export function canManageConnectedAccounts(user: CurrentUser | null) {

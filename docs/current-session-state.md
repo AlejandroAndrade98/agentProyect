@@ -714,3 +714,29 @@ Validation passed:
 
 Remaining production follow-up:
 - Configure a transactional email provider to deliver password reset links with `AUTH_RECOVERY_DEV_MODE=false`.
+
+## Latest completed phase
+
+Phase 18K Connected Account Disconnect Approval Policy and UX is completed and validated.
+
+Implemented:
+- OWNER/ADMIN own connected account shows direct `Disconnect account`.
+- SALES/VIEWER own connected account shows `Request disconnect`.
+- Pending disconnect requests show a clear approval state.
+- OWNER/ADMIN can see pending disconnect requests in the organization view.
+- OWNER/ADMIN can approve disconnect for another user’s pending connected account.
+- OWNER/ADMIN keep existing admin disconnect for other non-pending accounts.
+- VIEWER can request disconnect for their own visible connected account.
+- Existing backend request/admin disconnect endpoints were reused.
+- Tenant scoping remains enforced by organization.
+- Admin disconnect still clears encrypted tokens and pauses sync states.
+- SALES/VIEWER cannot direct-disconnect.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`

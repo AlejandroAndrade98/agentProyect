@@ -22,6 +22,7 @@ import {
 import {
   canConnectConnectedAccount,
   canManageConnectedAccounts,
+  canRequestConnectedAccountDisconnect,
 } from '@/lib/permissions';
 import type {
   ConnectedAccount,
@@ -94,6 +95,10 @@ function isFinalStatus(status: ConnectedAccount['status']) {
   return status === 'DISCONNECTED' || status === 'REVOKED';
 }
 
+function isDisconnectRequested(status: ConnectedAccount['status']) {
+  return status === 'DISCONNECT_REQUESTED';
+}
+
 export default function ConnectedAccountsSettingsPage() {
   const { user, token } = useAuth();
   const { locale, t } = useI18n();
@@ -117,6 +122,7 @@ export default function ConnectedAccountsSettingsPage() {
 
   const canConnect = canConnectConnectedAccount(user);
   const canManage = canManageConnectedAccounts(user);
+  const canRequestDisconnect = canRequestConnectedAccountDisconnect(user);
 
   const currentUserAccount = useMemo(() => {
     if (!user) {
@@ -128,6 +134,14 @@ export default function ConnectedAccountsSettingsPage() {
 
   const canShowDevConnectForm =
     Boolean(token) && canConnect && !currentUserAccount;
+
+  const pendingDisconnectRequests = useMemo(
+    () =>
+      accounts.filter((account) =>
+        isDisconnectRequested(account.status),
+      ),
+    [accounts],
+  );
 
   const loadAccounts = useCallback(async () => {
     if (!token) {
@@ -452,6 +466,29 @@ async function handleStartGoogleOAuth() {
         </section>
       ) : null}
 
+      {canManage && pendingDisconnectRequests.length > 0 ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                {t(
+                  'settings.connectedAccounts.pendingDisconnectRequests',
+                )}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-amber-700">
+                {t(
+                  'settings.connectedAccounts.pendingDisconnectRequestsDescription',
+                )}
+              </p>
+            </div>
+
+            <span className="w-fit rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700">
+              {pendingDisconnectRequests.length}
+            </span>
+          </div>
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -488,13 +525,28 @@ async function handleStartGoogleOAuth() {
         ) : (
           <div className="mt-6 space-y-4">
             {accounts.map((account) => {
-              const canRequestDisconnect =
-                canConnect &&
+              const isOwnAccount = account.userId === user?.id;
+              const isPendingDisconnect = isDisconnectRequested(account.status);
+              const canRequestOwnDisconnect =
+                canRequestDisconnect &&
+                !canManage &&
+                isOwnAccount &&
                 !isFinalStatus(account.status) &&
-                (canManage || account.userId === user?.id);
-
-              const canDisconnect =
-                canManage && !isFinalStatus(account.status);
+                !isPendingDisconnect;
+              const canDisconnectOwnAccount =
+                canManage &&
+                isOwnAccount &&
+                !isFinalStatus(account.status);
+              const canApprovePendingDisconnect =
+                canManage &&
+                !isOwnAccount &&
+                isPendingDisconnect &&
+                !isFinalStatus(account.status);
+              const canAdminDisconnectOtherAccount =
+                canManage &&
+                !isOwnAccount &&
+                !isPendingDisconnect &&
+                !isFinalStatus(account.status);
 
               return (
                 <article
@@ -520,6 +572,21 @@ async function handleStartGoogleOAuth() {
                       <p className="mt-1 text-sm text-slate-500">
                         {account.email}
                       </p>
+
+                      {isPendingDisconnect ? (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-sm font-semibold text-amber-800">
+                            {t(
+                              'settings.connectedAccounts.disconnectPendingTitle',
+                            )}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-amber-700">
+                            {t(
+                              'settings.connectedAccounts.disconnectPendingDescription',
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
@@ -560,14 +627,23 @@ async function handleStartGoogleOAuth() {
 
                         <div>
                           <dt className="font-medium text-slate-700">
-                            {t(
-                              'settings.connectedAccounts.disconnectRequestedAt',
-                            )}
+                            {t('settings.connectedAccounts.requestedAt')}
                           </dt>
                           <dd className="mt-1 text-slate-500">
                             {formatAccountDate(account.disconnectRequestedAt)}
                           </dd>
                         </div>
+
+                        {isPendingDisconnect ? (
+                          <div>
+                            <dt className="font-medium text-slate-700">
+                              {t('settings.connectedAccounts.requestedBy')}
+                            </dt>
+                            <dd className="mt-1 text-slate-500">
+                              {account.user.name || account.user.email}
+                            </dd>
+                          </div>
+                        ) : null}
 
                         <div>
                           <dt className="font-medium text-slate-700">
@@ -581,7 +657,7 @@ async function handleStartGoogleOAuth() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {canRequestDisconnect ? (
+                      {canRequestOwnDisconnect ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -594,7 +670,29 @@ async function handleStartGoogleOAuth() {
                         </button>
                       ) : null}
 
-                      {canDisconnect ? (
+                      {canDisconnectOwnAccount ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleDisconnect(account.id)}
+                          disabled={actionId === account.id}
+                          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {t('settings.connectedAccounts.disconnectAccount')}
+                        </button>
+                      ) : null}
+
+                      {canApprovePendingDisconnect ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleDisconnect(account.id)}
+                          disabled={actionId === account.id}
+                          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {t('settings.connectedAccounts.approveDisconnect')}
+                        </button>
+                      ) : null}
+
+                      {canAdminDisconnectOtherAccount ? (
                         <button
                           type="button"
                           onClick={() => void handleDisconnect(account.id)}

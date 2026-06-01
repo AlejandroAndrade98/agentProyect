@@ -38,6 +38,14 @@ const CONNECTED_ACCOUNTS_CONNECT_ROLES = [
   Role.SALES,
 ];
 
+const CONNECTED_ACCOUNTS_DISCONNECT_REQUEST_ROLES = [
+  Role.SUPER_ADMIN,
+  Role.OWNER,
+  Role.ADMIN,
+  Role.SALES,
+  Role.VIEWER,
+];
+
 const CONNECTED_ACCOUNTS_MANAGE_ROLES = [
   Role.SUPER_ADMIN,
   Role.OWNER,
@@ -102,7 +110,7 @@ export class ConnectedAccountsController {
   }
 
   @Patch(':id/disconnect-request')
-  @Roles(...CONNECTED_ACCOUNTS_CONNECT_ROLES)
+  @Roles(...CONNECTED_ACCOUNTS_DISCONNECT_REQUEST_ROLES)
   requestDisconnect(
     @CurrentUserDecorator() currentUser: CurrentUser,
     @Param('id') id: string,
