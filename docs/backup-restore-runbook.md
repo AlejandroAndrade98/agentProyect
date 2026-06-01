@@ -8,6 +8,8 @@ This runbook defines the backup and restore plan required before staging or priv
 
 Protect Sales AI Platform data from accidental deletion, bad migrations, infrastructure failure, leaked backup artifacts, and recoverability gaps. The immediate goal is private beta readiness with a clear operator checklist and at least one successful restore drill before onboarding beta users.
 
+For the full first staging/private beta deploy order, see [private-beta-deployment-plan.md](./private-beta-deployment-plan.md). This runbook covers the backup and restore requirements referenced by that plan.
+
 ## Scope
 
 Covered:
@@ -313,6 +315,7 @@ For a small team, one person may hold multiple roles, but each responsibility sh
 
 Before private beta:
 
+- Private beta deployment plan references backup/restore requirements.
 - Managed Postgres automated backups are enabled.
 - PITR is enabled or a documented limitation is accepted.
 - Backup retention duration is documented.

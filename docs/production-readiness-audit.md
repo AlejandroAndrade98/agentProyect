@@ -17,6 +17,8 @@ Phase 18G follow-up: a safe staging/local runtime smoke script and runbook were 
 
 Phase 18H follow-up: a provider-neutral backup and restore runbook was added, including critical data inventory, encrypted OAuth token key handling, Postgres backup/restore commands, migration safety, restore drill plan, RPO/RTO targets, privacy notes, and incident response checklists. Remaining blockers still include executing a staging restore drill, enabling/confirming managed backup/PITR settings with the deployment provider, deployment automation, external monitoring/alert provisioning, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, tenant/RBAC test coverage, and background worker implementation.
 
+Phase 18I follow-up: a private beta deployment plan, staging provider checklist, and staging environment variable template were added. The recommended first deployment architecture is managed Next.js/web hosting, a managed API container/web service, managed Postgres, provider-native logs, mock AI first, and deferred workers/Redis unless required. Remaining blockers still include executing the first staging deploy, running runtime smoke in staging, completing or scheduling the restore drill, resolving any GitHub Actions billing block, confirming Google OAuth test users, and deciding mock AI vs minimal OpenAI for beta.
+
 ## 1. Executive Summary
 
 Current readiness level: Local demo to early private beta.
@@ -53,13 +55,13 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | Logging/error handling | Mostly ready for beta | Structured JSON logs, request IDs, request completion logs, safe exception logging, and safe domain event logs exist for auth/OAuth/sync/AI/rate-limit flows. | No external monitoring provider, dashboard, or alert rules are provisioned yet. | Connect logs to a provider and configure alerts before public production. |
 | Rate limiting | Partially ready | Sensitive auth, OAuth, sync, AI generation, and Gmail draft creation endpoints use process-local throttling. | In-memory buckets do not coordinate across multiple API instances. | Add shared ingress/Redis-backed rate limiting before multi-instance or public production. |
 | Background jobs/sync | Blocker | `apps/worker` starts an application context; Redis/BullMQ dependency exists but no queues/jobs are wired. | Production sync, cleanup, retention, and retries are manual or absent. | Define worker responsibilities and queue architecture. |
-| CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. Runtime smoke script exists for local/staging. | No deployment automation, automated staging runtime smoke gate, or migration deploy gate yet. | Keep CI required for PRs; run `corepack pnpm smoke:runtime` after staging deploy and automate it later. |
+| CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. Runtime smoke script and private beta deploy plan exist. | GitHub Actions may be blocked by account billing; no automated staging runtime smoke gate or deploy gate yet. | Run local CI-equivalent commands before deploy until Actions is unblocked; run `corepack pnpm smoke:runtime` after staging deploy. |
 | Monitoring/health checks | Partially ready | API has `/api/health` with DB check, structured logs with request IDs, and a runtime smoke runbook for log correlation. | No external uptime monitor, dashboards, alert rules, or worker observability yet. | Add managed monitoring/alerts and run staging smoke logging checks before beta. |
 | Backups/recovery | Partially ready | Backup and restore runbook exists with critical data inventory, OAuth encryption key handling, migration safety, and restore drill plan. | Managed backup/PITR settings and an actual staging restore drill are not yet verified. | Enable managed Postgres backups/PITR and complete one restore drill before private beta. |
 | Data privacy | Needs decision | Email/calendar metadata is stored; body is intentionally not stored in current sync metadata. | Privacy policy, retention enforcement, export/delete flows are incomplete. | Define retention, deletion, and privacy controls before public launch. |
 | Billing/plans | Later | Organization plan and limits exist in schema; billing provider not implemented. | Not required for internal/private beta. | Defer billing integration until product packaging is fixed. |
 | Seed/demo data | Needs small fix | Seed script creates demo/platform data; `.env.example` is local-demo oriented. | Demo users/data can leak into production if seed is run accidentally. | Document production seeding policy; never seed demo credentials in prod. |
-| Production deployment architecture | Needs decision | Dockerfiles and compose files exist, but production topology is not finalized. | Current Dockerfiles are basic and may not be deploy-optimal; web Docker `pnpm start` from root needs verification. | Pick target architecture and harden Docker/start commands accordingly. |
+| Production deployment architecture | Partially ready | Private beta deployment plan recommends managed web hosting, managed API container/web service, managed Postgres, provider-native logs, and deferred workers/Redis. | Provider-specific setup still needs execution and verification. | Fill in staging provider checklist and execute first staging deployment. |
 
 ## 3. Environment Variables Checklist
 
@@ -75,7 +77,7 @@ Do not put real secret values in docs or source control.
 | Redis | `REDIS_URL` | Redis connection for future queues/cache. | Depends on worker strategy | Worker queues cannot run. | Present in example, but app currently does not wire Redis. |
 | Redis | `REDIS_URL_HOST` | Host-side Redis URL for local tooling. | No | Local tooling only. | Usually not production runtime. |
 | API/auth | `NODE_ENV` | Runtime mode. | Yes | Dev behavior/logging may leak into prod. | Set to `production`. |
-| API/auth | `API_PORT` | Intended API port. | Yes | Port mismatch. | `main.ts` currently listens on `4000` directly; align implementation/config before deployment. |
+| API/auth | `API_PORT` | Intended API port. | Yes | API may fail to bind if provider port settings are wrong. | `main.ts` reads configured app port with fallback `4000`; align with provider port settings. |
 | API/auth | `JWT_ACCESS_SECRET` | Access token signing secret. | Yes | Auth compromise if weak/missing. | Generate high-entropy secret. |
 | API/auth | `JWT_REFRESH_SECRET` | Refresh token signing secret in env. | Possibly | Refresh tokens are random DB tokens, not JWTs in current code. | Keep or remove in a later config cleanup; do not rely on placeholder. |
 | API/auth | `JWT_ACCESS_EXPIRES_IN` | Access token lifetime. | Yes | Tokens may be too long/short. | Example: `15m`. |
@@ -251,15 +253,16 @@ Missing for production-grade AI governance:
 
 | Blocker | Why it matters | Suggested phase to fix |
 | --- | --- | --- |
-| Deployment automation not configured | CI validates builds and static smoke checks, and runtime smoke is available for staging, but no staging/prod deploy path or automated runtime smoke gate exists yet. | Next deployment phase |
+| First staging deployment not executed | Deployment plan and provider checklist exist, but staging API/web/Postgres are not yet deployed. | Next deployment phase |
 | No distributed API rate limiting | App-level in-memory throttling exists, but multi-instance production needs shared enforcement. | 18G Private beta deployment |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
 | Google OAuth verification not completed | OAuth can remain limited to test users; Gmail scopes may require verification or security assessment for broad external use. | 18G Private beta deployment |
 | No completed backup/restore drill | Backup and restore runbook exists, but CRM data, OAuth tokens, AI usage, and audit records still need a verified restore drill before beta. | Next deployment phase |
 | No monitoring/logging strategy | Production failures are hard to detect/debug safely. | 18D Security hardening/rate limiting |
 | Worker/background sync not implemented | Production sync, retries, retention, and cleanup cannot rely only on manual requests. | 18F Background sync workers |
-| Docker production commands need verification | Existing Dockerfiles are basic; web Docker runs `pnpm start` from repo root while root has no `start` script. | 18B Production env and deployment config |
-| API port config mismatch | `configuration.ts` exposes `API_PORT`, but `main.ts` listens on `4000` directly. | 18B Production env and deployment config |
+| Provider build/start commands need staging verification | Dockerfiles and root scripts now document API/web start paths, but selected provider settings still need a real staging deploy. | Next deployment phase |
+| Provider port binding needs staging verification | API reads `API_PORT`, but provider-specific port injection must be confirmed during staging deploy. | Next deployment phase |
+| Auth recovery not implemented | Forgot password/self-serve recovery is absent. Controlled beta can rely on manual admin support, but public production should not. | 18J Auth Recovery and Account Safety |
 
 ## 9. Recommended Phase Plan
 

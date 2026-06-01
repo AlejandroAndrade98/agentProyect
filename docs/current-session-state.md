@@ -651,3 +651,34 @@ Remaining blockers:
 - Confirm managed backups/PITR with selected provider.
 - Define retention policy.
 - Design OAuth token encryption key rotation.
+
+## Latest completed phase
+
+Phase 18I Private Beta Deployment Execution Readiness is completed and validated.
+
+Implemented:
+- Private beta deployment plan.
+- Staging provider checklist.
+- Staging environment template.
+- Recommended first architecture:
+  - managed Next.js/web hosting
+  - managed API container/web service
+  - managed Postgres
+  - Redis/workers deferred
+  - provider-native logs first
+  - AI starts with `AI_PROVIDER=mock`
+- Exact staging deployment order.
+- Go/no-go checklist.
+- GitHub Actions billing fallback.
+- Auth Recovery/Forgot Password decision documented as future phase.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+No deployment, real secrets, Prisma/schema/API/routes/runtime behavior changes.

@@ -4,6 +4,8 @@ Date: 2026-05-31
 
 This runbook defines safe runtime smoke tests for local and staging environments. It does not deploy the app, use real production secrets, send email, create Gmail drafts, create CRM records by default, run background jobs, or change OAuth/AI behavior.
 
+For the full first-deploy sequence, start with [private-beta-deployment-plan.md](./private-beta-deployment-plan.md). Use this document when running the smoke steps from that plan.
+
 ## Purpose
 
 Use the runtime smoke test after starting local services or after deploying to staging to confirm:
@@ -81,6 +83,8 @@ corepack pnpm smoke:runtime
 ```
 
 ## Staging Instructions
+
+Confirm provider URLs and smoke env values using [staging-provider-checklist.md](./staging-provider-checklist.md) and [staging-env-template.md](./staging-env-template.md).
 
 Run after staging deploy and migration:
 

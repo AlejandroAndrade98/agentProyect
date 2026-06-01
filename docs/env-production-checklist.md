@@ -4,6 +4,8 @@ Date: 2026-05-31
 
 Use this checklist for staging and production environment setup. Do not store real values in this document or in source control. Put real secrets in the deployment provider's secret manager.
 
+For the first staging/private beta deploy, use [private-beta-deployment-plan.md](./private-beta-deployment-plan.md), [staging-provider-checklist.md](./staging-provider-checklist.md), and [staging-env-template.md](./staging-env-template.md).
+
 ## Environment Variables
 
 | Variable | Required | Used by | Purpose | Example placeholder | Production notes |
@@ -104,6 +106,8 @@ Variables that must differ between staging and production:
 - `FRONTEND_URL`
 - `CORS_ORIGIN`
 - `MONITORING_ENVIRONMENT`
+
+Staging-specific fill-in guidance lives in [staging-env-template.md](./staging-env-template.md). Keep staging secrets separate from production secrets.
 
 ## Backup and Restore Notes
 

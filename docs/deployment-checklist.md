@@ -40,6 +40,9 @@ Confirm:
 - Observability runbook is reviewed in [observability-runbook.md](./observability-runbook.md).
 - Staging runtime smoke tests are reviewed in [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md).
 - Backup and restore runbook is reviewed in [backup-restore-runbook.md](./backup-restore-runbook.md).
+- Private beta deployment plan is reviewed in [private-beta-deployment-plan.md](./private-beta-deployment-plan.md).
+- Provider setup checklist is filled in from [staging-provider-checklist.md](./staging-provider-checklist.md).
+- Staging env vars are prepared from [staging-env-template.md](./staging-env-template.md).
 
 CI foundation:
 
@@ -49,6 +52,7 @@ CI foundation:
 - CI uses dummy environment values only. It does not deploy, run migrations against a live database, connect Google OAuth, call OpenAI, send email, create Gmail drafts, create CRM records, or start background jobs.
 - No Postgres service is required for the current CI path because `db:validate` performs Prisma schema validation only.
 - Staging runtime smoke tests are available through `corepack pnpm smoke:runtime`, but they require a running local/staging API and explicit smoke env vars. CI does not run them by default.
+- If GitHub Actions is temporarily blocked by account billing, run the CI-equivalent local command set from [private-beta-deployment-plan.md](./private-beta-deployment-plan.md) before deployment.
 
 ## 2. Required Runtime Configuration
 
@@ -172,6 +176,8 @@ Docker compose:
 - Compose is useful for local/self-hosted testing, but managed Postgres is preferred for beta production.
 
 ## 7. Post-Deploy Smoke Tests
+
+Follow the complete first-deploy order in [private-beta-deployment-plan.md](./private-beta-deployment-plan.md).
 
 Run the automated runtime smoke in staging first:
 
@@ -337,4 +343,15 @@ Implemented:
 
 No production database was contacted, no backup/restore command was run against real data, and no schema/runtime behavior changed.
 
+Phase 18I Private Beta Deployment Execution Readiness is completed and validated locally.
+
+Implemented:
+- Private beta deployment plan.
+- Provider-specific staging checklist template.
+- Staging env variable template.
+- Auth recovery / forgot password decision documented as future work.
+- GitHub Actions billing fallback documented with local CI-equivalent commands.
+- Deployment, env, staging smoke, backup/restore, production readiness, and static smoke references updated.
+
+No deployment was performed, no real services were contacted, no secrets were added, and no runtime behavior changed.
 
