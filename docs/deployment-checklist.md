@@ -38,6 +38,7 @@ Confirm:
 - Security hardening notes are reviewed in [security-hardening.md](./security-hardening.md).
 - Google OAuth production readiness is reviewed in [google-oauth-production-checklist.md](./google-oauth-production-checklist.md).
 - Observability runbook is reviewed in [observability-runbook.md](./observability-runbook.md).
+- Staging runtime smoke tests are reviewed in [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md).
 
 CI foundation:
 
@@ -46,7 +47,7 @@ CI foundation:
 - CI enables Corepack, installs with `corepack pnpm install --frozen-lockfile`, runs static smoke checks, verifies generated artifacts are clean, validates Prisma schema, typechecks the web app, builds the API, and runs the monorepo build.
 - CI uses dummy environment values only. It does not deploy, run migrations against a live database, connect Google OAuth, call OpenAI, send email, create Gmail drafts, create CRM records, or start background jobs.
 - No Postgres service is required for the current CI path because `db:validate` performs Prisma schema validation only.
-- Staging runtime smoke tests are still required before any deployment.
+- Staging runtime smoke tests are available through `corepack pnpm smoke:runtime`, but they require a running local/staging API and explicit smoke env vars. CI does not run them by default.
 
 ## 2. Required Runtime Configuration
 
@@ -170,7 +171,19 @@ Docker compose:
 
 ## 7. Post-Deploy Smoke Tests
 
-Run in staging first:
+Run the automated runtime smoke in staging first:
+
+```bash
+SMOKE_API_URL=https://<api-domain>/api \
+SMOKE_EMAIL=<staging-user> \
+SMOKE_PASSWORD=<staging-password> \
+SMOKE_VERBOSE=true \
+corepack pnpm smoke:runtime
+```
+
+The default runtime smoke is read-only except for login/session token creation. Optional CRM mutation, AI generation, and external sync checks require explicit env flags. See [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md).
+
+Manual checks after the automated smoke:
 
 1. `GET https://<api-domain>/api/health` returns healthy DB check.
 2. Open the frontend URL.
@@ -187,6 +200,8 @@ Run in staging first:
 13. Confirm AI analysis does not create CRM records automatically.
 14. If testing reply drafts, confirm Gmail draft creation requires an explicit click and does not send the email.
 15. Switch language EN/ES and confirm the UI still renders.
+
+Confirm at least one smoke request ID is visible in API logs and correlates with `http.request.completed`.
 
 ## 8. Backup and Restore Minimum Plan
 
@@ -262,6 +277,7 @@ Before production:
   - AI usage/credit exhaustion
 - Confirm logs do not contain email bodies, Gmail snippets, AI output text, OAuth tokens, authorization headers, cookies, passwords, or Gmail draft bodies.
 - Confirm staging smoke tests emit traceable `X-Request-Id` values.
+- Run `corepack pnpm smoke:runtime` against staging and verify request IDs in logs before beta promotion.
 
 ## 12. Rollback Notes
 
@@ -276,3 +292,27 @@ Database rollback:
 - Prefer restore from backup for severe migration/data failures.
 - Prepare corrective migrations for small schema issues.
 - Do not run `migrate dev` or manual destructive SQL in production without an approved incident plan.
+
+## Latest completed phase
+
+Phase 18G Staging Runtime Smoke Test Plan and Scripts is completed and validated locally.
+
+Implemented:
+- `smoke:runtime` script for safe local/staging runtime checks.
+- Read-only default checks for health, auth, `/users/me`, dashboard summary, CRM read endpoints, AI suggestions read, and `X-Request-Id`.
+- Optional mutation, AI generation, and external sync modes guarded by explicit env flags.
+- Staging runtime smoke runbook.
+- Deployment and observability docs updated.
+- Static smoke checks now verify runtime smoke script/docs exist.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+- `corepack pnpm smoke:runtime` fails gracefully without `SMOKE_API_URL`, as expected.
+
+No backend, Prisma, routes, auth, OAuth, AI behavior, email sending, or dependencies changed.

@@ -221,17 +221,28 @@ Before adding a vendor, confirm:
 ## Staging Smoke Logging Checklist
 
 1. Start API and web.
-2. Call `GET /api/health`.
-3. Login successfully and confirm `auth.login.success`.
-4. Trigger one failed login and confirm `auth.login.failed`.
-5. Confirm responses include `X-Request-Id`.
+2. Run the default runtime smoke:
+
+   ```bash
+   SMOKE_API_URL=https://<api-domain>/api \
+   SMOKE_EMAIL=<staging-user> \
+   SMOKE_PASSWORD=<staging-password> \
+   SMOKE_VERBOSE=true \
+   corepack pnpm smoke:runtime
+   ```
+
+3. Copy one printed `X-Request-Id` and find it in API logs.
+4. Confirm login emits `auth.login.success`.
+5. Trigger one failed login and confirm `auth.login.failed`.
 6. Trigger a safe 404/401/403 and confirm `http.request.completed`.
 7. Trigger one safe 429 if practical and confirm `rate_limit.exceeded`.
 8. Run Google OAuth with a staging test user.
-9. Run manual Gmail sync.
-10. Run manual Calendar sync.
-11. Generate one mock AI suggestion.
+9. Run manual Gmail sync or `SMOKE_RUN_EXTERNAL_SYNC=true` only when a connected staging Google account exists.
+10. Run manual Calendar sync or `SMOKE_RUN_EXTERNAL_SYNC=true` only when a connected staging Google account exists.
+11. Generate one mock AI suggestion manually or with `SMOKE_RUN_AI=true`.
 12. Confirm logs contain no passwords, tokens, Gmail body/snippets, Calendar descriptions, AI output text, or Gmail draft body.
+
+See [staging-runtime-smoke-tests.md](./staging-runtime-smoke-tests.md) for the full local/staging smoke plan.
 
 ## Current Limitations
 

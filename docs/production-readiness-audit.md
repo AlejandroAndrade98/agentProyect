@@ -13,6 +13,8 @@ Phase 18E follow-up: Google OAuth production configuration was hardened with `FR
 
 Phase 18F follow-up: structured API logging, request completion logging, safe event logs for auth/OAuth/sync/AI/rate-limit flows, logging env controls, and an observability runbook were added. Remaining blockers still include external monitoring/alert provisioning, staging runtime smoke validation, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, backup restore drills, tenant/RBAC test coverage, and background worker implementation.
 
+Phase 18G follow-up: a safe staging/local runtime smoke script and runbook were added. The smoke defaults to read-only checks, verifies request IDs, supports optional explicit CRM mutation cleanup, optional mock AI smoke, and optional manual external sync smoke. Remaining blockers still include actually running the smoke in staging, deployment automation, external monitoring/alert provisioning, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, backup restore drills, tenant/RBAC test coverage, and background worker implementation.
+
 ## 1. Executive Summary
 
 Current readiness level: Local demo to early private beta.
@@ -49,8 +51,8 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | Logging/error handling | Mostly ready for beta | Structured JSON logs, request IDs, request completion logs, safe exception logging, and safe domain event logs exist for auth/OAuth/sync/AI/rate-limit flows. | No external monitoring provider, dashboard, or alert rules are provisioned yet. | Connect logs to a provider and configure alerts before public production. |
 | Rate limiting | Partially ready | Sensitive auth, OAuth, sync, AI generation, and Gmail draft creation endpoints use process-local throttling. | In-memory buckets do not coordinate across multiple API instances. | Add shared ingress/Redis-backed rate limiting before multi-instance or public production. |
 | Background jobs/sync | Blocker | `apps/worker` starts an application context; Redis/BullMQ dependency exists but no queues/jobs are wired. | Production sync, cleanup, retention, and retries are manual or absent. | Define worker responsibilities and queue architecture. |
-| CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. | No deployment automation, staging runtime smoke tests, or migration deploy gate yet. | Keep CI required for PRs; add staging deployment and runtime smoke checks in a later phase. |
-| Monitoring/health checks | Partially ready | API has `/api/health` with DB check and structured logs with request IDs. | No external uptime monitor, dashboards, alert rules, or worker observability yet. | Add managed monitoring/alerts and staging smoke logging checks. |
+| CI/CD | Partially ready | `.github/workflows/ci.yml` runs install, static smoke checks, generated-artifact guard, Prisma validate, web typecheck, API build, and monorepo build on PRs and pushes to `main`. Runtime smoke script exists for local/staging. | No deployment automation, automated staging runtime smoke gate, or migration deploy gate yet. | Keep CI required for PRs; run `corepack pnpm smoke:runtime` after staging deploy and automate it later. |
+| Monitoring/health checks | Partially ready | API has `/api/health` with DB check, structured logs with request IDs, and a runtime smoke runbook for log correlation. | No external uptime monitor, dashboards, alert rules, or worker observability yet. | Add managed monitoring/alerts and run staging smoke logging checks before beta. |
 | Backups/recovery | Blocker | Docker volume exists; no backup/restore plan. | Data loss risk for CRM, OAuth tokens, AI records, and audit history. | Choose managed Postgres backups and document restore drills. |
 | Data privacy | Needs decision | Email/calendar metadata is stored; body is intentionally not stored in current sync metadata. | Privacy policy, retention enforcement, export/delete flows are incomplete. | Define retention, deletion, and privacy controls before public launch. |
 | Billing/plans | Later | Organization plan and limits exist in schema; billing provider not implemented. | Not required for internal/private beta. | Defer billing integration until product packaging is fixed. |
@@ -247,7 +249,7 @@ Missing for production-grade AI governance:
 
 | Blocker | Why it matters | Suggested phase to fix |
 | --- | --- | --- |
-| Deployment automation not configured | CI validates builds and static smoke checks, but no staging/prod deploy path or runtime smoke gate exists yet. | 18G Private beta deployment |
+| Deployment automation not configured | CI validates builds and static smoke checks, and runtime smoke is available for staging, but no staging/prod deploy path or automated runtime smoke gate exists yet. | Next deployment phase |
 | No distributed API rate limiting | App-level in-memory throttling exists, but multi-instance production needs shared enforcement. | 18G Private beta deployment |
 | Production secrets strategy not defined | JWT, OAuth, DB, OpenAI, and token encryption secrets are high impact. | 18B Production env and deployment config |
 | Google OAuth verification not completed | OAuth can remain limited to test users; Gmail scopes may require verification or security assessment for broad external use. | 18G Private beta deployment |

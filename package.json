@@ -17,6 +17,7 @@
     "docker:down": "docker-compose down",
     "check:generated": "node scripts/check-clean-generated-files.mjs",
     "smoke:static": "node scripts/smoke-static.mjs",
+    "smoke:runtime": "node scripts/smoke-runtime.mjs",
     "db:validate": "node scripts/prisma-host.mjs validate",
     "db:migrate": "node scripts/prisma-host.mjs migrate dev",
     "db:generate": "node scripts/prisma-host.mjs generate",

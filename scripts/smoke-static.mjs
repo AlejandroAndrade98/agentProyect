@@ -33,6 +33,7 @@ const requiredScripts = [
   "db:validate",
   "check:generated",
   "smoke:static",
+  "smoke:runtime",
   "start:api",
   "start:web",
   "start:worker",
@@ -52,6 +53,8 @@ const requiredFiles = [
   "docs/security-hardening.md",
   "docs/google-oauth-production-checklist.md",
   "docs/observability-runbook.md",
+  "docs/staging-runtime-smoke-tests.md",
+  "scripts/smoke-runtime.mjs",
   "packages/database/prisma/schema.prisma",
   "apps/api/src/main.ts",
   "apps/api/src/app.module.ts",
@@ -144,6 +147,8 @@ for (const expectedText of [
   "corepack pnpm build",
   "google-oauth-production-checklist.md",
   "observability-runbook.md",
+  "staging-runtime-smoke-tests.md",
+  "corepack pnpm smoke:runtime",
 ]) {
   if (!deploymentChecklist.includes(expectedText)) {
     fail(`Deployment checklist missing command: ${expectedText}`);
