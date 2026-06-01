@@ -1,7 +1,7 @@
 # Production Readiness Audit
 
 Date: 2026-05-31  
-Scope: Sales AI Platform repository audit only. No application behavior, API contracts, Prisma schema, routes, dependencies, or deployment config were changed.
+Scope: Sales AI Platform repository audit and hardening notes. No deployment was performed, no dependencies were added, and no OAuth/AI/email sending/CRM automation behavior was changed.
 
 Phase 18B follow-up: API port alignment, web Docker start command, production env checklist, and deployment runbook were prepared after this audit.
 
@@ -18,6 +18,8 @@ Phase 18G follow-up: a safe staging/local runtime smoke script and runbook were 
 Phase 18H follow-up: a provider-neutral backup and restore runbook was added, including critical data inventory, encrypted OAuth token key handling, Postgres backup/restore commands, migration safety, restore drill plan, RPO/RTO targets, privacy notes, and incident response checklists. Remaining blockers still include executing a staging restore drill, enabling/confirming managed backup/PITR settings with the deployment provider, deployment automation, external monitoring/alert provisioning, distributed rate limiting for multi-instance deployments, Google verification/security assessment completion, tenant/RBAC test coverage, and background worker implementation.
 
 Phase 18I follow-up: a private beta deployment plan, staging provider checklist, and staging environment variable template were added. The recommended first deployment architecture is managed Next.js/web hosting, a managed API container/web service, managed Postgres, provider-native logs, mock AI first, and deferred workers/Redis unless required. Remaining blockers still include executing the first staging deploy, running runtime smoke in staging, completing or scheduling the restore drill, resolving any GitHub Actions billing block, confirming Google OAuth test users, and deciding mock AI vs minimal OpenAI for beta.
+
+Phase 18J follow-up: auth recovery foundation was added with forgot/reset password endpoints, hashed one-time reset tokens, dedicated rate limits, refresh-token revocation after password reset, EN/ES recovery UI, and production validation that rejects dev reset-link mode. Remaining blocker: configure and validate transactional reset email delivery before public self-serve production.
 
 ## 1. Executive Summary
 
@@ -39,7 +41,7 @@ Short recommendation: finish production environment decisions, CI/CD, rate limit
 | Backend build | Ready | `apps/api/package.json` has `build`; `corepack pnpm --filter @sales-ai/api build` succeeds via full build. | Low. | Keep API build as required CI step. |
 | Database migrations | Mostly ready | Prisma schema and timestamped migrations exist; root has `db:deploy`. | Production deploy can fail without a migration runbook. | Use `prisma migrate deploy` in release flow and document rollback/restore steps. |
 | Environment variables | Needs decision | `.env.example` exists but is development-oriented. | Missing/weak secrets or wrong URLs can break auth, OAuth, CORS, AI, and token encryption. | Create production-specific env checklist and secret generation process. |
-| Authentication | Needs small fix | JWT access/refresh tokens exist; refresh tokens are hashed and rotated. Frontend stores tokens in `localStorage`; refresh flow is not used client-side. | XSS token exposure risk; sessions expire without transparent refresh. | Decide session storage model before public production; wire refresh or use secure cookies. |
+| Authentication | Mostly ready for beta | JWT access tokens exist; refresh tokens are hashed and rotated; password reset tokens are hashed, one-time, expiring, and revoke active refresh tokens after reset. Frontend stores tokens in `localStorage`; refresh flow is not used client-side. | XSS token exposure risk; sessions expire without transparent refresh; public self-serve recovery needs email delivery. | Decide session storage model before public production; wire refresh or use secure cookies; configure transactional reset email delivery. |
 | Authorization/RBAC | Mostly ready | `JwtAuthGuard`, `RolesGuard`, role groups, and SUPER_ADMIN platform guards exist. | Route-level RBAC depends on consistent controller coverage. | Add RBAC smoke tests for representative roles. |
 | Tenant isolation | Mostly ready | Most service queries include `organizationId`; auth guard validates active user and organization. | Any missed query can leak tenant data. | Add tenant-isolation tests for CRUD/list/detail/apply flows. |
 | CORS | Needs decision | `main.ts` reads `CORS_ORIGIN`, supports comma-separated origins, includes `X-App-Locale`. | Wrong origins can block production frontend or allow too much access. | Set exact production origins; avoid wildcards. |
@@ -82,6 +84,9 @@ Do not put real secret values in docs or source control.
 | API/auth | `JWT_REFRESH_SECRET` | Refresh token signing secret in env. | Possibly | Refresh tokens are random DB tokens, not JWTs in current code. | Keep or remove in a later config cleanup; do not rely on placeholder. |
 | API/auth | `JWT_ACCESS_EXPIRES_IN` | Access token lifetime. | Yes | Tokens may be too long/short. | Example: `15m`. |
 | API/auth | `JWT_REFRESH_EXPIRES_IN` | Refresh token lifetime. | Yes | Refresh creation fails if missing; session policy undefined. | Example: `7d`. |
+| API/auth | `AUTH_RECOVERY_DEV_MODE` | Enables dev reset URLs in forgot-password responses. | Yes | Public reset links could be exposed in API responses if enabled incorrectly. | Must be `false` in production; startup validation rejects `true`. |
+| API/auth | `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Password reset token lifetime. | Recommended | Reset links may live too long if left undefined or misconfigured. | Example: `30`. Tokens are one-time use and stored as hashes. |
+| API/auth | `PASSWORD_RESET_PUBLIC_URL` | Frontend base URL for reset links. | Recommended | Reset links may point to the wrong frontend origin. | Can fall back to `FRONTEND_URL`; set explicitly if needed. |
 | Frontend URLs | `WEB_PORT` | Web port for Docker/local. | Depends on hosting | Wrong local/container port. | Hosted platforms often ignore this. |
 | Frontend URLs | `NEXT_PUBLIC_API_URL` | Browser API base URL. | Yes | Frontend cannot call API. | Must include `/api` based on current client. |
 | CORS | `CORS_ORIGIN` | Allowed frontend origins and OAuth callback redirect base. | Yes | Browser requests blocked or origins too permissive. | Comma-separated exact origins. First origin is used for OAuth callback redirect. |
@@ -105,6 +110,10 @@ JWT and refresh tokens:
 
 - Access tokens are JWTs signed with `JWT_ACCESS_SECRET`.
 - Refresh tokens are random 64-byte hex strings, hashed with SHA-256 in the database, rotated on refresh, and revoked on logout.
+- Password reset tokens are random 32-byte hex strings, hashed with SHA-256 in the database, one-time use, and time-limited.
+- Password reset requests return a generic message to avoid account enumeration.
+- Successful password reset revokes active refresh tokens and consumes outstanding reset tokens for that user.
+- `AUTH_RECOVERY_DEV_MODE` can expose a reset URL only outside production; production startup rejects it.
 - Frontend currently stores access and refresh tokens in `localStorage`. This is acceptable for local demos but raises XSS exposure risk for public production.
 - Frontend stores refresh tokens but does not appear to call the refresh endpoint automatically.
 
@@ -262,7 +271,7 @@ Missing for production-grade AI governance:
 | Worker/background sync not implemented | Production sync, retries, retention, and cleanup cannot rely only on manual requests. | 18F Background sync workers |
 | Provider build/start commands need staging verification | Dockerfiles and root scripts now document API/web start paths, but selected provider settings still need a real staging deploy. | Next deployment phase |
 | Provider port binding needs staging verification | API reads `API_PORT`, but provider-specific port injection must be confirmed during staging deploy. | Next deployment phase |
-| Auth recovery not implemented | Forgot password/self-serve recovery is absent. Controlled beta can rely on manual admin support, but public production should not. | 18J Auth Recovery and Account Safety |
+| Transactional password reset delivery not configured | Forgot/reset password foundation exists, but public self-serve production needs a verified email provider to deliver reset links without dev-mode API exposure. | Next deployment/security phase |
 
 ## 9. Recommended Phase Plan
 

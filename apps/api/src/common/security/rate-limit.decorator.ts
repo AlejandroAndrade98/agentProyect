@@ -1,6 +1,10 @@
 import { SetMetadata } from '@nestjs/common';
 
-export type RateLimitKeyStrategy = 'ip' | 'ipAndBodyEmail' | 'userOrIp';
+export type RateLimitKeyStrategy =
+  | 'ip'
+  | 'ipAndBodyEmail'
+  | 'ipAndBodyToken'
+  | 'userOrIp';
 
 export type RateLimitOptions = {
   name: string;

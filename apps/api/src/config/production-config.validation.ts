@@ -34,6 +34,13 @@ export function validateProductionConfiguration(configService: ConfigService) {
     'app.frontendUrl',
   );
 
+  const passwordResetPublicUrl = configService.get<string>(
+    'app.passwordResetPublicUrl',
+  );
+  if (passwordResetPublicUrl) {
+    validateAbsoluteUrl(passwordResetPublicUrl, 'app.passwordResetPublicUrl');
+  }
+
   const redirectUri = new URL(
     configService.get<string>('app.googleOAuthRedirectUri') as string,
   );
@@ -53,6 +60,14 @@ export function validateProductionConfiguration(configService: ConfigService) {
   validateConnectedAccountTokenEncryptionKey(
     configService.get<string>('app.connectedAccountTokenEncryptionKey'),
   );
+
+  if (
+    (
+      configService.get<string>('app.authRecoveryDevMode') ?? 'false'
+    ).toLowerCase() === 'true'
+  ) {
+    throw new Error('app.authRecoveryDevMode must be disabled in production');
+  }
 }
 
 function validateAbsoluteUrl(value: string | undefined, key: string) {

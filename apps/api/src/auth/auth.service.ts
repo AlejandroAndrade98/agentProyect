@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -9,11 +10,27 @@ import { PrismaService } from '../database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { SafeLoggerService } from '../common/observability/safe-logger.service';
 
 import { OrganizationStatus } from '@prisma/client';
+
+type PasswordResetRequestContext = {
+  ip?: string | null;
+  userAgent?: string | null;
+};
+
+type ForgotPasswordResponse = {
+  message: string;
+  devResetUrl?: string;
+};
+
+const PASSWORD_RESET_GENERIC_MESSAGE =
+  'If an account exists, password reset instructions will be provided.';
+const PASSWORD_RESET_SUCCESS_MESSAGE = 'Password reset successful.';
 
 @Injectable()
 export class AuthService {
@@ -91,6 +108,180 @@ export class AuthService {
         organizationId: user.organizationId,
       },
     };
+  }
+
+  async forgotPassword(
+    dto: ForgotPasswordDto,
+    context: PasswordResetRequestContext = {},
+  ): Promise<ForgotPasswordResponse> {
+    const email = dto.email.trim().toLowerCase();
+    const emailHash = this.logger.hashIdentifier(email);
+    const devMode = this.isAuthRecoveryDevModeEnabled();
+    let rawToken: string | null = null;
+    let tokenCreated = false;
+    let userId: string | undefined;
+    let organizationId: string | undefined;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            status: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+
+    if (user?.isActive && this.organizationAllowsPasswordReset(user.organization)) {
+      rawToken = this.generatePasswordResetToken();
+      const now = new Date();
+
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: this.hashToken(rawToken),
+          expiresAt: this.calculatePasswordResetExpiry(now),
+          requestedIpHash: this.hashOptionalIdentifier(context.ip),
+          requestedUserAgentHash: this.hashOptionalIdentifier(context.userAgent),
+        },
+      });
+
+      tokenCreated = true;
+      userId = user.id;
+      organizationId = user.organizationId;
+    }
+
+    this.logger.info('auth.password_reset.requested', {
+      event: 'auth.password_reset.requested',
+      emailHash,
+      tokenCreated,
+      userId,
+      organizationId,
+      deliveryMode: devMode ? 'dev_url' : 'provider_required',
+    });
+
+    if (!rawToken && devMode) {
+      rawToken = this.generatePasswordResetToken();
+    }
+
+    return {
+      message: PASSWORD_RESET_GENERIC_MESSAGE,
+      ...(devMode && rawToken
+        ? { devResetUrl: this.buildPasswordResetUrl(rawToken) }
+        : {}),
+    };
+  }
+
+  async resetPassword(
+    dto: ResetPasswordDto,
+    context: PasswordResetRequestContext = {},
+  ): Promise<{ message: string }> {
+    const tokenHash = this.hashToken(dto.token);
+    const now = new Date();
+
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                status: true,
+                deletedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.expiresAt <= now ||
+      !resetToken.user?.isActive ||
+      !this.organizationAllowsPasswordReset(resetToken.user.organization)
+    ) {
+      this.logger.warn('auth.password_reset.failed', {
+        event: 'auth.password_reset.failed',
+        reason: this.getPasswordResetFailureReason(resetToken, now),
+        tokenHash: this.logger.hashIdentifier(tokenHash),
+        userId: resetToken?.userId,
+        organizationId: resetToken?.user?.organizationId,
+      });
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    let revokedRefreshTokens = 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      const updateTokenResult = await tx.passwordResetToken.updateMany({
+        where: {
+          id: resetToken.id,
+          usedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        data: {
+          usedAt: now,
+          consumedIpHash: this.hashOptionalIdentifier(context.ip),
+          consumedUserAgentHash: this.hashOptionalIdentifier(context.userAgent),
+        },
+      });
+
+      if (updateTokenResult.count !== 1) {
+        throw new BadRequestException('Invalid or expired reset link');
+      }
+
+      await tx.user.update({
+        where: {
+          id: resetToken.userId,
+        },
+        data: {
+          passwordHash,
+        },
+      });
+
+      const revokeResult = await tx.refreshToken.updateMany({
+        where: {
+          userId: resetToken.userId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      revokedRefreshTokens = revokeResult.count;
+
+      await tx.passwordResetToken.updateMany({
+        where: {
+          userId: resetToken.userId,
+          id: {
+            not: resetToken.id,
+          },
+          usedAt: null,
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+    });
+
+    this.logger.info('auth.password_reset.completed', {
+      event: 'auth.password_reset.completed',
+      userId: resetToken.userId,
+      organizationId: resetToken.user.organizationId,
+      refreshTokensRevoked: revokedRefreshTokens,
+    });
+
+    return { message: PASSWORD_RESET_SUCCESS_MESSAGE };
   }
 
   async refresh(dto: RefreshTokenDto): Promise<AuthResponse> {
@@ -226,6 +417,96 @@ export class AuthService {
         throw new ForbiddenException('Organization is cancelled');
       }
     }
+
+  private organizationAllowsPasswordReset(organization: {
+    status: OrganizationStatus;
+    deletedAt: Date | null;
+  }) {
+    return (
+      !organization.deletedAt &&
+      organization.status !== OrganizationStatus.SUSPENDED &&
+      organization.status !== OrganizationStatus.CANCELLED
+    );
+  }
+
+  private getPasswordResetFailureReason(
+    resetToken:
+      | {
+          usedAt: Date | null;
+          expiresAt: Date;
+          user?: {
+            isActive: boolean;
+            organization: {
+              status: OrganizationStatus;
+              deletedAt: Date | null;
+            };
+          } | null;
+        }
+      | null,
+    now: Date,
+  ) {
+    if (!resetToken) {
+      return 'not_found';
+    }
+
+    if (resetToken.usedAt) {
+      return 'already_used';
+    }
+
+    if (resetToken.expiresAt <= now) {
+      return 'expired';
+    }
+
+    if (!resetToken.user?.isActive) {
+      return 'user_inactive';
+    }
+
+    if (!this.organizationAllowsPasswordReset(resetToken.user.organization)) {
+      return 'organization_access_blocked';
+    }
+
+    return 'invalid';
+  }
+
+  private calculatePasswordResetExpiry(now: Date) {
+    const configuredMinutes = Number(
+      this.configService.get<number>('app.passwordResetTokenTtlMinutes') ?? 30,
+    );
+    const ttlMinutes =
+      Number.isFinite(configuredMinutes) && configuredMinutes > 0
+        ? configuredMinutes
+        : 30;
+
+    return new Date(now.getTime() + ttlMinutes * 60 * 1000);
+  }
+
+  private buildPasswordResetUrl(token: string) {
+    const configuredUrl =
+      this.configService.get<string>('app.passwordResetPublicUrl') ||
+      this.configService.get<string>('app.frontendUrl') ||
+      'http://localhost:3000';
+    const url = new URL('/reset-password', configuredUrl);
+
+    url.searchParams.set('token', token);
+    return url.toString();
+  }
+
+  private isAuthRecoveryDevModeEnabled() {
+    return (
+      process.env.NODE_ENV !== 'production' &&
+      (
+        this.configService.get<string>('app.authRecoveryDevMode') ?? 'false'
+      ).toLowerCase() === 'true'
+    );
+  }
+
+  private generatePasswordResetToken() {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  private hashOptionalIdentifier(value: string | null | undefined) {
+    return this.logger.hashIdentifier(value ?? null);
+  }
 
   private async createRefreshToken(userId: string): Promise<string> {
     const token = this.generateRefreshToken();

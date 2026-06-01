@@ -682,3 +682,35 @@ Validation passed:
 - `corepack pnpm build`
 
 No deployment, real secrets, Prisma/schema/API/routes/runtime behavior changes.
+
+## Latest completed phase
+
+Phase 18J Auth Recovery and Account Safety is completed and validated locally.
+
+Implemented:
+- Password recovery foundation.
+- `POST /auth/forgot-password` with generic anti-enumeration response.
+- `POST /auth/reset-password` with hashed reset token, expiration, one-time use, and refresh token revocation after successful reset.
+- Dedicated rate limiting for forgot/reset flows.
+- Prisma `PasswordResetToken` model and migration.
+- Config/env support for:
+  - `AUTH_RECOVERY_DEV_MODE`
+  - password reset token TTL
+  - `PASSWORD_RESET_PUBLIC_URL`
+- Production config rejects `AUTH_RECOVERY_DEV_MODE=true`.
+- Frontend `/forgot-password` and `/reset-password` pages.
+- EN/ES i18n for auth recovery UI.
+- Security/deployment/env/private-beta/audit/staging docs updated.
+
+Validation passed:
+- `corepack pnpm db:generate`
+- `corepack pnpm db:validate`
+- `corepack pnpm smoke:static`
+- `git diff --check`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm build`
+- `corepack pnpm check:generated`
+
+Remaining production follow-up:
+- Configure a transactional email provider to deliver password reset links with `AUTH_RECOVERY_DEV_MODE=false`.

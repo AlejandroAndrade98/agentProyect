@@ -15,6 +15,11 @@ export default registerAs('app', () => ({
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+  authRecoveryDevMode: process.env.AUTH_RECOVERY_DEV_MODE || 'false',
+  passwordResetTokenTtlMinutes: Number(
+    process.env.AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES || 30,
+  ),
+  passwordResetPublicUrl: process.env.PASSWORD_RESET_PUBLIC_URL,
 
   googleOAuthClientId:
     process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,

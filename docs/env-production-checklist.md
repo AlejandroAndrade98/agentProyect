@@ -28,6 +28,9 @@ For the first staging/private beta deploy, use [private-beta-deployment-plan.md]
 | `JWT_REFRESH_SECRET` | Currently optional | API config compatibility | Reserved refresh secret. | `replace_with_strong_refresh_secret` | Current refresh tokens are random DB tokens, but keep a strong value until config is cleaned up. |
 | `JWT_ACCESS_EXPIRES_IN` | Yes | API auth | Access token lifetime. | `15m` | Keep short for production. |
 | `JWT_REFRESH_EXPIRES_IN` | Yes | API auth | Refresh token lifetime. | `7d` | Required by refresh token creation. |
+| `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | Enables dev-only reset URL responses. | `false` | Must be `false` in production; startup validation rejects `true`. |
+| `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | Password reset token lifetime. | `30` | Keep short. Tokens are one-time use and stored only as hashes. |
+| `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | Frontend base URL used to build reset links. | `https://app.example.com` | Optional when `FRONTEND_URL` is correct; set explicitly if reset links need a different public base. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | Connected accounts | Google OAuth client ID. | `replace_with_google_client_id` | Must belong to the production OAuth web client. Alias `GOOGLE_CLIENT_ID` is supported, but prefer this canonical name. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Yes for Google | Connected accounts | Google OAuth client secret. | `replace_with_google_client_secret` | Secret manager only. Alias `GOOGLE_CLIENT_SECRET` is supported. |
 | `GOOGLE_OAUTH_REDIRECT_URI` | Yes for Google | Connected accounts | Google callback URL. | `https://api.example.com/api/connected-accounts/oauth/google/callback` | Must exactly match Google Cloud authorized redirect URI. Alias `GOOGLE_REDIRECT_URI` is supported. |
@@ -85,8 +88,9 @@ Production notes:
 - `CORS_ORIGIN` must include the deployed frontend URL exactly, with scheme.
 - `FRONTEND_URL` should be set to the canonical frontend origin because the Google OAuth callback redirects there after success.
 - If `FRONTEND_URL` is not set, the callback falls back to the first `CORS_ORIGIN`.
+- `PASSWORD_RESET_PUBLIC_URL` should point to the same frontend origin unless reset links are served through a different public URL.
 - `GOOGLE_OAUTH_REDIRECT_URI` must exactly match the API callback URL registered in Google Cloud.
-- Production startup validates Google OAuth env, frontend URL, exact CORS origins, and the 32-byte connected account encryption key when `NODE_ENV=production`.
+- Production startup validates Google OAuth env, frontend URL, optional password reset URL, exact CORS origins, disabled auth recovery dev mode, and the 32-byte connected account encryption key when `NODE_ENV=production`.
 
 ## Staging vs Production
 

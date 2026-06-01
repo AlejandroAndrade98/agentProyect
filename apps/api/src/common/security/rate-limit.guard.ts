@@ -117,6 +117,15 @@ export class RateLimitGuard implements CanActivate {
       return `${options.name}:ip-email:${this.hash(`${ip}:${email}`)}`;
     }
 
+    if (strategy === 'ipAndBodyToken') {
+      const token =
+        typeof request.body?.token === 'string'
+          ? request.body.token
+          : 'unknown-token';
+
+      return `${options.name}:ip-token:${this.hash(`${ip}:${token}`)}`;
+    }
+
     return `${options.name}:ip:${this.hash(ip)}`;
   }
 

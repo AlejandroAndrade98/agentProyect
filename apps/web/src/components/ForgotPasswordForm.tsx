@@ -1,48 +1,36 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { FormEvent, useState } from 'react';
 
-import { ApiClientError } from '@/lib/api-client';
-import { useAuth } from '@/hooks/useAuth';
+import { forgotPassword } from '@/lib/api/auth';
 import { useI18n } from '@/i18n/useI18n';
 
-export function LoginForm() {
-  const router = useRouter();
-  const { login, isLoading } = useAuth();
+export function ForgotPasswordForm() {
   const { t } = useI18n();
-
-  const [email, setEmail] = useState('owner@example.com');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
+    setSuccessMessage(null);
+    setDevResetUrl(null);
     setErrorMessage(null);
     setIsSubmitting(true);
 
     try {
-      await login({
-        email,
-        password,
-      });
-
-      router.replace('/dashboard');
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(t('common.errors.signInFailed'));
-      }
+      const response = await forgotPassword({ email });
+      setSuccessMessage(t('auth.recovery.genericSuccess'));
+      setDevResetUrl(response.devResetUrl ?? null);
+    } catch {
+      setErrorMessage(t('auth.recovery.requestFailed'));
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  const submitDisabled = isSubmitting || isLoading;
 
   return (
     <form
@@ -54,10 +42,10 @@ export function LoginForm() {
           {t('auth.product')}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-          {t('auth.loginTitle')}
+          {t('auth.recovery.forgotTitle')}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          {t('auth.loginSubtitle')}
+          {t('auth.recovery.forgotSubtitle')}
         </p>
       </div>
 
@@ -76,28 +64,23 @@ export function LoginForm() {
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">
-            {t('auth.password')}
-          </span>
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-            placeholder={t('common.forms.passwordPlaceholder')}
-          />
-        </label>
+        {successMessage ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        ) : null}
 
-        <div className="text-right">
-          <Link
-            href="/forgot-password"
-            className="text-sm font-medium text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline"
-          >
-            {t('auth.forgotPassword')}
-          </Link>
-        </div>
+        {devResetUrl ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-medium">{t('auth.recovery.devResetLink')}</p>
+            <Link
+              href={devResetUrl}
+              className="mt-2 block break-all underline underline-offset-4"
+            >
+              {devResetUrl}
+            </Link>
+          </div>
+        ) : null}
 
         {errorMessage ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -107,11 +90,20 @@ export function LoginForm() {
 
         <button
           type="submit"
-          disabled={submitDisabled}
+          disabled={isSubmitting}
           className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
+          {isSubmitting
+            ? t('auth.recovery.sending')
+            : t('auth.recovery.sendResetLink')}
         </button>
+
+        <Link
+          href="/login"
+          className="block text-center text-sm font-medium text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline"
+        >
+          {t('auth.recovery.backToLogin')}
+        </Link>
       </div>
     </form>
   );

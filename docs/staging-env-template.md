@@ -19,6 +19,9 @@ This template lists staging environment variables by service. Use placeholders o
 | `JWT_REFRESH_SECRET` | Yes/current compatibility | API auth config | `replace_with_strong_refresh_secret` | Yes | Keep strong even though refresh tokens are DB random tokens today. |
 | `JWT_ACCESS_EXPIRES_IN` | Yes | API auth | `15m` | No | Short access token lifetime. |
 | `JWT_REFRESH_EXPIRES_IN` | Yes | API auth | `7d` | No | Current refresh token creation uses this. |
+| `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | `false` | No | Use `true` only for controlled non-production reset-link testing. Production validation rejects it. |
+| `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | `30` | No | Short reset token lifetime. |
+| `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | `https://app-staging.example.com` | No | Frontend base URL for reset links. Defaults to `FRONTEND_URL` when unset. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` | Yes for Google | API connected accounts | `replace_with_32_byte_base64_key` | Yes | Must decode to exactly 32 bytes. Back it up in secret manager/password vault. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` | Yes for Google | API connected accounts | `v1` | No | Store with the key material; increment only with rotation plan. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | API connected accounts | `replace_with_google_oauth_client_id` | No | Staging Google OAuth client ID. |
@@ -85,6 +88,9 @@ WEB_URL=https://app-staging.example.com
 NEXT_PUBLIC_API_URL=https://api-staging.example.com/api
 CORS_ORIGIN=https://app-staging.example.com
 FRONTEND_URL=https://app-staging.example.com
+AUTH_RECOVERY_DEV_MODE=false
+AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES=30
+PASSWORD_RESET_PUBLIC_URL=https://app-staging.example.com
 GOOGLE_OAUTH_REDIRECT_URI=https://api-staging.example.com/api/connected-accounts/oauth/google/callback
 AI_PROVIDER=mock
 LOG_LEVEL=info

@@ -1115,7 +1115,31 @@
     "signIn": "Sign in",
     "signingIn": "Signing in...",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "recovery": {
+      "forgotTitle": "Forgot password?",
+      "forgotSubtitle": "Enter your email and we will provide reset instructions if an account exists.",
+      "resetTitle": "Reset password",
+      "resetSubtitle": "Choose a new password for your account.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "confirmPasswordPlaceholder": "Repeat your new password",
+      "sendResetLink": "Send reset link",
+      "sending": "Sending...",
+      "resetPassword": "Reset password",
+      "resetting": "Resetting...",
+      "backToLogin": "Back to login",
+      "genericSuccess": "If an account exists, reset instructions will be provided.",
+      "success": "Password reset successful.",
+      "invalidOrExpired": "Invalid or expired reset link.",
+      "passwordsDoNotMatch": "Passwords do not match.",
+      "passwordRequirements": "Password must be at least 8 characters.",
+      "requestFailed": "Could not request password reset.",
+      "resetFailed": "Could not reset password.",
+      "missingToken": "Missing reset token.",
+      "devResetLink": "Development reset link"
+    }
   },
   "invitations": {
     "product": "Sales AI Platform",

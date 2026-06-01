@@ -1115,7 +1115,31 @@
     "signIn": "Entrar",
     "signingIn": "Entrando...",
     "email": "Correo",
-    "password": "Contraseña"
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "recovery": {
+      "forgotTitle": "¿Olvidaste tu contraseña?",
+      "forgotSubtitle": "Ingresa tu correo y te daremos instrucciones de recuperación si existe una cuenta.",
+      "resetTitle": "Restablecer contraseña",
+      "resetSubtitle": "Elige una nueva contraseña para tu cuenta.",
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Repite tu nueva contraseña",
+      "sendResetLink": "Enviar enlace de recuperación",
+      "sending": "Enviando...",
+      "resetPassword": "Restablecer contraseña",
+      "resetting": "Restableciendo...",
+      "backToLogin": "Volver al inicio de sesión",
+      "genericSuccess": "Si existe una cuenta con ese correo, se darán instrucciones de recuperación.",
+      "success": "Contraseña restablecida correctamente.",
+      "invalidOrExpired": "El enlace es inválido o expiró.",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+      "passwordRequirements": "La contraseña debe tener al menos 8 caracteres.",
+      "requestFailed": "No se pudo solicitar la recuperación de contraseña.",
+      "resetFailed": "No se pudo restablecer la contraseña.",
+      "missingToken": "Falta el token de recuperación.",
+      "devResetLink": "Enlace de recuperación de desarrollo"
+    }
   },
   "invitations": {
     "product": "Sales AI Platform",

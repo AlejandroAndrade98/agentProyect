@@ -68,6 +68,9 @@ Minimum required for API:
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_EXPIRES_IN`
 - `JWT_REFRESH_EXPIRES_IN`
+- `AUTH_RECOVERY_DEV_MODE=false`
+- `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES`
+- `PASSWORD_RESET_PUBLIC_URL` or `FRONTEND_URL`
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION`
 - `AI_PROVIDER`
@@ -355,3 +358,15 @@ Implemented:
 
 No deployment was performed, no real services were contacted, no secrets were added, and no runtime behavior changed.
 
+Phase 18J Auth Recovery and Account Safety is completed and validated locally.
+
+Implemented:
+- Forgot password and reset password endpoints with generic request responses.
+- Hashed, one-time, expiring password reset tokens.
+- Refresh token revocation after successful password reset.
+- Rate limiting for forgot/reset recovery endpoints.
+- Frontend forgot/reset password pages with EN/ES i18n.
+- Production guard rejecting auth recovery dev reset links.
+- Security, environment, deployment, private beta, and static smoke references updated.
+
+No email provider was configured, no real email was sent, no OAuth/AI/sync behavior changed, and no background jobs were added.

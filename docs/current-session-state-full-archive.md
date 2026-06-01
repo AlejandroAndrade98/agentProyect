@@ -5736,3 +5736,54 @@ Remaining observability blockers:
 - No uptime monitor configured.
 - Worker observability remains pending until workers exist.
 - Rate limiting remains process-local until Redis/shared limiter or ingress limiter.
+## Phase 18J, Auth Recovery and Account Safety
+
+Status: implemented and validated locally, pending commit/push.
+
+This phase added a secure forgot password / reset password foundation.
+
+Backend implemented:
+- Added `POST /auth/forgot-password`.
+- Added `POST /auth/reset-password`.
+- Forgot password responses are generic and do not reveal whether an email exists.
+- Reset tokens are generated securely, stored hashed, expire, and are one-time use.
+- Successful password reset revokes existing refresh tokens for the user.
+- Dedicated rate limiting was added for forgot/reset flows.
+- Safe logs avoid raw emails, raw tokens, passwords, password hashes, cookies, and authorization headers.
+
+Database implemented:
+- Added `PasswordResetToken` model.
+- Added migration `20260601000000_add_password_reset_tokens`.
+
+Frontend implemented:
+- Added `/forgot-password`.
+- Added `/reset-password`.
+- Added `ForgotPasswordForm`.
+- Added `ResetPasswordForm`.
+- Added “Forgot password?” link to login.
+- Added EN/ES i18n for auth recovery.
+
+Configuration implemented:
+- Added `AUTH_RECOVERY_DEV_MODE`.
+- Added password reset token TTL config.
+- Added `PASSWORD_RESET_PUBLIC_URL`.
+- Production config rejects `AUTH_RECOVERY_DEV_MODE=true`.
+
+Important production note:
+- No real transactional email provider was added in this phase.
+- Public production must use a real email provider with `AUTH_RECOVERY_DEV_MODE=false`.
+- Dev mode may expose a reset URL only in safe non-production environments.
+
+Validation:
+- `corepack pnpm db:generate` passed.
+- `corepack pnpm db:validate` passed.
+- `corepack pnpm smoke:static` passed.
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/api build` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm build` passed.
+- `corepack pnpm check:generated` passed.
+- Build/typecheck artifacts were restored.
+
+Runtime note:
+- Full runtime password reset flow was not run because API/web dev server and email provider were not active.

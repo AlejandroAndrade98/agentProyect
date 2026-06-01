@@ -303,6 +303,7 @@ model User {
   leads                           Lead[]
   tasks                           Task[]
   refreshTokens                   RefreshToken[]
+  passwordResetTokens             PasswordResetToken[]
   auditLogs                       AuditLog[]               @relation("AuditLogActor")
   aiSuggestions                   AiSuggestion[]           @relation("AiSuggestionCreatedBy")
   reviewedSuggestions             AiSuggestion[]           @relation("AiSuggestionReviewedBy")
@@ -1023,4 +1024,22 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id                     String    @id @default(cuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id])
+  tokenHash              String    @unique
+  expiresAt              DateTime
+  usedAt                 DateTime?
+  requestedIpHash        String?
+  requestedUserAgentHash String?
+  consumedIpHash         String?
+  consumedUserAgentHash  String?
+  createdAt              DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }

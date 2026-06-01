@@ -313,18 +313,23 @@ See [observability-runbook.md](./observability-runbook.md).
 
 ## Auth Recovery / Forgot Password Status
 
-Forgot password and public self-serve account recovery are currently not implemented.
+Forgot password and reset password foundation is implemented.
 
-This is acceptable only for a controlled private beta if:
+Current guarantees:
 
-- Beta user list is small and controlled.
-- Admins can support users manually.
-- Lost access incidents are handled through direct operator support.
-- Public signup/self-serve is not enabled.
+- Password reset request responses are generic and do not reveal whether an account exists.
+- Reset tokens are hashed in the database, one-time use, and expire after `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES`.
+- Successful reset revokes active refresh tokens for the user.
+- Recovery endpoints have dedicated rate limits.
+- `AUTH_RECOVERY_DEV_MODE=true` can return a reset URL only outside production for local/staging tests.
+- Production startup rejects `AUTH_RECOVERY_DEV_MODE=true`.
 
-Implement before public self-serve production. Recommended next phase after deployment readiness:
+Before public self-serve production:
 
-- 18J Auth Recovery and Account Safety
+- Configure and validate a transactional email provider for reset delivery.
+- Keep reset emails free of raw secrets in logs.
+- Run a staging reset test with `AUTH_RECOVERY_DEV_MODE=false`.
+- Confirm reset links use the intended `PASSWORD_RESET_PUBLIC_URL` or `FRONTEND_URL`.
 
 ## Rollback Plan
 
@@ -385,7 +390,7 @@ Should-have:
 
 Can wait:
 
-- Public forgot password if beta remains controlled.
+- Transactional password reset email delivery if beta remains controlled and dev-mode/operator support is acceptable in staging only.
 - Billing/plans.
 - Background workers.
 - Public Google OAuth verification if beta stays test-user only.
@@ -393,7 +398,7 @@ Can wait:
 
 ## Known Limitations For First Beta
 
-- No public forgot password flow yet.
+- Password reset delivery still needs a transactional email provider before public self-serve production.
 - GitHub Actions may be blocked by account billing; local CI-equivalent validation is required until fixed.
 - Rate limiting is process-local.
 - Background sync workers are not implemented.
