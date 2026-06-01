@@ -143,13 +143,14 @@ corepack pnpm start:api
 API requirements:
 
 - `NODE_ENV=production`
-- `API_PORT` from provider or `4000`
+- provider `PORT`, or `API_PORT` when manually configured
 - `DATABASE_URL`
 - exact `CORS_ORIGIN`
 - `FRONTEND_URL`
 - production-strength JWT and connected account encryption secrets
 - `REQUEST_BODY_LIMIT=1mb` unless a documented endpoint needs more
 - health check path: `/api/health`
+- do not set `DATABASE_URL_HOST` in hosted staging/production providers; use `DATABASE_URL` only
 
 ## Web Deployment Notes
 

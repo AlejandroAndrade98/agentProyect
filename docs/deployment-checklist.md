@@ -59,7 +59,7 @@ CI foundation:
 Minimum required for API:
 
 - `NODE_ENV=production`
-- `API_PORT`
+- `PORT` from managed provider, or `API_PORT` when manually configured
 - `REQUEST_BODY_LIMIT`
 - `DATABASE_URL`
 - `CORS_ORIGIN`
@@ -145,10 +145,11 @@ node apps/api/dist/main.js
 
 Notes:
 
-- The API now reads `API_PORT` through Nest config and falls back to `4000`.
+- The API reads provider `PORT` first, then `API_PORT`, then falls back to `4000`.
 - The API logs the actual listen port.
 - Health endpoint: `GET /api/health`.
 - Ensure the runtime has Prisma client generated during install/build.
+- Do not set `DATABASE_URL_HOST` in hosted staging/production providers; use `DATABASE_URL` only.
 
 ## 5. Web Deployment Steps
 
@@ -170,11 +171,12 @@ Existing Dockerfiles are suitable as a baseline, with these assumptions:
 
 - API Docker command: `node apps/api/dist/main.js`
 - Worker Docker command: `node apps/worker/dist/main.js`
-- Web Docker command: `pnpm --filter @sales-ai/web start`
+- Web Docker command: `corepack pnpm --filter @sales-ai/web start`
+- API and web Dockerfiles use Corepack and frozen pnpm installs for deterministic monorepo builds.
 
 Docker compose:
 
-- API host/container port follows `API_PORT` with fallback `4000`.
+- API host/container port follows provider `PORT`, then `API_PORT`, with fallback `4000`.
 - Web host/container port follows `WEB_PORT` with fallback `3000`, and compose maps `PORT` for Next.
 - Compose is useful for local/self-hosted testing, but managed Postgres is preferred for beta production.
 

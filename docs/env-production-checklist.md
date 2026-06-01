@@ -11,14 +11,15 @@ For the first staging/private beta deploy, use [private-beta-deployment-plan.md]
 | Variable | Required | Used by | Purpose | Example placeholder | Production notes |
 | --- | --- | --- | --- | --- | --- |
 | `NODE_ENV` | Yes | API, web, worker | Runtime mode. | `production` | Use `production` for deployed environments. |
-| `API_PORT` | Yes | API, Docker compose | API listen port. | `4000` | Managed platforms may provide a required port; set this to that value if needed. |
+| `PORT` | Provider-managed | API | Provider injected listen port. | `10000` | Many managed platforms inject this automatically. The API reads `PORT` before `API_PORT`. |
+| `API_PORT` | Local/manual | API, Docker compose | API listen port fallback. | `4000` | Keep for local Docker/dev or providers that require manual port configuration. |
 | `REQUEST_BODY_LIMIT` | Recommended | API | Maximum JSON/urlencoded request body size accepted by the API. | `1mb` | Keep conservative; raise only for a documented upload/import endpoint. |
 | `WEB_PORT` | Docker only | Docker compose, Next container | Web listen port. | `3000` | For hosted Next platforms this may be ignored. |
 | `NEXT_PUBLIC_API_URL` | Yes | Web browser bundle | API base URL for frontend requests. | `https://api.example.com/api` | Must include `/api` with the current frontend client. |
 | `FRONTEND_URL` | Yes for Google | OAuth callback redirect | Canonical frontend URL. | `https://app.example.com` | Used as the preferred frontend success redirect after Google OAuth. Falls back to the first `CORS_ORIGIN` only when unset. |
 | `CORS_ORIGIN` | Yes | API, OAuth callback redirect | Allowed browser origins. | `https://app.example.com` | Comma-separated exact origins. The first origin is used for Google OAuth callback redirect. |
 | `DATABASE_URL` | Yes | API, Prisma, worker | PostgreSQL connection URL. | `postgresql://USER:PASSWORD@HOST:5432/DB?schema=public` | Use managed Postgres and provider-required SSL settings. |
-| `DATABASE_URL_HOST` | No | Local Prisma helper script | Host-side DB URL for local scripts. | `postgresql://USER:PASSWORD@localhost:15432/DB?schema=public` | Usually not set in hosted production. |
+| `DATABASE_URL_HOST` | Local only | Local Prisma helper script | Host-side DB URL for local scripts. | `postgresql://USER:PASSWORD@localhost:15432/DB?schema=public` | Do not set in hosted staging/production providers; use `DATABASE_URL` only. |
 | `POSTGRES_DB` | Docker only | Local/self-hosted Docker Postgres | Database name. | `sales_ai_db` | Managed Postgres does not need this. |
 | `POSTGRES_USER` | Docker only | Local/self-hosted Docker Postgres | Database user. | `postgres` | Managed Postgres does not need this. |
 | `POSTGRES_PASSWORD` | Docker only | Local/self-hosted Docker Postgres | Database password. | `replace_with_strong_password` | Never use demo values outside local dev. |
@@ -117,6 +118,7 @@ Staging-specific fill-in guidance lives in [staging-env-template.md](./staging-e
 
 - Follow [backup-restore-runbook.md](./backup-restore-runbook.md) before private beta.
 - `DATABASE_URL` values are secrets. Do not paste real values into docs, tickets, or shared logs.
+- Hosted staging/production should use `DATABASE_URL` only. `DATABASE_URL_HOST` is for local host-side Prisma scripts and overrides `DATABASE_URL` in `scripts/prisma-host.mjs`.
 - Backup artifacts may contain personal/customer data, password hashes, AI output, Gmail metadata, Calendar metadata, and encrypted OAuth tokens.
 - Store backup artifacts in encrypted, access-restricted storage.
 - Never commit backup files or restore dumps.

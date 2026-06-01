@@ -9,9 +9,11 @@ This template lists staging environment variables by service. Use placeholders o
 | Variable | Required? | Service | Example placeholder | Secret? | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `NODE_ENV` | Yes | API | `production` | No | Use production mode for deployed staging runtime behavior. |
-| `API_PORT` | Yes | API | `4000` or provider port | No | Must match provider service port behavior. |
+| `PORT` | Provider-managed | API | `10000` | No | Many managed providers inject this automatically. The API reads `PORT` before `API_PORT`. |
+| `API_PORT` | Local/manual | API | `4000` | No | Keep for local Docker/dev or providers that require manual port configuration. |
 | `REQUEST_BODY_LIMIT` | Recommended | API | `1mb` | No | Keep conservative unless a documented endpoint needs more. |
 | `DATABASE_URL` | Yes | API, Prisma | `postgresql://USER:PASSWORD@HOST:5432/DB?schema=public` | Yes | Managed Postgres URL. Do not paste real value in docs. |
+| `DATABASE_URL_HOST` | Local only | Local Prisma helper | `postgresql://USER:PASSWORD@localhost:15432/DB?schema=public` | Yes | Do not set in hosted staging providers; use `DATABASE_URL` only. |
 | `REDIS_URL` | Optional/deferred | API/future worker | `redis://HOST:6379` | Yes | Not required for first beta unless provider/future rate-limit store uses it. |
 | `CORS_ORIGIN` | Yes | API | `https://app-staging.example.com` | No | Exact web origin. Comma-separated only if needed. |
 | `FRONTEND_URL` | Yes | API OAuth callback | `https://app-staging.example.com` | No | Google OAuth success redirect target. |
