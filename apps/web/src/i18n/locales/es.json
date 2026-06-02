@@ -128,7 +128,7 @@
       "limit": "Límite"
     },
     "forms": {
-      "emailPlaceholder": "owner@example.com",
+      "emailPlaceholder": "Ingresa tu correo",
       "passwordPlaceholder": "Ingresa tu contraseña"
     },
     "errors": {

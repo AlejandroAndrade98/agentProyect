@@ -85,20 +85,48 @@ Important:
 4. Deploy API with `AI_PROVIDER=mock` first.
 5. Run `corepack pnpm db:deploy` against staging.
 6. Verify API health at `GET https://<api-domain>/api/health`.
-7. Deploy web with `NEXT_PUBLIC_API_URL=https://<api-domain>/api`.
-8. Configure Google OAuth staging redirect URI.
-9. Create or invite `SUPER_ADMIN`/`OWNER` through the existing safe flow.
-10. Run `corepack pnpm smoke:runtime` read-only.
-11. Run `corepack pnpm smoke:runtime` with mutations only if safe.
-12. Run manual Google OAuth connect test.
-13. Run manual Gmail sync.
-14. Run manual Calendar sync.
-15. Generate a mock AI suggestion.
-16. Confirm logs and request IDs.
-17. Confirm backup settings.
-18. Run or schedule restore drill.
-19. Invite limited beta users.
-20. Document known limitations.
+7. Create the first staging `OWNER` with `corepack pnpm bootstrap:staging-admin`.
+8. Remove bootstrap password/env values from the provider after the one-off run.
+9. Deploy web with `NEXT_PUBLIC_API_URL=https://<api-domain>/api`.
+10. Configure Google OAuth staging redirect URI.
+11. Invite additional users through the existing owner/admin invitation flow.
+12. Run `corepack pnpm smoke:runtime` read-only.
+13. Run `corepack pnpm smoke:runtime` with mutations only if safe.
+14. Run manual Google OAuth connect test.
+15. Run manual Gmail sync.
+16. Run manual Calendar sync.
+17. Generate a mock AI suggestion.
+18. Confirm logs and request IDs.
+19. Confirm backup settings.
+20. Run or schedule restore drill.
+21. Invite limited beta users.
+22. Document known limitations.
+
+## First Staging Admin Bootstrap
+
+Staging starts with an empty database after migrations. There is no public signup flow. Create the first owner/admin through the one-off CLI script only:
+
+```bash
+corepack pnpm bootstrap:staging-admin
+```
+
+Required temporary environment variables:
+
+- `BOOTSTRAP_ADMIN_ENABLED=true`
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_PASSWORD`
+- `BOOTSTRAP_ADMIN_NAME`
+- `BOOTSTRAP_ORGANIZATION_NAME`
+- `BOOTSTRAP_ADMIN_ROLE=OWNER`
+
+Safety notes:
+
+- The script refuses to run unless explicitly enabled.
+- It uses `DATABASE_URL` and ignores `DATABASE_URL_HOST`.
+- It refuses to create a new bootstrap admin when users already exist unless `BOOTSTRAP_ALLOW_EXISTING_USERS=true`.
+- It does not print the password, password hash, tokens, or secrets.
+- Remove `BOOTSTRAP_ADMIN_PASSWORD` and disable `BOOTSTRAP_ADMIN_ENABLED` in Railway/provider variables immediately after the one-off run.
+- Additional staging users should be invited through the existing owner/admin invitation flow.
 
 ## Local CI-Equivalent Validation
 

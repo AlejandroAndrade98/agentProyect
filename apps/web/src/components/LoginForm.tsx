@@ -13,7 +13,7 @@ export function LoginForm() {
   const { login, isLoading } = useAuth();
   const { t } = useI18n();
 
-  const [email, setEmail] = useState('owner@example.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

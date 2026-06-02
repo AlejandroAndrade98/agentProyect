@@ -37,6 +37,7 @@ const requiredScripts = [
   "start:api",
   "start:web",
   "start:worker",
+  "bootstrap:staging-admin",
 ];
 
 for (const scriptName of requiredScripts) {
@@ -59,6 +60,7 @@ const requiredFiles = [
   "docs/staging-provider-checklist.md",
   "docs/staging-env-template.md",
   "scripts/smoke-runtime.mjs",
+  "scripts/bootstrap-staging-admin.mjs",
   "packages/database/prisma/schema.prisma",
   "packages/database/prisma/migrations/20260601000000_add_password_reset_tokens/migration.sql",
   "apps/api/src/main.ts",
@@ -108,6 +110,14 @@ const requiredEnvKeys = [
   "AI_PROVIDER",
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
+  "BOOTSTRAP_ADMIN_ENABLED",
+  "BOOTSTRAP_ADMIN_EMAIL",
+  "BOOTSTRAP_ADMIN_PASSWORD",
+  "BOOTSTRAP_ADMIN_NAME",
+  "BOOTSTRAP_ORGANIZATION_NAME",
+  "BOOTSTRAP_ADMIN_ROLE",
+  "BOOTSTRAP_ALLOW_EXISTING_USERS",
+  "BOOTSTRAP_UPDATE_EXISTING_PASSWORD",
 ];
 
 for (const envKey of requiredEnvKeys) {
@@ -129,6 +139,12 @@ for (const documentedAlias of [
 
 const en = requireJson("apps/web/src/i18n/locales/en.json");
 const es = requireJson("apps/web/src/i18n/locales/es.json");
+const loginForm = readText("apps/web/src/components/LoginForm.tsx");
+
+if (loginForm.includes("owner@example.com")) {
+  fail("LoginForm must not contain demo owner credentials.");
+}
+
 const importantI18nNamespaces = [
   "common",
   "navigation",

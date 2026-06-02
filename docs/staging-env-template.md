@@ -21,6 +21,14 @@ This template lists staging environment variables by service. Use placeholders o
 | `JWT_REFRESH_SECRET` | Yes/current compatibility | API auth config | `replace_with_strong_refresh_secret` | Yes | Keep strong even though refresh tokens are DB random tokens today. |
 | `JWT_ACCESS_EXPIRES_IN` | Yes | API auth | `15m` | No | Short access token lifetime. |
 | `JWT_REFRESH_EXPIRES_IN` | Yes | API auth | `7d` | No | Current refresh token creation uses this. |
+| `BOOTSTRAP_ADMIN_ENABLED` | One-off only | Bootstrap script | `false` | No | Set to `true` only while creating the first staging owner/admin. |
+| `BOOTSTRAP_ADMIN_EMAIL` | One-off only | Bootstrap script | empty | No | Temporary first owner/admin email. |
+| `BOOTSTRAP_ADMIN_PASSWORD` | One-off only | Bootstrap script | empty | Yes | Remove immediately after running the one-off command. |
+| `BOOTSTRAP_ADMIN_NAME` | One-off only | Bootstrap script | empty | No | Temporary first owner/admin display name. |
+| `BOOTSTRAP_ORGANIZATION_NAME` | One-off only | Bootstrap script | empty | No | Temporary first organization name. |
+| `BOOTSTRAP_ADMIN_ROLE` | One-off only | Bootstrap script | `OWNER` | No | Defaults to `OWNER`; only manager roles are accepted. |
+| `BOOTSTRAP_ALLOW_EXISTING_USERS` | One-off only | Bootstrap script | `false` | No | Keep false unless intentionally recovering a controlled staging setup. |
+| `BOOTSTRAP_UPDATE_EXISTING_PASSWORD` | One-off only | Bootstrap script | `false` | No | Explicit recovery-only flag. Never leave enabled. |
 | `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | `false` | No | Use `true` only for controlled non-production reset-link testing. Production validation rejects it. |
 | `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | `30` | No | Short reset token lifetime. |
 | `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | `https://app-staging.example.com` | No | Frontend base URL for reset links. Defaults to `FRONTEND_URL` when unset. |
@@ -90,6 +98,14 @@ WEB_URL=https://app-staging.example.com
 NEXT_PUBLIC_API_URL=https://api-staging.example.com/api
 CORS_ORIGIN=https://app-staging.example.com
 FRONTEND_URL=https://app-staging.example.com
+BOOTSTRAP_ADMIN_ENABLED=false
+BOOTSTRAP_ADMIN_EMAIL=
+BOOTSTRAP_ADMIN_PASSWORD=
+BOOTSTRAP_ADMIN_NAME=
+BOOTSTRAP_ORGANIZATION_NAME=
+BOOTSTRAP_ADMIN_ROLE=OWNER
+BOOTSTRAP_ALLOW_EXISTING_USERS=false
+BOOTSTRAP_UPDATE_EXISTING_PASSWORD=false
 AUTH_RECOVERY_DEV_MODE=false
 AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES=30
 PASSWORD_RESET_PUBLIC_URL=https://app-staging.example.com

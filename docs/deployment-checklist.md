@@ -96,6 +96,17 @@ Minimum required for web:
 - `NODE_ENV=production`
 - `NEXT_PUBLIC_API_URL`
 
+Temporary one-off bootstrap env vars for an empty staging database:
+
+- `BOOTSTRAP_ADMIN_ENABLED=true`
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_PASSWORD`
+- `BOOTSTRAP_ADMIN_NAME`
+- `BOOTSTRAP_ORGANIZATION_NAME`
+- `BOOTSTRAP_ADMIN_ROLE=OWNER`
+
+Remove `BOOTSTRAP_ADMIN_PASSWORD` and disable `BOOTSTRAP_ADMIN_ENABLED` after the first owner/admin is created.
+
 See [env-production-checklist.md](./env-production-checklist.md) for the full table.
 
 ## 3. Database Migration Runbook
@@ -119,7 +130,9 @@ Production migration flow:
    ```
 
 5. Deploy API after migrations if the API expects the new schema.
-6. Run smoke tests.
+6. If the staging database is empty, run `corepack pnpm bootstrap:staging-admin` once from the API service environment.
+7. Remove temporary bootstrap password/env values from the provider.
+8. Run smoke tests.
 
 Rollback notes:
 

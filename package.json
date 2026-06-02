@@ -18,6 +18,7 @@
     "check:generated": "node scripts/check-clean-generated-files.mjs",
     "smoke:static": "node scripts/smoke-static.mjs",
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
+    "bootstrap:staging-admin": "node scripts/bootstrap-staging-admin.mjs",
     "db:validate": "node scripts/prisma-host.mjs validate",
     "db:migrate": "node scripts/prisma-host.mjs migrate dev",
     "db:generate": "node scripts/prisma-host.mjs generate",

@@ -51,24 +51,20 @@ AI safety:
 
 ## Latest Completed Phase
 
-Phase 17D.1A foundation is complete:
-- Added `AiUsageFeature.EXTERNAL_EMAIL_REPLY_DRAFT`.
-- Added `AiSuggestionType.GENERATE_EMAIL_REPLY_DRAFT`.
-- Added Prisma migrations for both enum values.
-
-Not implemented in 17D.1A:
-- No reply draft generation endpoint.
-- No frontend reply draft UI.
-- No provider generation path.
-- No Gmail draft creation.
-- No email sending.
-- No background jobs.
+Phase 19A.1 Staging Bootstrap Admin Seed is complete:
+- Added `scripts/bootstrap-staging-admin.mjs`.
+- Added root command `corepack pnpm bootstrap:staging-admin`.
+- The script creates the first staging `OWNER`/manager user and organization from explicit one-off env vars.
+- The script refuses to run unless `BOOTSTRAP_ADMIN_ENABLED=true`.
+- The script uses `DATABASE_URL`, ignores `DATABASE_URL_HOST`, and does not print passwords, hashes, tokens, or secrets.
+- Login UI no longer pre-fills `owner@example.com`; email placeholder is neutral EN/ES.
+- Deployment/env docs now document the empty-staging bootstrap flow and removal of temporary bootstrap env vars after use.
 
 ## Immediate Roadmap
 
-- 17D.1B: backend endpoint to generate external email reply draft AI suggestions as `PENDING_REVIEW`; no Gmail draft and no sending.
-- 17D.1C: frontend review UI for reply draft suggestions.
-- 17D.2: create a real Gmail draft only after approval.
+- Run the one-off staging bootstrap only after migrations are deployed to the empty Railway Postgres database.
+- Remove `BOOTSTRAP_ADMIN_PASSWORD` and disable/remove `BOOTSTRAP_ADMIN_ENABLED` from provider variables immediately after bootstrap.
+- Continue first private beta smoke validation with the created owner account.
 
 Do not implement future subphases early.
 

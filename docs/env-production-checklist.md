@@ -29,6 +29,14 @@ For the first staging/private beta deploy, use [private-beta-deployment-plan.md]
 | `JWT_REFRESH_SECRET` | Currently optional | API config compatibility | Reserved refresh secret. | `replace_with_strong_refresh_secret` | Current refresh tokens are random DB tokens, but keep a strong value until config is cleaned up. |
 | `JWT_ACCESS_EXPIRES_IN` | Yes | API auth | Access token lifetime. | `15m` | Keep short for production. |
 | `JWT_REFRESH_EXPIRES_IN` | Yes | API auth | Refresh token lifetime. | `7d` | Required by refresh token creation. |
+| `BOOTSTRAP_ADMIN_ENABLED` | One-off only | Bootstrap script | Enables first admin creation. | `false` | Set to `true` only for the one-off staging bootstrap run, then disable/remove. |
+| `BOOTSTRAP_ADMIN_EMAIL` | One-off only | Bootstrap script | First owner/admin email. | empty | Temporary provider env only. Do not use demo addresses. |
+| `BOOTSTRAP_ADMIN_PASSWORD` | One-off only | Bootstrap script | First owner/admin password. | empty | Secret. Remove from provider variables immediately after the one-off run. |
+| `BOOTSTRAP_ADMIN_NAME` | One-off only | Bootstrap script | First owner/admin display name. | empty | Temporary provider env only. |
+| `BOOTSTRAP_ORGANIZATION_NAME` | One-off only | Bootstrap script | First organization name. | empty | Temporary provider env only. |
+| `BOOTSTRAP_ADMIN_ROLE` | One-off only | Bootstrap script | First user role. | `OWNER` | Defaults to `OWNER`; only manager roles are accepted. |
+| `BOOTSTRAP_ALLOW_EXISTING_USERS` | One-off only | Bootstrap script | Allows bootstrap when users already exist. | `false` | Keep false unless intentionally recovering a controlled staging setup. |
+| `BOOTSTRAP_UPDATE_EXISTING_PASSWORD` | One-off only | Bootstrap script | Updates existing bootstrap user's password. | `false` | Explicit recovery-only flag. Never leave enabled. |
 | `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | Enables dev-only reset URL responses. | `false` | Must be `false` in production; startup validation rejects `true`. |
 | `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | Password reset token lifetime. | `30` | Keep short. Tokens are one-time use and stored only as hashes. |
 | `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | Frontend base URL used to build reset links. | `https://app.example.com` | Optional when `FRONTEND_URL` is correct; set explicitly if reset links need a different public base. |
@@ -119,6 +127,7 @@ Staging-specific fill-in guidance lives in [staging-env-template.md](./staging-e
 - Follow [backup-restore-runbook.md](./backup-restore-runbook.md) before private beta.
 - `DATABASE_URL` values are secrets. Do not paste real values into docs, tickets, or shared logs.
 - Hosted staging/production should use `DATABASE_URL` only. `DATABASE_URL_HOST` is for local host-side Prisma scripts and overrides `DATABASE_URL` in `scripts/prisma-host.mjs`.
+- Bootstrap variables are temporary. Remove `BOOTSTRAP_ADMIN_PASSWORD` and disable/remove `BOOTSTRAP_ADMIN_ENABLED` after the first staging owner/admin is created.
 - Backup artifacts may contain personal/customer data, password hashes, AI output, Gmail metadata, Calendar metadata, and encrypted OAuth tokens.
 - Store backup artifacts in encrypted, access-restricted storage.
 - Never commit backup files or restore dumps.

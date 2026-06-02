@@ -102,7 +102,7 @@
       "limit": "Limit"
     },
     "forms": {
-      "emailPlaceholder": "owner@example.com",
+      "emailPlaceholder": "Enter your email",
       "passwordPlaceholder": "Enter your password"
     },
     "errors": {
