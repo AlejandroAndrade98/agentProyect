@@ -736,3 +736,30 @@ Validation passed:
 - `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
 - `corepack pnpm --filter @sales-ai/api build`
 - `corepack pnpm build`
+
+## Latest completed phase
+
+Phase 19A.2 Auth Session Refresh UX is completed and validated locally.
+
+Implemented:
+- The frontend shared API client now retries authenticated `401` responses once after refreshing through the existing `/auth/refresh` endpoint.
+- Refresh attempts are serialized so concurrent expired requests share one in-flight refresh.
+- Rotated access/refresh tokens are stored in the existing browser storage keys.
+- Initial dashboard load can recover from an expired access token when the refresh token is still valid.
+- Failed refresh clears frontend auth state and redirects to `/login`.
+- `AuthGuard` loading copy now uses existing i18n.
+
+Safety preserved:
+- No JWT lifetime increase.
+- No backend auth/RBAC changes.
+- No route/API contract changes.
+- No OAuth, AI, Gmail, Calendar, CRM automation, email sending, or background job behavior changed.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`

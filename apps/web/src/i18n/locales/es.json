@@ -1120,6 +1120,7 @@
     "product": "Sales AI Platform",
     "loginTitle": "Iniciar sesión",
     "loginSubtitle": "Accede a tu dashboard CRM.",
+    "checkingSession": "Verificando tu sesion...",
     "signIn": "Entrar",
     "signingIn": "Entrando...",
     "email": "Correo",

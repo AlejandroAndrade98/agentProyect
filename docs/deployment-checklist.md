@@ -215,17 +215,18 @@ Manual checks after the automated smoke:
 2. Open the frontend URL.
 3. Login with a staging user.
 4. Confirm session loads `/dashboard`.
-5. Load CRM list endpoints through the UI, such as companies, contacts, leads, tasks, or notes.
-6. Create and delete/archive a temporary CRM record if safe for the environment.
-7. Open Settings.
-8. If using Google in staging, connect Google OAuth with a test user.
-9. Run manual Gmail sync.
-10. Run manual Calendar sync.
-11. Generate a mock AI suggestion, or a minimal OpenAI suggestion if the environment intentionally uses OpenAI.
-12. Confirm AI analysis does not send email automatically.
-13. Confirm AI analysis does not create CRM records automatically.
-14. If testing reply drafts, confirm Gmail draft creation requires an explicit click and does not send the email.
-15. Switch language EN/ES and confirm the UI still renders.
+5. After the access token expires, confirm authenticated UI requests recover through `/auth/refresh` and stay on the dashboard.
+6. Load CRM list endpoints through the UI, such as companies, contacts, leads, tasks, or notes.
+7. Create and delete/archive a temporary CRM record if safe for the environment.
+8. Open Settings.
+9. If using Google in staging, connect Google OAuth with a test user.
+10. Run manual Gmail sync.
+11. Run manual Calendar sync.
+12. Generate a mock AI suggestion, or a minimal OpenAI suggestion if the environment intentionally uses OpenAI.
+13. Confirm AI analysis does not send email automatically.
+14. Confirm AI analysis does not create CRM records automatically.
+15. If testing reply drafts, confirm Gmail draft creation requires an explicit click and does not send the email.
+16. Switch language EN/ES and confirm the UI still renders.
 
 Confirm at least one smoke request ID is visible in API logs and correlates with `http.request.completed`.
 

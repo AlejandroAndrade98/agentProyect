@@ -32,6 +32,14 @@ Production limitation: this guard is process-local. For multi-instance deploymen
 
 Login attempts are throttled by IP + normalized email. This slows repeated password guessing against one account without storing plaintext credentials or logging attempted passwords.
 
+### Frontend session refresh
+
+The web client keeps the existing short access-token lifetime. When an authenticated API request returns `401`, the shared frontend API client attempts `POST /api/auth/refresh` once with the stored refresh token, stores the rotated access/refresh tokens returned by the API, and retries the original request once.
+
+Concurrent `401` responses share a single in-flight refresh request to avoid refresh storms. If refresh is missing, expired, revoked, or otherwise rejected, the frontend clears stored auth tokens and redirects to `/login`.
+
+This does not increase JWT lifetimes, weaken RBAC, change refresh-token rotation, or bypass backend authorization checks.
+
 ### Account recovery
 
 Password reset requests use a generic response so the endpoint does not reveal whether an email exists. Reset tokens are generated with cryptographic randomness, stored only as SHA-256 hashes, expire after `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` minutes, and are one-time use.

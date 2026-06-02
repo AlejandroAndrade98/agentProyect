@@ -199,6 +199,7 @@ Web requirements:
 
 - `NEXT_PUBLIC_API_URL=https://<api-domain>/api`
 - Rebuild the web app when `NEXT_PUBLIC_API_URL` changes.
+- Keep access-token lifetimes short. The frontend refreshes an expired access token through the existing `/auth/refresh` flow and retries the failed authenticated request once.
 
 ## Database Migration Steps
 

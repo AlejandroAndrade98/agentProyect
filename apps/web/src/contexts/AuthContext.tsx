@@ -9,11 +9,14 @@ import {
 } from 'react';
 
 import { getMe, login as apiLogin } from '@/lib/api-client';
+import {
+  clearStoredAuthSession,
+  getStoredAccessToken,
+  setStoredAuthSession,
+  subscribeToAuthSession,
+} from '@/lib/auth-session';
 import type { LoginCredentials } from '@/types/auth';
 import type { CurrentUser } from '@/types/user';
-
-const ACCESS_TOKEN_STORAGE_KEY = 'sales_ai_access_token';
-const REFRESH_TOKEN_STORAGE_KEY = 'sales_ai_refresh_token';
 
 type AuthContextValue = {
   user: CurrentUser | null;
@@ -29,24 +32,19 @@ export const AuthContext = createContext<AuthContextValue | undefined>(
   undefined,
 );
 
-function clearStoredAuth() {
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const logout = useCallback(() => {
-    clearStoredAuth();
+    clearStoredAuthSession();
     setToken(null);
     setUser(null);
   }, []);
 
   const refreshCurrentUser = useCallback(async () => {
-    const storedToken = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+    const storedToken = getStoredAccessToken();
 
     if (!storedToken) {
       logout();
@@ -54,44 +52,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const currentUser = await getMe(storedToken);
+    const latestStoredToken = getStoredAccessToken() ?? storedToken;
 
-    setToken(storedToken);
+    setToken(latestStoredToken);
     setUser(currentUser);
   }, [logout]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const response = await apiLogin(credentials);
 
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, response.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, response.refreshToken);
+    setStoredAuthSession(response);
 
     const currentUser = await getMe(response.accessToken);
+    const latestStoredToken = getStoredAccessToken() ?? response.accessToken;
 
-    setToken(response.accessToken);
+    setToken(latestStoredToken);
     setUser(currentUser);
   }, []);
+
+  useEffect(
+    () =>
+      subscribeToAuthSession((session) => {
+        setToken(session?.accessToken ?? null);
+
+        if (!session) {
+          setUser(null);
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadStoredSession() {
       try {
-        const storedToken = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+        const storedToken = getStoredAccessToken();
 
         if (!storedToken) {
           return;
         }
 
         const currentUser = await getMe(storedToken);
+        const latestStoredToken = getStoredAccessToken() ?? storedToken;
 
         if (!isMounted) {
           return;
         }
 
-        setToken(storedToken);
+        setToken(latestStoredToken);
         setUser(currentUser);
       } catch {
-        clearStoredAuth();
+        clearStoredAuthSession();
 
         if (!isMounted) {
           return;
