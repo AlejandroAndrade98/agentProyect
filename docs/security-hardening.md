@@ -22,6 +22,9 @@ Current buckets:
 | Google OAuth callback | `GET /api/connected-accounts/oauth/google/callback` | 60 requests per 15 minutes per IP |
 | Dev connected account | `POST /api/connected-accounts/dev-connect` | 10 requests per 15 minutes per user/IP |
 | Gmail manual sync | `POST /api/external-sync/email-messages/sync` | 10 requests per hour per user/IP |
+| Gmail search preview | `POST /api/external-sync/email-messages/gmail-search-preview` | 30 requests per 15 minutes per user/IP |
+| Gmail selected import | `POST /api/external-sync/email-messages/import-selected` | 10 requests per 15 minutes per user/IP |
+| Synced email dismiss/restore | `PATCH /api/external-sync/email-messages/:id/dismiss`, `PATCH /api/external-sync/email-messages/:id/restore` | 60 requests per 15 minutes per user/IP |
 | Calendar manual sync | `POST /api/external-sync/calendar-events/sync` | 10 requests per hour per user/IP |
 | AI generation | lead next steps, email analysis, reply draft, calendar analysis | 20 requests per hour per user/IP |
 | Gmail draft creation | `POST /api/ai-suggestions/:id/create-gmail-draft` | 10 requests per hour per user/IP |
@@ -60,6 +63,18 @@ Transactional email safety rules:
 - Email logs use event names such as `email.invitation.send.success`, `email.invitation.send.failure`, `email.password_reset.send.success`, and `email.password_reset.send.failure`.
 - Transactional email uses Resend, not Gmail API.
 - These emails are for invitations and auth recovery only. They are not marketing emails and do not change CRM/Gmail/AI automation behavior.
+
+### Synced email inbox hygiene
+
+Users can dismiss synced Gmail metadata from the active review inbox without deleting the stored metadata. Dismissed emails are hidden from active board/list views, remain recoverable from the dismissed view, and are not reactivated by normal Gmail sync.
+
+Manual Gmail search/import is explicit and metadata-only:
+
+- Search preview calls Gmail with user-entered filters and does not persist preview results.
+- Import selected stores only the same safe Gmail metadata/snippet already used by manual sync.
+- Full email bodies and attachments are not stored.
+- Importing a dismissed email restores it intentionally.
+- Import does not run AI analysis, create Gmail drafts, send email, create CRM records, or start background jobs.
 
 ### Security headers
 

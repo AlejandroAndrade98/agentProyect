@@ -583,6 +583,42 @@ Validation passed:
 - `corepack pnpm --filter @sales-ai/api build`
 - `corepack pnpm build`
 
+## Latest completed phase
+
+Phase 19B.1 Email Inbox Hygiene & Manual Gmail Import is completed locally.
+
+Implemented:
+- Added non-destructive synced email dismissal fields on `ExternalEmailMessage`.
+- Added migration `20260602000000_add_external_email_dismissal`.
+- Active synced email board/list now exclude dismissed emails.
+- Dismissed emails are recoverable from an Active/Dismissed toggle.
+- Manual Gmail search preview was added with metadata/snippet-only results.
+- Import selected Gmail messages stores only safe metadata/snippet and restores dismissed messages intentionally.
+- Normal Gmail sync preserves dismissed state and does not reactivate dismissed emails.
+- Dashboard recent synced emails exclude dismissed messages.
+- Dev simulated connected-account form is hidden outside `next dev` unless explicitly enabled with `NEXT_PUBLIC_ENABLE_DEV_CONNECTED_ACCOUNTS=true`.
+
+Safety preserved:
+- No email sending.
+- No automatic Gmail draft creation.
+- No automatic CRM record creation.
+- No automatic AI analysis.
+- No background jobs.
+- No Google OAuth scope changes.
+- No full Gmail bodies or attachments are stored.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm db:generate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+
+Validation skipped:
+- `corepack pnpm build` was skipped because port 3000 was actively serving a local web process, so running a production web build could conflict with `.next`.
+
 Remaining Google OAuth production blockers:
 - Google consent screen / branding setup.
 - Test users vs production publishing decision.

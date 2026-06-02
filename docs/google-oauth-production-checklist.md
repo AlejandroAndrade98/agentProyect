@@ -24,7 +24,7 @@ This checklist prepares Google OAuth for production connected Gmail and Calendar
 | Token refresh | Manual sync decrypts refresh token, requests a new access token when the current token expires within 60 seconds, encrypts the new access token, and updates expiry. |
 | Disconnect request | User/admin/sales can request disconnect; status becomes `DISCONNECT_REQUESTED`. |
 | Admin disconnect | SUPER_ADMIN, OWNER, or ADMIN can disconnect; sync states pause and encrypted tokens are cleared. |
-| Gmail capability | Manual metadata sync fetches recent Gmail message metadata only; body is not stored; email is not sent. Gmail draft creation remains a separate explicit accepted-suggestion action. |
+| Gmail capability | Manual metadata sync fetches recent Gmail message metadata only; manual Gmail search/import previews and imports selected message metadata only; body is not stored; email is not sent. Gmail draft creation remains a separate explicit accepted-suggestion action. |
 | Calendar capability | Manual calendar sync fetches primary-calendar event metadata for the next 30 days; no CRM record is created automatically. |
 
 ## Google Cloud Setup
@@ -93,6 +93,7 @@ Google may require app verification, and Gmail restricted scopes can require a s
 
 - Start in testing mode with explicit test users for staging/private beta.
 - Verify consent screen copy explains Gmail metadata, calendar metadata, and Gmail draft capability.
+- Verify consent screen copy covers manual Gmail search/import as metadata-only review inbox functionality, not automatic historical import.
 - Do not imply emails are sent automatically. The product does not send email automatically.
 - Do not imply CRM records are created automatically. The product requires explicit human actions.
 - Move to production publishing only after verification requirements are satisfied.

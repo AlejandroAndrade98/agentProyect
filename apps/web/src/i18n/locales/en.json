@@ -413,6 +413,40 @@
     "boardTitle": "Synced Emails Board",
     "subtitle": "View synced Gmail metadata and create AI suggestions for human review.",
     "boardSubtitle": "Track synced Gmail metadata by AI processing state. Board cards can create AI suggestions for review, but they never send emails, create Gmail drafts, or create CRM records automatically.",
+    "actions": {
+      "dismiss": "Dismiss",
+      "dismissing": "Dismissing...",
+      "restore": "Restore",
+      "restoring": "Restoring..."
+    },
+    "view": {
+      "active": "Active",
+      "dismissed": "Dismissed",
+      "dismissedAt": "Dismissed at"
+    },
+    "import": {
+      "searchGmail": "Search Gmail",
+      "title": "Manual Gmail import",
+      "heading": "Import older emails",
+      "description": "Search Gmail metadata, preview selected messages, and import only the emails you choose into the active review inbox.",
+      "searchText": "Search text",
+      "sender": "Sender",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "maxResults": "Max results",
+      "searching": "Searching...",
+      "importSelected": "Import selected",
+      "importing": "Importing...",
+      "alreadyImported": "Already imported",
+      "restored": "Restored",
+      "imported": "Imported",
+      "skipped": "Skipped",
+      "previewResults": "preview result(s)",
+      "selectableResults": "selectable",
+      "selectEmail": "Select email",
+      "searchFailed": "Could not search Gmail messages.",
+      "importFailed": "Could not import selected Gmail messages."
+    },
     "columns": {
       "newDescription": "No AI analysis or reply draft suggestion yet.",
       "needsReviewDescription": "At least one AI suggestion is pending human review.",
@@ -432,14 +466,18 @@
     },
     "emptyStates": {
       "noneFound": "No synced emails found",
+      "noDismissed": "No dismissed emails found",
       "boardDescription": "Run a manual Gmail sync to review synced email metadata in the AI inbox board.",
-      "listDescription": "Run a manual Gmail sync or adjust your search to review synced email metadata."
+      "listDescription": "Run a manual Gmail sync or adjust your search to review synced email metadata.",
+      "dismissedDescription": "Dismissed emails stay recoverable here. Restore one to move it back into the active review inbox."
     },
     "messages": {
       "syncCompleted": "Gmail sync completed.",
       "fetched": "Fetched",
       "stored": "stored",
       "messages": "message(s).",
+      "dismissed": "Email dismissed from the active review inbox.",
+      "restored": "Email restored to the active review inbox.",
       "readOnlyRole": "Your role can view synced emails, but CRM write permissions are required to sync Gmail or create AI suggestions.",
       "notThreaded": "Not threaded"
     }

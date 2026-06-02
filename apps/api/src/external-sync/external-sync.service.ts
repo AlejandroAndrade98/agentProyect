@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -17,6 +18,9 @@ import type { CurrentUser as CurrentUserType } from '../auth/interfaces/current-
 import { SafeLoggerService } from '../common/observability/safe-logger.service';
 import { ConnectedAccountTokenEncryptionService } from '../connected-accounts/connected-account-token-encryption.service';
 import { PrismaService } from '../database/prisma.service';
+import { DismissExternalEmailMessageDto } from './dto/dismiss-external-email-message.dto';
+import { GmailSearchPreviewDto } from './dto/gmail-search-preview.dto';
+import { ImportSelectedEmailMessagesDto } from './dto/import-selected-email-messages.dto';
 import { QueryExternalCalendarEventsDto } from './dto/query-external-calendar-events.dto';
 import { QueryExternalEmailMessagesDto } from './dto/query-external-email-messages.dto';
 
@@ -26,6 +30,8 @@ const GMAIL_MESSAGES_LIST_URL =
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 const GMAIL_SYNC_MAX_RESULTS = 10;
+
+const GMAIL_MANUAL_IMPORT_MAX_RESULTS = 25;
 
 const GMAIL_METADATA_HEADERS = ['From', 'To', 'Cc', 'Bcc', 'Subject', 'Date'];
 
@@ -121,6 +127,49 @@ type ParsedCalendarDate = {
   isAllDay: boolean;
 };
 
+const externalEmailMessageSelect = {
+  id: true,
+  organizationId: true,
+  connectedAccountId: true,
+  provider: true,
+  externalMessageId: true,
+  externalThreadId: true,
+  subject: true,
+  snippet: true,
+  fromEmail: true,
+  fromName: true,
+  toEmailsJson: true,
+  ccEmailsJson: true,
+  bccEmailsJson: true,
+  labelIdsJson: true,
+  internalDate: true,
+  metadataJson: true,
+  syncedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  dismissedAt: true,
+  dismissedByUserId: true,
+  dismissedReason: true,
+  connectedAccount: {
+    select: {
+      id: true,
+      provider: true,
+      email: true,
+      displayName: true,
+      status: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ExternalEmailMessageSelect;
+
 @Injectable()
 export class ExternalSyncService {
   constructor(
@@ -137,39 +186,7 @@ export class ExternalSyncService {
       userId: currentUser.id,
     });
 
-    const account = await this.prisma.connectedAccount.findFirst({
-      where: {
-        organizationId: currentUser.organizationId,
-        userId: currentUser.id,
-        provider: ConnectedAccountProvider.GOOGLE,
-        status: ConnectedAccountStatus.CONNECTED,
-        capabilities: {
-          has: ConnectedAccountCapability.EMAIL,
-        },
-      },
-      select: {
-        id: true,
-        organizationId: true,
-        userId: true,
-        provider: true,
-        email: true,
-        encryptedAccessToken: true,
-        encryptedRefreshToken: true,
-        tokenExpiresAt: true,
-      },
-    });
-
-    if (!account) {
-      throw new BadRequestException(
-        'Current user does not have a connected Google email account',
-      );
-    }
-
-    if (!account.encryptedAccessToken || !account.encryptedRefreshToken) {
-      throw new BadRequestException(
-        'Connected account does not have OAuth tokens',
-      );
-    }
+    const account = await this.getCurrentGoogleEmailAccount(currentUser);
 
     await this.prisma.connectedAccountSyncState.updateMany({
       where: {
@@ -508,10 +525,12 @@ export class ExternalSyncService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
+    const view = query.view ?? 'active';
 
     const where: Prisma.ExternalEmailMessageWhereInput = {
       organizationId: currentUser.organizationId,
       deletedAt: null,
+      dismissedAt: view === 'dismissed' ? { not: null } : null,
       ...(query.connectedAccountId
         ? { connectedAccountId: query.connectedAccountId }
         : {}),
@@ -576,45 +595,7 @@ export class ExternalSyncService {
         skip,
         take: pageSize,
         orderBy: [{ internalDate: 'desc' }, { createdAt: 'desc' }],
-        select: {
-          id: true,
-          organizationId: true,
-          connectedAccountId: true,
-          provider: true,
-          externalMessageId: true,
-          externalThreadId: true,
-          subject: true,
-          snippet: true,
-          fromEmail: true,
-          fromName: true,
-          toEmailsJson: true,
-          ccEmailsJson: true,
-          bccEmailsJson: true,
-          labelIdsJson: true,
-          internalDate: true,
-          metadataJson: true,
-          syncedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          connectedAccount: {
-            select: {
-              id: true,
-              provider: true,
-              email: true,
-              displayName: true,
-              status: true,
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true,
-                  role: true,
-                  isActive: true,
-                },
-              },
-            },
-          },
-        },
+        select: externalEmailMessageSelect,
       }),
       this.prisma.externalEmailMessage.count({ where }),
     ]);
@@ -630,6 +611,282 @@ export class ExternalSyncService {
       },
     };
     
+  }
+
+  async dismissEmailMessage(
+    currentUser: CurrentUserType,
+    id: string,
+    dto: DismissExternalEmailMessageDto,
+  ) {
+    const existing = await this.prisma.externalEmailMessage.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        connectedAccountId: true,
+        externalMessageId: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('External email message not found');
+    }
+
+    const dismissedAt = new Date();
+    const dismissedReason = dto.reason?.trim() || null;
+    const emailMessage = await this.prisma.externalEmailMessage.update({
+      where: { id: existing.id },
+      data: {
+        dismissedAt,
+        dismissedByUserId: currentUser.id,
+        dismissedReason,
+      },
+      select: externalEmailMessageSelect,
+    });
+
+    this.logger.info('external_email.dismissed', {
+      event: 'external_email.dismissed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      externalEmailMessageId: existing.id,
+      connectedAccountId: existing.connectedAccountId,
+    });
+
+    return emailMessage;
+  }
+
+  async restoreEmailMessage(currentUser: CurrentUserType, id: string) {
+    const existing = await this.prisma.externalEmailMessage.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        connectedAccountId: true,
+        externalMessageId: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('External email message not found');
+    }
+
+    const emailMessage = await this.prisma.externalEmailMessage.update({
+      where: { id: existing.id },
+      data: {
+        dismissedAt: null,
+        dismissedByUserId: null,
+        dismissedReason: null,
+      },
+      select: externalEmailMessageSelect,
+    });
+
+    this.logger.info('external_email.restored', {
+      event: 'external_email.restored',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      externalEmailMessageId: existing.id,
+      connectedAccountId: existing.connectedAccountId,
+    });
+
+    return emailMessage;
+  }
+
+  async searchGmailMessagesPreview(
+    currentUser: CurrentUserType,
+    dto: GmailSearchPreviewDto,
+  ) {
+    const account = await this.getCurrentGoogleEmailAccount(currentUser);
+    const accessToken = await this.getValidGoogleAccessToken(account);
+    const maxResults = Math.min(
+      dto.maxResults ?? 10,
+      GMAIL_MANUAL_IMPORT_MAX_RESULTS,
+    );
+    const gmailQuery = this.buildManualGmailSearchQuery(dto);
+    const listResponse = await this.fetchGmailMessagesList(accessToken, {
+      q: gmailQuery,
+      maxResults,
+    });
+    const providerMessageIds = (listResponse.messages ?? [])
+      .map((message) => message.id)
+      .filter((messageId): messageId is string => Boolean(messageId));
+
+    const metadata = await Promise.all(
+      providerMessageIds.map((messageId) =>
+        this.fetchGmailMessageMetadata(accessToken, messageId),
+      ),
+    );
+
+    const existingMessages =
+      providerMessageIds.length > 0
+        ? await this.prisma.externalEmailMessage.findMany({
+            where: {
+              organizationId: currentUser.organizationId,
+              connectedAccountId: account.id,
+              externalMessageId: {
+                in: providerMessageIds,
+              },
+            },
+            select: {
+              externalMessageId: true,
+              deletedAt: true,
+              dismissedAt: true,
+            },
+          })
+        : [];
+    const existingByProviderId = new Map(
+      existingMessages.map((message) => [message.externalMessageId, message]),
+    );
+
+    const messages = metadata
+      .filter((message) => Boolean(message.id))
+      .map((message) => {
+        const headers = this.getGmailHeaders(message);
+        const from = this.parseEmailAddress(headers.From);
+        const existingMessage = existingByProviderId.get(message.id as string);
+        const isDismissed = Boolean(existingMessage?.dismissedAt);
+        const isActiveExisting = Boolean(
+          existingMessage && !existingMessage.deletedAt && !isDismissed,
+        );
+
+        return {
+          providerMessageId: message.id as string,
+          threadId: message.threadId ?? null,
+          subject: headers.Subject ?? null,
+          senderEmail: from.email,
+          senderName: from.name,
+          snippet: message.snippet ?? null,
+          internalDate: this.parseGmailInternalDate(message.internalDate),
+          alreadyImported: isActiveExisting,
+          dismissed: isDismissed,
+        };
+      });
+
+    this.logger.info('external_sync.gmail_search_preview.completed', {
+      event: 'external_sync.gmail_search_preview.completed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: account.id,
+      messagesPreviewed: messages.length,
+      bodyStored: false,
+      aiAnalysisRun: false,
+      crmRecordsCreated: false,
+    });
+
+    return {
+      messages,
+      meta: {
+        maxResults,
+        resultSizeEstimate: listResponse.resultSizeEstimate ?? null,
+        bodyStored: false,
+        aiAnalysisRun: false,
+        crmRecordsCreated: false,
+      },
+    };
+  }
+
+  async importSelectedGmailMessages(
+    currentUser: CurrentUserType,
+    dto: ImportSelectedEmailMessagesDto,
+  ) {
+    const account = await this.getCurrentGoogleEmailAccount(currentUser);
+    const accessToken = await this.getValidGoogleAccessToken(account);
+    const providerMessageIds = Array.from(
+      new Set(
+        dto.providerMessageIds
+          .map((messageId) => messageId.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, GMAIL_MANUAL_IMPORT_MAX_RESULTS);
+    const syncedAt = new Date();
+
+    let imported = 0;
+    let alreadyExisting = 0;
+    let restored = 0;
+    let skipped = 0;
+
+    for (const providerMessageId of providerMessageIds) {
+      const message = await this.fetchGmailMessageMetadataIfExists(
+        accessToken,
+        providerMessageId,
+      );
+
+      if (
+        !message?.id ||
+        message.labelIds?.includes('TRASH') ||
+        message.labelIds?.includes('SPAM')
+      ) {
+        skipped += 1;
+        continue;
+      }
+
+      const existing = await this.prisma.externalEmailMessage.findUnique({
+        where: {
+          connectedAccountId_externalMessageId: {
+            connectedAccountId: account.id,
+            externalMessageId: message.id,
+          },
+        },
+        select: {
+          id: true,
+          deletedAt: true,
+          dismissedAt: true,
+        },
+      });
+
+      await this.upsertExternalEmailMessage({
+        organizationId: currentUser.organizationId,
+        connectedAccountId: account.id,
+        provider: account.provider,
+        message,
+        syncedAt,
+        restoreDismissed: true,
+        importedByUserId: currentUser.id,
+      });
+
+      if (!existing) {
+        imported += 1;
+      } else if (existing.deletedAt || existing.dismissedAt) {
+        restored += 1;
+      } else {
+        alreadyExisting += 1;
+      }
+    }
+
+    this.logger.info('external_sync.gmail_import_selected.completed', {
+      event: 'external_sync.gmail_import_selected.completed',
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      connectedAccountId: account.id,
+      requested: providerMessageIds.length,
+      imported,
+      alreadyExisting,
+      restored,
+      skipped,
+      bodyStored: false,
+      aiAnalysisRun: false,
+      crmRecordsCreated: false,
+    });
+
+    return {
+      connectedAccountId: account.id,
+      provider: account.provider,
+      email: account.email,
+      requested: providerMessageIds.length,
+      imported,
+      alreadyExisting,
+      restored,
+      skipped,
+      syncedAt,
+      bodyStored: false,
+      aiAnalysisRun: false,
+      crmRecordsCreated: false,
+    };
   }
 
   async findCalendarEvents(
@@ -843,6 +1100,48 @@ private async markDeletedOrTrashedRecentGmailMessages(params: {
   return { count };
 }
 
+  private async getCurrentGoogleEmailAccount(currentUser: CurrentUserType) {
+    const account = await this.prisma.connectedAccount.findFirst({
+      where: {
+        organizationId: currentUser.organizationId,
+        userId: currentUser.id,
+        provider: ConnectedAccountProvider.GOOGLE,
+        status: ConnectedAccountStatus.CONNECTED,
+        capabilities: {
+          has: ConnectedAccountCapability.EMAIL,
+        },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        provider: true,
+        email: true,
+        encryptedAccessToken: true,
+        encryptedRefreshToken: true,
+        tokenExpiresAt: true,
+      },
+    });
+
+    if (!account) {
+      throw new BadRequestException(
+        'Current user does not have a connected Google email account',
+      );
+    }
+
+    if (!account.encryptedAccessToken || !account.encryptedRefreshToken) {
+      throw new BadRequestException(
+        'Connected account does not have OAuth tokens',
+      );
+    }
+
+    return {
+      ...account,
+      encryptedAccessToken: account.encryptedAccessToken,
+      encryptedRefreshToken: account.encryptedRefreshToken,
+    };
+  }
+
   private async getValidGoogleAccessToken(account: {
     id: string;
     encryptedAccessToken: string | null;
@@ -945,11 +1244,19 @@ private async markDeletedOrTrashedRecentGmailMessages(params: {
 
   private async fetchGmailMessagesList(
     accessToken: string,
+    params: {
+      q?: string;
+      maxResults?: number;
+    } = {},
   ): Promise<GmailMessagesListResponse> {
     const url = new URL(GMAIL_MESSAGES_LIST_URL);
+    const maxResults = Math.min(
+      Math.max(params.maxResults ?? GMAIL_SYNC_MAX_RESULTS, 1),
+      GMAIL_MANUAL_IMPORT_MAX_RESULTS,
+    );
 
-    url.searchParams.set('maxResults', String(GMAIL_SYNC_MAX_RESULTS));
-    url.searchParams.set('q', 'newer_than:30d -in:trash -in:spam');
+    url.searchParams.set('maxResults', String(maxResults));
+    url.searchParams.set('q', params.q ?? 'newer_than:30d -in:trash -in:spam');
 
     const response = await fetch(url, {
       method: 'GET',
@@ -993,6 +1300,58 @@ private async markDeletedOrTrashedRecentGmailMessages(params: {
     }
 
     return data;
+  }
+
+  private buildManualGmailSearchQuery(dto: GmailSearchPreviewDto) {
+    const parts = ['-in:trash', '-in:spam'];
+    const searchText = dto.searchText?.trim();
+    const sender = dto.sender?.trim();
+
+    if (searchText) {
+      parts.push(this.escapeGmailSearchTerm(searchText));
+    }
+
+    if (sender) {
+      parts.push(`from:${this.escapeGmailSearchTerm(sender)}`);
+    }
+
+    if (dto.dateFrom) {
+      parts.push(`after:${this.formatGmailSearchDate(dto.dateFrom)}`);
+    }
+
+    if (dto.dateTo) {
+      parts.push(`before:${this.formatGmailSearchDate(dto.dateTo, 1)}`);
+    }
+
+    return parts.join(' ');
+  }
+
+  private escapeGmailSearchTerm(value: string) {
+    const normalized = value.replace(/["\\]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (!normalized) {
+      return '';
+    }
+
+    return /[\s:(){}]/.test(normalized) ? `"${normalized}"` : normalized;
+  }
+
+  private formatGmailSearchDate(value: string, addDays = 0) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid Gmail search date');
+    }
+
+    if (addDays > 0) {
+      date.setUTCDate(date.getUTCDate() + addDays);
+    }
+
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+
+    return `${year}/${month}/${day}`;
   }
 
   private async fetchGoogleCalendarEventsList(
@@ -1204,6 +1563,8 @@ private addDays(date: Date, days: number): Date {
     provider: ConnectedAccountProvider;
     message: GmailMessageMetadataResponse;
     syncedAt: Date;
+    restoreDismissed?: boolean;
+    importedByUserId?: string;
   }) {
     const headers = this.getGmailHeaders(params.message);
     const from = this.parseEmailAddress(headers.From);
@@ -1213,6 +1574,20 @@ private addDays(date: Date, days: number): Date {
     const internalDate = this.parseGmailInternalDate(
       params.message.internalDate,
     );
+    const metadataJson = {
+      gmailHistoryId: params.message.historyId ?? null,
+      sizeEstimate: params.message.sizeEstimate ?? null,
+      headersStored: GMAIL_METADATA_HEADERS,
+      bodyStored: false,
+      ...(params.importedByUserId
+        ? {
+            manualImport: {
+              importedAt: params.syncedAt.toISOString(),
+              importedByUserId: params.importedByUserId,
+            },
+          }
+        : {}),
+    };
 
     await this.prisma.externalEmailMessage.upsert({
       where: {
@@ -1238,12 +1613,7 @@ private addDays(date: Date, days: number): Date {
         bcc.length > 0 ? (bcc as Prisma.InputJsonValue) : Prisma.DbNull,
         labelIdsJson: (params.message.labelIds ?? []) as Prisma.InputJsonValue,
         internalDate,
-        metadataJson: {
-          gmailHistoryId: params.message.historyId ?? null,
-          sizeEstimate: params.message.sizeEstimate ?? null,
-          headersStored: GMAIL_METADATA_HEADERS,
-          bodyStored: false,
-        },
+        metadataJson,
         syncedAt: params.syncedAt,
       },
       update: {
@@ -1259,14 +1629,16 @@ private addDays(date: Date, days: number): Date {
           bcc.length > 0 ? (bcc as Prisma.InputJsonValue) : Prisma.DbNull,
         labelIdsJson: (params.message.labelIds ?? []) as Prisma.InputJsonValue,
         internalDate,
-        metadataJson: {
-          gmailHistoryId: params.message.historyId ?? null,
-          sizeEstimate: params.message.sizeEstimate ?? null,
-          headersStored: GMAIL_METADATA_HEADERS,
-          bodyStored: false,
-        },
+        metadataJson,
         syncedAt: params.syncedAt,
         deletedAt: null,
+        ...(params.restoreDismissed
+          ? {
+              dismissedAt: null,
+              dismissedByUserId: null,
+              dismissedReason: null,
+            }
+          : {}),
       },
     });
   }

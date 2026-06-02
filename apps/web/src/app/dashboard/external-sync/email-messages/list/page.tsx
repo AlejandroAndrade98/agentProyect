@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { GmailImportPanel } from '../components/GmailImportPanel';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getAiStatusLabel,
@@ -17,9 +18,11 @@ import { useI18n } from '@/i18n/useI18n';
 import {
   analyzeExternalEmailMessage,
   ApiClientError,
+  dismissExternalEmailMessage,
   generateExternalEmailReplyDraft,
   getAiSuggestions,
   getExternalEmailMessages,
+  restoreExternalEmailMessage,
   syncExternalEmailMessages,
 } from '@/lib/api-client';
 import { formatDateTime, formatEnumLabel } from '@/lib/formatters';
@@ -28,6 +31,7 @@ import type { AiSuggestion, AiSuggestionStatus } from '@/types/ai-suggestions';
 import type { ExternalEmailMessage } from '@/types/external-sync';
 
 type EmailActionName = 'analyze' | 'reply-draft';
+type EmailMessagesView = 'active' | 'dismissed';
 
 type EmailActionState = {
   loadingAction: EmailActionName | null;
@@ -146,6 +150,16 @@ export default function ExternalEmailMessagesPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [emailView, setEmailView] = useState<EmailMessagesView>('active');
+  const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
+  const [emailManagementMessage, setEmailManagementMessage] = useState<
+    string | null
+  >(null);
+  const [emailManagementErrorMessage, setEmailManagementErrorMessage] =
+    useState<string | null>(null);
+  const [emailManagementActionId, setEmailManagementActionId] = useState<
+    string | null
+  >(null);
   const [emailActionStates, setEmailActionStates] = useState<
     Record<string, EmailActionState>
   >({});
@@ -218,6 +232,7 @@ export default function ExternalEmailMessagesPage() {
       const response = await getExternalEmailMessages(token, {
         page,
         pageSize: PAGE_SIZE,
+        view: emailView,
         q: searchQuery || undefined,
       });
       const responseTotalPages =
@@ -237,7 +252,7 @@ export default function ExternalEmailMessagesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, t, token]);
+  }, [emailView, page, searchQuery, t, token]);
 
   useEffect(() => {
     loadEmails();
@@ -301,6 +316,52 @@ export default function ExternalEmailMessagesPage() {
       setSyncErrorMessage(getFriendlySyncError(error, t));
     } finally {
       setIsSyncing(false);
+    }
+  }
+
+  async function handleDismissEmail(emailId: string) {
+    if (!token || !canRunWriteActions) {
+      return;
+    }
+
+    setEmailManagementActionId(emailId);
+    setEmailManagementMessage(null);
+    setEmailManagementErrorMessage(null);
+
+    try {
+      await dismissExternalEmailMessage(token, emailId);
+      setEmails((currentEmails) =>
+        currentEmails.filter((email) => email.id !== emailId),
+      );
+      setTotalEmails((currentTotal) => Math.max(currentTotal - 1, 0));
+      setEmailManagementMessage(t('syncedEmails.messages.dismissed'));
+    } catch (error) {
+      setEmailManagementErrorMessage(getFriendlySyncError(error, t));
+    } finally {
+      setEmailManagementActionId(null);
+    }
+  }
+
+  async function handleRestoreEmail(emailId: string) {
+    if (!token || !canRunWriteActions) {
+      return;
+    }
+
+    setEmailManagementActionId(emailId);
+    setEmailManagementMessage(null);
+    setEmailManagementErrorMessage(null);
+
+    try {
+      await restoreExternalEmailMessage(token, emailId);
+      setEmails((currentEmails) =>
+        currentEmails.filter((email) => email.id !== emailId),
+      );
+      setTotalEmails((currentTotal) => Math.max(currentTotal - 1, 0));
+      setEmailManagementMessage(t('syncedEmails.messages.restored'));
+    } catch (error) {
+      setEmailManagementErrorMessage(getFriendlySyncError(error, t));
+    } finally {
+      setEmailManagementActionId(null);
     }
   }
 
@@ -380,6 +441,14 @@ export default function ExternalEmailMessagesPage() {
         description={t('syncedEmails.subtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setIsImportPanelOpen((current) => !current)}
+              disabled={!canRunWriteActions}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t('syncedEmails.import.searchGmail')}
+            </button>
             <Link
               href="/dashboard/external-sync/email-messages/board"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
@@ -417,9 +486,52 @@ export default function ExternalEmailMessagesPage() {
         ))}
       </section>
 
+      {isImportPanelOpen ? (
+        <GmailImportPanel
+          token={token}
+          canRunWriteActions={canRunWriteActions}
+          onImported={loadEmails}
+          onClose={() => setIsImportPanelOpen(false)}
+        />
+      ) : null}
+
+      <section className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        {(['active', 'dismissed'] as EmailMessagesView[]).map((view) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => {
+              setEmailView(view);
+              setPage(1);
+            }}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              emailView === view
+                ? 'bg-slate-950 text-white shadow-sm'
+                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {view === 'active'
+              ? t('syncedEmails.view.active')
+              : t('syncedEmails.view.dismissed')}
+          </button>
+        ))}
+      </section>
+
       {syncMessage ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
           {syncMessage}
+        </div>
+      ) : null}
+
+      {emailManagementMessage ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+          {emailManagementMessage}
+        </div>
+      ) : null}
+
+      {emailManagementErrorMessage ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-800">
+          {emailManagementErrorMessage}
         </div>
       ) : null}
 
@@ -476,8 +588,16 @@ export default function ExternalEmailMessagesPage() {
 
       {!isLoading && !errorMessage && emails.length === 0 ? (
         <EmptyState
-          title={t('syncedEmails.emptyStates.noneFound')}
-          description={t('syncedEmails.emptyStates.listDescription')}
+          title={
+            emailView === 'dismissed'
+              ? t('syncedEmails.emptyStates.noDismissed')
+              : t('syncedEmails.emptyStates.noneFound')
+          }
+          description={
+            emailView === 'dismissed'
+              ? t('syncedEmails.emptyStates.dismissedDescription')
+              : t('syncedEmails.emptyStates.listDescription')
+          }
         />
       ) : null}
 
@@ -570,6 +690,19 @@ export default function ExternalEmailMessagesPage() {
                         </p>
                       </div>
 
+                      {emailView === 'dismissed' ? (
+                        <div>
+                          <p className="font-medium text-slate-950">
+                            {t('syncedEmails.view.dismissedAt')}
+                          </p>
+                          <p className="mt-1 text-slate-600">
+                            {email.dismissedAt
+                              ? formatDateTime(email.dismissedAt)
+                              : t('common.emptyStates.notSet')}
+                          </p>
+                        </div>
+                      ) : null}
+
                       <div>
                         <p className="font-medium text-slate-950">
                           {t('externalSync.labels.messageId')}
@@ -648,6 +781,40 @@ export default function ExternalEmailMessagesPage() {
                   </div>
 
                   <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+                    {emailView === 'dismissed' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreEmail(email.id)}
+                        disabled={
+                          !canRunWriteActions ||
+                          emailManagementActionId === email.id
+                        }
+                        className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {emailManagementActionId === email.id
+                          ? t('syncedEmails.actions.restoring')
+                          : t('syncedEmails.actions.restore')}
+                      </button>
+                    ) : null}
+
+                    {emailView === 'active' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDismissEmail(email.id)}
+                        disabled={
+                          !canRunWriteActions ||
+                          emailManagementActionId === email.id
+                        }
+                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {emailManagementActionId === email.id
+                          ? t('syncedEmails.actions.dismissing')
+                          : t('syncedEmails.actions.dismiss')}
+                      </button>
+                    ) : null}
+
+                    {emailView === 'active' ? (
+                      <>
                     {analysisSuggestion ? (
                       <Link
                         href={`/dashboard/ai-suggestions/${analysisSuggestion.id}`}
@@ -689,6 +856,8 @@ export default function ExternalEmailMessagesPage() {
                           : t('externalSync.actions.generateReplyDraft')}
                       </button>
                     )}
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </article>

@@ -38,6 +38,9 @@ export type ExternalEmailMessage = {
   syncedAt: string;
   createdAt?: string;
   updatedAt?: string;
+  dismissedAt?: string | null;
+  dismissedByUserId?: string | null;
+  dismissedReason?: string | null;
   connectedAccount?: ExternalEmailMessageConnectedAccount | null;
 };
 
@@ -73,6 +76,7 @@ export type ExternalCalendarEvent = {
 export type QueryExternalEmailMessagesParams = {
   page?: number;
   pageSize?: number;
+  view?: 'active' | 'dismissed';
   q?: string;
   connectedAccountId?: string;
   fromEmail?: string;
@@ -122,6 +126,56 @@ export type SyncExternalEmailMessagesResult = {
   crmRecordsCreated: boolean;
   messagesFetched?: number;
   messagesStored?: number;
+};
+
+export type GmailSearchPreviewInput = {
+  searchText?: string;
+  sender?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  maxResults?: number;
+};
+
+export type GmailSearchPreviewMessage = {
+  providerMessageId: string;
+  threadId: string | null;
+  subject: string | null;
+  senderEmail: string | null;
+  senderName: string | null;
+  snippet: string | null;
+  internalDate: string | null;
+  alreadyImported: boolean;
+  dismissed: boolean;
+};
+
+export type GmailSearchPreviewResult = {
+  messages: GmailSearchPreviewMessage[];
+  meta: {
+    maxResults: number;
+    resultSizeEstimate: number | null;
+    bodyStored: boolean;
+    aiAnalysisRun: boolean;
+    crmRecordsCreated: boolean;
+  };
+};
+
+export type ImportSelectedExternalEmailMessagesInput = {
+  providerMessageIds: string[];
+};
+
+export type ImportSelectedExternalEmailMessagesResult = {
+  connectedAccountId: string;
+  provider: ConnectedAccountProvider;
+  email: string;
+  requested: number;
+  imported: number;
+  alreadyExisting: number;
+  restored: number;
+  skipped: number;
+  syncedAt: string;
+  bodyStored: boolean;
+  aiAnalysisRun: boolean;
+  crmRecordsCreated: boolean;
 };
 
 export type SyncExternalCalendarEventsResult = {

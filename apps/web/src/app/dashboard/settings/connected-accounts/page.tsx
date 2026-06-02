@@ -34,6 +34,9 @@ import { startGoogleOAuth } from '@/lib/api-client';
 
 const providerOptions: ConnectedAccountProvider[] = ['GOOGLE', 'MICROSOFT'];
 const capabilityOptions: ConnectedAccountCapability[] = ['EMAIL', 'CALENDAR'];
+const canUseDevConnectedAccountForm =
+  process.env.NODE_ENV === 'development' ||
+  process.env.NEXT_PUBLIC_ENABLE_DEV_CONNECTED_ACCOUNTS === 'true';
 
 function formatConnectedDateTime(
   value: string | null,
@@ -133,7 +136,10 @@ export default function ConnectedAccountsSettingsPage() {
   }, [accounts, user]);
 
   const canShowDevConnectForm =
-    Boolean(token) && canConnect && !currentUserAccount;
+    canUseDevConnectedAccountForm &&
+    Boolean(token) &&
+    canConnect &&
+    !currentUserAccount;
 
   const pendingDisconnectRequests = useMemo(
     () =>

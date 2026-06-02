@@ -1,5 +1,10 @@
 import type { AiSuggestion } from '@/types/ai-suggestions';
 import type {
+  ExternalEmailMessage,
+  GmailSearchPreviewInput,
+  GmailSearchPreviewResult,
+  ImportSelectedExternalEmailMessagesInput,
+  ImportSelectedExternalEmailMessagesResult,
   PaginatedExternalCalendarEvents,
   PaginatedExternalEmailMessages,
   QueryExternalCalendarEventsParams,
@@ -42,6 +47,62 @@ export function syncExternalEmailMessages(token: string) {
     {
       method: 'POST',
       token,
+    },
+  );
+}
+
+export function dismissExternalEmailMessage(
+  token: string,
+  emailMessageId: string,
+  reason?: string,
+) {
+  return apiRequest<ExternalEmailMessage>(
+    `/external-sync/email-messages/${emailMessageId}/dismiss`,
+    {
+      method: 'PATCH',
+      token,
+      body: reason ? { reason } : {},
+    },
+  );
+}
+
+export function restoreExternalEmailMessage(
+  token: string,
+  emailMessageId: string,
+) {
+  return apiRequest<ExternalEmailMessage>(
+    `/external-sync/email-messages/${emailMessageId}/restore`,
+    {
+      method: 'PATCH',
+      token,
+    },
+  );
+}
+
+export function searchGmailMessagesPreview(
+  token: string,
+  input: GmailSearchPreviewInput,
+) {
+  return apiRequest<GmailSearchPreviewResult>(
+    '/external-sync/email-messages/gmail-search-preview',
+    {
+      method: 'POST',
+      token,
+      body: input,
+    },
+  );
+}
+
+export function importSelectedExternalEmailMessages(
+  token: string,
+  input: ImportSelectedExternalEmailMessagesInput,
+) {
+  return apiRequest<ImportSelectedExternalEmailMessagesResult>(
+    '/external-sync/email-messages/import-selected',
+    {
+      method: 'POST',
+      token,
+      body: input,
     },
   );
 }

@@ -722,6 +722,7 @@ export class DashboardService {
         where: {
           organizationId,
           deletedAt: null,
+          dismissedAt: null,
           connectedAccount: {
             userId: currentUser.id,
           },

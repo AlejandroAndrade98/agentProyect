@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsInt,
   IsISO8601,
+  IsIn,
   IsOptional,
   IsString,
   Max,
@@ -37,6 +38,10 @@ export class QueryExternalEmailMessagesDto {
   @IsOptional()
   @IsString()
   externalThreadId?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'dismissed'])
+  view?: 'active' | 'dismissed' = 'active';
 
   @IsOptional()
   @IsISO8601()

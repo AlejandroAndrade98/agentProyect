@@ -413,6 +413,40 @@
     "boardTitle": "Tablero de correos sincronizados",
     "subtitle": "Consulta metadatos sincronizados de Gmail y crea sugerencias de IA para revisión humana.",
     "boardSubtitle": "Sigue los metadatos sincronizados de Gmail por estado de procesamiento de IA. Las tarjetas pueden crear sugerencias de IA para revisión, pero nunca envían correos, crean borradores de Gmail ni crean registros CRM automáticamente.",
+    "actions": {
+      "dismiss": "Quitar",
+      "dismissing": "Quitando...",
+      "restore": "Restaurar",
+      "restoring": "Restaurando..."
+    },
+    "view": {
+      "active": "Activos",
+      "dismissed": "Quitados",
+      "dismissedAt": "Quitado el"
+    },
+    "import": {
+      "searchGmail": "Buscar en Gmail",
+      "title": "Importaci\u00f3n manual de Gmail",
+      "heading": "Importar correos antiguos",
+      "description": "Busca metadatos de Gmail, revisa la vista previa e importa solo los correos que elijas a la bandeja activa de revisi\u00f3n.",
+      "searchText": "Texto de b\u00fasqueda",
+      "sender": "Remitente",
+      "fromDate": "Desde",
+      "toDate": "Hasta",
+      "maxResults": "Resultados m\u00e1ximos",
+      "searching": "Buscando...",
+      "importSelected": "Importar seleccionados",
+      "importing": "Importando...",
+      "alreadyImported": "Ya importado",
+      "restored": "Restaurado",
+      "imported": "Importado",
+      "skipped": "Omitidos",
+      "previewResults": "resultado(s) de vista previa",
+      "selectableResults": "seleccionables",
+      "selectEmail": "Seleccionar correo",
+      "searchFailed": "No se pudieron buscar mensajes de Gmail.",
+      "importFailed": "No se pudieron importar los mensajes de Gmail seleccionados."
+    },
     "columns": {
       "newDescription": "Aún no hay análisis de IA ni sugerencia de borrador de respuesta.",
       "needsReviewDescription": "Al menos una sugerencia de IA está pendiente de revisión humana.",
@@ -432,14 +466,18 @@
     },
     "emptyStates": {
       "noneFound": "No se encontraron correos sincronizados",
+      "noDismissed": "No se encontraron correos quitados",
       "boardDescription": "Ejecuta una sincronización manual de Gmail para revisar metadatos de correo sincronizados en el tablero de bandeja de IA.",
-      "listDescription": "Ejecuta una sincronización manual de Gmail o ajusta tu búsqueda para revisar metadatos de correo sincronizados."
+      "listDescription": "Ejecuta una sincronización manual de Gmail o ajusta tu búsqueda para revisar metadatos de correo sincronizados.",
+      "dismissedDescription": "Los correos quitados siguen recuperables aqu\u00ed. Restaura uno para moverlo de nuevo a la bandeja activa de revisi\u00f3n."
     },
     "messages": {
       "syncCompleted": "Sincronización de Gmail completada.",
       "fetched": "Obtenidos",
       "stored": "guardados",
       "messages": "mensaje(s).",
+      "dismissed": "Correo quitado de la bandeja activa de revisi\u00f3n.",
+      "restored": "Correo restaurado a la bandeja activa de revisi\u00f3n.",
       "readOnlyRole": "Tu rol puede ver correos sincronizados, pero se requieren permisos de escritura CRM para sincronizar Gmail o crear sugerencias de IA.",
       "notThreaded": "Sin conversación"
     }
