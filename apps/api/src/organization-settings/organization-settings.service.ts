@@ -20,6 +20,7 @@ import {
   normalizeSearch,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
+import { EmailService } from '../email/email.service';
 
 import { QueryOrganizationUsersDto } from './dto/query-organization-users.dto';
 import { UpdateCurrentOrganizationDto } from './dto/update-current-organization.dto';
@@ -33,7 +34,10 @@ import { AcceptOrganizationInvitationDto } from './dto/accept-organization-invit
 
 @Injectable()
 export class OrganizationSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async getCurrentOrganization(currentUser: CurrentUser) {
     const organization = await this.prisma.organization.findFirst({
@@ -273,6 +277,7 @@ export class OrganizationSettingsService {
       },
       select: {
         id: true,
+        name: true,
         maxUsers: true,
       },
     });
@@ -332,10 +337,25 @@ export class OrganizationSettingsService {
       },
       select: this.getOrganizationInvitationSelect(),
     });
+    const invitationUrl =
+      this.emailService.buildOrganizationInvitationUrl(acceptanceToken);
+    const emailDelivery = await this.emailService.sendOrganizationInvitationEmail(
+      {
+        to: normalizedEmail,
+        organizationName: organization.name,
+        role: dto.role,
+        expiresAt,
+        invitationUrl,
+      },
+    );
 
     return {
       invitation,
-      acceptanceToken,
+      emailDeliveryStatus: emailDelivery.status,
+      emailDeliveryProvider: emailDelivery.provider,
+      ...(this.canExposeDevelopmentInvitationTokens()
+        ? { acceptanceToken }
+        : {}),
     };
   }
 
@@ -790,6 +810,10 @@ async acceptInvitation(dto: AcceptOrganizationInvitationDto) {
 
   private hashInvitationToken(token: string) {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private canExposeDevelopmentInvitationTokens() {
+    return process.env.NODE_ENV !== 'production';
   }
 
   private getOrganizationInvitationSelect() {

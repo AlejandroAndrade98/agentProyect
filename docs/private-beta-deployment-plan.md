@@ -176,9 +176,25 @@ API requirements:
 - exact `CORS_ORIGIN`
 - `FRONTEND_URL`
 - production-strength JWT and connected account encryption secrets
+- transactional email env for Resend when inviting real users:
+  - `EMAIL_PROVIDER=resend`
+  - `EMAIL_DELIVERY_ENABLED=true`
+  - `EMAIL_FROM`
+  - `EMAIL_REPLY_TO` optional
+  - `EMAIL_APP_NAME=Sales AI Platform`
+  - `EMAIL_PUBLIC_APP_URL`
+  - `RESEND_API_KEY`
 - `REQUEST_BODY_LIMIT=1mb` unless a documented endpoint needs more
 - health check path: `/api/health`
 - do not set `DATABASE_URL_HOST` in hosted staging/production providers; use `DATABASE_URL` only
+
+Transactional email notes:
+
+- Resend is the first transactional email provider.
+- Password reset and organization invitation links are emailed when delivery is enabled.
+- Local/dev can use `EMAIL_PROVIDER=none` and `EMAIL_DELIVERY_ENABLED=false`.
+- The app does not use Gmail API for transactional email, does not send marketing email, and does not send CRM emails automatically.
+- Verify the Resend sender/domain before inviting real customers.
 
 ## Web Deployment Notes
 
@@ -356,7 +372,8 @@ Current guarantees:
 
 Before public self-serve production:
 
-- Configure and validate a transactional email provider for reset delivery.
+- Configure Railway with `EMAIL_PROVIDER=resend`, `EMAIL_DELIVERY_ENABLED=true`, `EMAIL_FROM`, and `RESEND_API_KEY`.
+- Verify the Resend sender/domain before real customers.
 - Keep reset emails free of raw secrets in logs.
 - Run a staging reset test with `AUTH_RECOVERY_DEV_MODE=false`.
 - Confirm reset links use the intended `PASSWORD_RESET_PUBLIC_URL` or `FRONTEND_URL`.
@@ -415,12 +432,12 @@ Should-have:
 - [ ] Restore drill completed before external users.
 - [ ] GitHub Actions billing unblocked and CI passing.
 - [ ] OpenAI minimal smoke completed if `AI_PROVIDER=openai`.
+- [ ] Resend invitation and password reset smoke completed if `EMAIL_DELIVERY_ENABLED=true`.
 - [ ] External monitoring provider selected.
 - [ ] Rate limit proxy/ingress option identified.
 
 Can wait:
 
-- Transactional password reset email delivery if beta remains controlled and dev-mode/operator support is acceptable in staging only.
 - Billing/plans.
 - Background workers.
 - Public Google OAuth verification if beta stays test-user only.
@@ -428,7 +445,7 @@ Can wait:
 
 ## Known Limitations For First Beta
 
-- Password reset delivery still needs a transactional email provider before public self-serve production.
+- Resend sender/domain verification must be completed before inviting real customers.
 - GitHub Actions may be blocked by account billing; local CI-equivalent validation is required until fixed.
 - Rate limiting is process-local.
 - Background sync workers are not implemented.

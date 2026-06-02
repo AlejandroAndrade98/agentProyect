@@ -40,6 +40,13 @@ For the first staging/private beta deploy, use [private-beta-deployment-plan.md]
 | `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | Enables dev-only reset URL responses. | `false` | Must be `false` in production; startup validation rejects `true`. |
 | `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | Password reset token lifetime. | `30` | Keep short. Tokens are one-time use and stored only as hashes. |
 | `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | Frontend base URL used to build reset links. | `https://app.example.com` | Optional when `FRONTEND_URL` is correct; set explicitly if reset links need a different public base. |
+| `EMAIL_PROVIDER` | Yes | API transactional email | Transactional email provider. | `none` or `resend` | Use `resend` for staging/private beta delivery. Use `none` for local/dev. |
+| `EMAIL_DELIVERY_ENABLED` | Yes | API transactional email | Enables sending invitation and password reset emails. | `true` or `false` | Production startup rejects `true` with provider `none` or missing provider config. |
+| `EMAIL_FROM` | If Resend | API transactional email | Verified sender address. | `Sales AI Platform <no-reply@example.com>` | Required when `EMAIL_PROVIDER=resend`. Verify the sender domain before real customers. |
+| `EMAIL_REPLY_TO` | Optional | API transactional email | Reply-to address. | `support@example.com` | Optional; do not use personal inboxes for production support. |
+| `EMAIL_APP_NAME` | Recommended | API transactional email | Product name in transactional emails. | `Sales AI Platform` | Used in invitation and reset subjects/bodies. |
+| `EMAIL_PUBLIC_APP_URL` | Recommended | API transactional email | Frontend base URL for invitation/reset links. | `https://app.example.com` | Optional when `FRONTEND_URL` is correct. Used for organization invitation links. |
+| `RESEND_API_KEY` | If Resend | API transactional email | Resend API key. | `replace_with_resend_api_key` | Secret manager only. Never print or commit. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | Connected accounts | Google OAuth client ID. | `replace_with_google_client_id` | Must belong to the production OAuth web client. Alias `GOOGLE_CLIENT_ID` is supported, but prefer this canonical name. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Yes for Google | Connected accounts | Google OAuth client secret. | `replace_with_google_client_secret` | Secret manager only. Alias `GOOGLE_CLIENT_SECRET` is supported. |
 | `GOOGLE_OAUTH_REDIRECT_URI` | Yes for Google | Connected accounts | Google callback URL. | `https://api.example.com/api/connected-accounts/oauth/google/callback` | Must exactly match Google Cloud authorized redirect URI. Alias `GOOGLE_REDIRECT_URI` is supported. |
@@ -98,8 +105,9 @@ Production notes:
 - `FRONTEND_URL` should be set to the canonical frontend origin because the Google OAuth callback redirects there after success.
 - If `FRONTEND_URL` is not set, the callback falls back to the first `CORS_ORIGIN`.
 - `PASSWORD_RESET_PUBLIC_URL` should point to the same frontend origin unless reset links are served through a different public URL.
+- `EMAIL_PUBLIC_APP_URL` should point to the same frontend origin unless invitation/reset links need a different public base.
 - `GOOGLE_OAUTH_REDIRECT_URI` must exactly match the API callback URL registered in Google Cloud.
-- Production startup validates Google OAuth env, frontend URL, optional password reset URL, exact CORS origins, disabled auth recovery dev mode, and the 32-byte connected account encryption key when `NODE_ENV=production`.
+- Production startup validates Google OAuth env, frontend URL, optional password reset/email public URLs, transactional email provider config, exact CORS origins, disabled auth recovery dev mode, and the 32-byte connected account encryption key when `NODE_ENV=production`.
 
 ## Staging vs Production
 
@@ -115,6 +123,7 @@ Variables that must differ between staging and production:
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION`
 - `OPENAI_API_KEY`
+- `RESEND_API_KEY`
 - `NEXT_PUBLIC_API_URL`
 - `FRONTEND_URL`
 - `CORS_ORIGIN`

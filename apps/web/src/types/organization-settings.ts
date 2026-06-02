@@ -113,9 +113,13 @@ export type CreateOrganizationInvitationInput = {
   role: OrganizationUserRole;
 };
 
+export type EmailDeliveryStatus = 'sent' | 'skipped' | 'failed';
+
 export type CreateOrganizationInvitationResponse = {
   invitation: OrganizationInvitation;
-  acceptanceToken: string;
+  acceptanceToken?: string;
+  emailDeliveryStatus?: EmailDeliveryStatus;
+  emailDeliveryProvider?: 'none' | 'resend';
 };
 
 export type PaginatedOrganizationInvitations =

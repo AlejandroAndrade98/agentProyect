@@ -71,6 +71,13 @@ Minimum required for API:
 - `AUTH_RECOVERY_DEV_MODE=false`
 - `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES`
 - `PASSWORD_RESET_PUBLIC_URL` or `FRONTEND_URL`
+- `EMAIL_PROVIDER`
+- `EMAIL_DELIVERY_ENABLED`
+- `EMAIL_FROM` when using Resend
+- `EMAIL_REPLY_TO` optional
+- `EMAIL_APP_NAME`
+- `EMAIL_PUBLIC_APP_URL` or `FRONTEND_URL`
+- `RESEND_API_KEY` when using Resend
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`
 - `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION`
 - `AI_PROVIDER`
@@ -216,17 +223,19 @@ Manual checks after the automated smoke:
 3. Login with a staging user.
 4. Confirm session loads `/dashboard`.
 5. After the access token expires, confirm authenticated UI requests recover through `/auth/refresh` and stay on the dashboard.
-6. Load CRM list endpoints through the UI, such as companies, contacts, leads, tasks, or notes.
-7. Create and delete/archive a temporary CRM record if safe for the environment.
-8. Open Settings.
-9. If using Google in staging, connect Google OAuth with a test user.
-10. Run manual Gmail sync.
-11. Run manual Calendar sync.
-12. Generate a mock AI suggestion, or a minimal OpenAI suggestion if the environment intentionally uses OpenAI.
-13. Confirm AI analysis does not send email automatically.
-14. Confirm AI analysis does not create CRM records automatically.
-15. If testing reply drafts, confirm Gmail draft creation requires an explicit click and does not send the email.
-16. Switch language EN/ES and confirm the UI still renders.
+6. Request forgot password and confirm the transactional reset email is received when `EMAIL_DELIVERY_ENABLED=true`.
+7. Create a test organization/user invitation and confirm the invitation email is received when `EMAIL_DELIVERY_ENABLED=true`.
+8. Load CRM list endpoints through the UI, such as companies, contacts, leads, tasks, or notes.
+9. Create and delete/archive a temporary CRM record if safe for the environment.
+10. Open Settings.
+11. If using Google in staging, connect Google OAuth with a test user.
+12. Run manual Gmail sync.
+13. Run manual Calendar sync.
+14. Generate a mock AI suggestion, or a minimal OpenAI suggestion if the environment intentionally uses OpenAI.
+15. Confirm AI analysis does not send email automatically.
+16. Confirm AI analysis does not create CRM records automatically.
+17. If testing reply drafts, confirm Gmail draft creation requires an explicit click and does not send the email.
+18. Switch language EN/ES and confirm the UI still renders.
 
 Confirm at least one smoke request ID is visible in API logs and correlates with `http.request.completed`.
 

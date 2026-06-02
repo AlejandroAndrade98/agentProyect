@@ -46,7 +46,20 @@ Password reset requests use a generic response so the endpoint does not reveal w
 
 Successful password reset updates the password hash, consumes outstanding reset tokens for that user, and revokes active refresh tokens so existing sessions must authenticate again. Request/consume IP and user-agent values are stored only as safe hashes.
 
-`AUTH_RECOVERY_DEV_MODE=true` may return a reset URL for local/staging testing only. Production startup rejects this mode, and production self-serve recovery still requires a transactional delivery provider before public launch.
+Password reset emails are sent through the configured transactional email provider when `EMAIL_DELIVERY_ENABLED=true`. `AUTH_RECOVERY_DEV_MODE=true` may still return a reset URL for local testing only. Production startup rejects this mode.
+
+### Transactional email delivery
+
+Resend is the first supported transactional email provider. The API sends organization invitation emails and password reset emails only when `EMAIL_PROVIDER=resend` and `EMAIL_DELIVERY_ENABLED=true`.
+
+Local/dev can keep `EMAIL_PROVIDER=none` and `EMAIL_DELIVERY_ENABLED=false`, in which case no real email is sent. Production startup rejects enabled delivery with missing provider config.
+
+Transactional email safety rules:
+
+- Resend API keys, invitation tokens, password reset tokens, full invitation URLs, and full reset URLs must never be logged.
+- Email logs use event names such as `email.invitation.send.success`, `email.invitation.send.failure`, `email.password_reset.send.success`, and `email.password_reset.send.failure`.
+- Transactional email uses Resend, not Gmail API.
+- These emails are for invitations and auth recovery only. They are not marketing emails and do not change CRM/Gmail/AI automation behavior.
 
 ### Security headers
 
@@ -101,4 +114,4 @@ See [observability-runbook.md](./observability-runbook.md) for log events, alert
 - Session storage decision for public production; frontend currently stores tokens in `localStorage`.
 - Google OAuth production verification and reconnect/disconnect QA.
 - Backup restore drill.
-- Transactional password reset email delivery for public self-serve production.
+- Sender-domain verification with Resend before inviting real customers.

@@ -65,6 +65,9 @@ const requiredFiles = [
   "packages/database/prisma/migrations/20260601000000_add_password_reset_tokens/migration.sql",
   "apps/api/src/main.ts",
   "apps/api/src/app.module.ts",
+  "apps/api/src/email/email.module.ts",
+  "apps/api/src/email/email.service.ts",
+  "apps/api/src/email/email.types.ts",
   "apps/web/src/app/layout.tsx",
   "apps/web/src/app/(auth)/login/page.tsx",
   "apps/web/src/app/(auth)/forgot-password/page.tsx",
@@ -102,6 +105,13 @@ const requiredEnvKeys = [
   "AUTH_RECOVERY_DEV_MODE",
   "AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES",
   "PASSWORD_RESET_PUBLIC_URL",
+  "EMAIL_PROVIDER",
+  "EMAIL_DELIVERY_ENABLED",
+  "EMAIL_FROM",
+  "EMAIL_REPLY_TO",
+  "EMAIL_APP_NAME",
+  "EMAIL_PUBLIC_APP_URL",
+  "RESEND_API_KEY",
   "GOOGLE_OAUTH_CLIENT_ID",
   "GOOGLE_OAUTH_CLIENT_SECRET",
   "GOOGLE_OAUTH_REDIRECT_URI",
@@ -181,9 +191,23 @@ for (const expectedText of [
   "staging-provider-checklist.md",
   "staging-env-template.md",
   "corepack pnpm smoke:runtime",
+  "EMAIL_PROVIDER",
+  "RESEND_API_KEY",
 ]) {
   if (!deploymentChecklist.includes(expectedText)) {
     fail(`Deployment checklist missing command: ${expectedText}`);
+  }
+}
+
+const securityHardening = readText("docs/security-hardening.md").toLowerCase();
+for (const expectedText of [
+  "transactional email delivery",
+  "resend",
+  "email.invitation.send.success",
+  "email.password_reset.send.success",
+]) {
+  if (!securityHardening.includes(expectedText)) {
+    fail(`Security hardening docs missing transactional email reference: ${expectedText}`);
   }
 }
 

@@ -166,8 +166,10 @@ export type PlatformOwnerOnboardingInvitation = {
   revokedAt: string | null;
   createdAt: string;
   invitedBy: PlatformOrganizationOwner | null;
-  acceptanceToken: string;
+  acceptanceToken?: string;
 };
+
+export type EmailDeliveryStatus = 'sent' | 'skipped' | 'failed';
 
 export type CreatePlatformOwnerInvitationInput = {
   ownerEmail: string;
@@ -175,11 +177,15 @@ export type CreatePlatformOwnerInvitationInput = {
 
 export type CreatePlatformOwnerInvitationResponse = {
   ownerInvitation: PlatformOwnerOnboardingInvitation;
+  emailDeliveryStatus?: EmailDeliveryStatus;
+  emailDeliveryProvider?: 'none' | 'resend';
 };
 
 export type OnboardPlatformOrganizationResponse = {
   organization: PlatformOrganizationDetail;
   ownerInvitation: PlatformOwnerOnboardingInvitation;
+  emailDeliveryStatus?: EmailDeliveryStatus;
+  emailDeliveryProvider?: 'none' | 'resend';
 };
 
 export type RevokePlatformOwnerInvitationResponse = PlatformOrganizationDetail;

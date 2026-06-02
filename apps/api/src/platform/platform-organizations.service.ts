@@ -14,6 +14,7 @@ import {
 import { createHash, randomBytes } from 'crypto';
 
 import { PrismaService } from '../database/prisma.service';
+import { EmailService } from '../email/email.service';
 import {
   buildPaginatedResult,
   getPaginationParams,
@@ -31,7 +32,10 @@ import { CreatePlatformOwnerInvitationDto } from './dto/create-platform-owner-in
 
 @Injectable()
 export class PlatformOrganizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async findAll(query: QueryPlatformOrganizationsDto) {
     const { page, pageSize, skip, take } = getPaginationParams(query);
@@ -181,7 +185,7 @@ export class PlatformOrganizationsService {
   const tokenHash = this.hashInvitationToken(acceptanceToken);
   const expiresAt = this.buildInvitationExpiresAt();
 
-  return this.prisma.$transaction(async (tx) => {
+  const result = await this.prisma.$transaction(async (tx) => {
     const createdOrganization = await tx.organization.create({
       data: {
         name: organizationName,
@@ -235,12 +239,31 @@ export class PlatformOrganizationsService {
 
     return {
       organization,
-      ownerInvitation: {
-        ...ownerInvitation,
-        acceptanceToken,
-      },
+      ownerInvitation,
     };
   });
+
+  const invitationUrl =
+    this.emailService.buildOrganizationInvitationUrl(acceptanceToken);
+  const emailDelivery = await this.emailService.sendOrganizationInvitationEmail({
+    to: ownerEmail,
+    organizationName,
+    role: Role.OWNER,
+    expiresAt,
+    invitationUrl,
+  });
+
+  return {
+    organization: result.organization,
+    ownerInvitation: {
+      ...result.ownerInvitation,
+      ...(this.canExposeDevelopmentInvitationTokens()
+        ? { acceptanceToken }
+        : {}),
+    },
+    emailDeliveryStatus: emailDelivery.status,
+    emailDeliveryProvider: emailDelivery.provider,
+  };
 }
 
 async createOwnerInvitation(
@@ -257,6 +280,7 @@ async createOwnerInvitation(
     },
     select: {
       id: true,
+      name: true,
       status: true,
       deletedAt: true,
     },
@@ -372,12 +396,25 @@ async createOwnerInvitation(
     },
     select: this.getOnboardingInvitationSelect(),
   });
+  const invitationUrl =
+    this.emailService.buildOrganizationInvitationUrl(acceptanceToken);
+  const emailDelivery = await this.emailService.sendOrganizationInvitationEmail({
+    to: ownerEmail,
+    organizationName: organization.name,
+    role: Role.OWNER,
+    expiresAt,
+    invitationUrl,
+  });
 
   return {
     ownerInvitation: {
       ...ownerInvitation,
-      acceptanceToken,
+      ...(this.canExposeDevelopmentInvitationTokens()
+        ? { acceptanceToken }
+        : {}),
     },
+    emailDeliveryStatus: emailDelivery.status,
+    emailDeliveryProvider: emailDelivery.provider,
   };
 }
 
@@ -458,6 +495,10 @@ private createInvitationToken() {
 
 private hashInvitationToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
+}
+
+private canExposeDevelopmentInvitationTokens() {
+  return process.env.NODE_ENV !== 'production';
 }
 
 private buildInvitationExpiresAt() {

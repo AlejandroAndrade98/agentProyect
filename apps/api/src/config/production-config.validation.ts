@@ -41,6 +41,13 @@ export function validateProductionConfiguration(configService: ConfigService) {
     validateAbsoluteUrl(passwordResetPublicUrl, 'app.passwordResetPublicUrl');
   }
 
+  const emailPublicAppUrl = configService.get<string>('app.emailPublicAppUrl');
+  if (emailPublicAppUrl) {
+    validateAbsoluteUrl(emailPublicAppUrl, 'app.emailPublicAppUrl');
+  }
+
+  validateEmailDeliveryConfiguration(configService);
+
   const redirectUri = new URL(
     configService.get<string>('app.googleOAuthRedirectUri') as string,
   );
@@ -95,5 +102,41 @@ function validateConnectedAccountTokenEncryptionKey(value: string | undefined) {
     throw new Error(
       'app.connectedAccountTokenEncryptionKey must decode to exactly 32 bytes',
     );
+  }
+}
+
+function validateEmailDeliveryConfiguration(configService: ConfigService) {
+  const provider = (
+    configService.get<string>('app.emailProvider') ?? 'none'
+  ).toLowerCase();
+  const deliveryEnabled =
+    (
+      configService.get<string>('app.emailDeliveryEnabled') ?? 'false'
+    ).toLowerCase() === 'true';
+
+  if (!['none', 'resend'].includes(provider)) {
+    throw new Error('app.emailProvider must be one of: none, resend');
+  }
+
+  if (deliveryEnabled && provider === 'none') {
+    throw new Error(
+      'app.emailProvider must be configured when email delivery is enabled',
+    );
+  }
+
+  if (provider === 'resend') {
+    const resendConfig: Array<[string, string | undefined]> = [
+      ['app.resendApiKey', configService.get<string>('app.resendApiKey')],
+      ['app.emailFrom', configService.get<string>('app.emailFrom')],
+    ];
+    const missingKeys = resendConfig
+      .filter(([, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingKeys.length > 0) {
+      throw new Error(
+        `Missing Resend email configuration values: ${missingKeys.join(', ')}`,
+      );
+    }
   }
 }

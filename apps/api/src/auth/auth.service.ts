@@ -15,6 +15,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { SafeLoggerService } from '../common/observability/safe-logger.service';
+import { EmailService } from '../email/email.service';
 
 import { OrganizationStatus } from '@prisma/client';
 
@@ -29,7 +30,7 @@ type ForgotPasswordResponse = {
 };
 
 const PASSWORD_RESET_GENERIC_MESSAGE =
-  'If an account exists, password reset instructions will be provided.';
+  'If an account exists, password reset instructions will be sent.';
 const PASSWORD_RESET_SUCCESS_MESSAGE = 'Password reset successful.';
 
 @Injectable()
@@ -39,6 +40,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly logger: SafeLoggerService,
+    private readonly emailService: EmailService,
   ) {}
 
   async login(dto: LoginDto): Promise<AuthResponse> {
@@ -127,10 +129,11 @@ export class AuthService {
       include: {
         organization: {
           select: {
-            id: true,
-            status: true,
-            deletedAt: true,
-          },
+              id: true,
+              name: true,
+              status: true,
+              deletedAt: true,
+            },
         },
       },
     });
@@ -152,6 +155,15 @@ export class AuthService {
       tokenCreated = true;
       userId = user.id;
       organizationId = user.organizationId;
+    }
+
+    if (tokenCreated && rawToken && user) {
+      await this.emailService.sendPasswordResetEmail({
+        to: email,
+        userName: user.name,
+        resetUrl: this.buildPasswordResetUrl(rawToken),
+        expiresInMinutes: this.getPasswordResetTtlMinutes(),
+      });
     }
 
     this.logger.info('auth.password_reset.requested', {
@@ -469,20 +481,27 @@ export class AuthService {
   }
 
   private calculatePasswordResetExpiry(now: Date) {
+    const ttlMinutes = this.getPasswordResetTtlMinutes();
+
+    return new Date(now.getTime() + ttlMinutes * 60 * 1000);
+  }
+
+  private getPasswordResetTtlMinutes() {
     const configuredMinutes = Number(
       this.configService.get<number>('app.passwordResetTokenTtlMinutes') ?? 30,
     );
-    const ttlMinutes =
+
+    return (
       Number.isFinite(configuredMinutes) && configuredMinutes > 0
         ? configuredMinutes
-        : 30;
-
-    return new Date(now.getTime() + ttlMinutes * 60 * 1000);
+        : 30
+    );
   }
 
   private buildPasswordResetUrl(token: string) {
     const configuredUrl =
       this.configService.get<string>('app.passwordResetPublicUrl') ||
+      this.configService.get<string>('app.emailPublicAppUrl') ||
       this.configService.get<string>('app.frontendUrl') ||
       'http://localhost:3000';
     const url = new URL('/reset-password', configuredUrl);

@@ -39,6 +39,11 @@
       "refresh": "Actualizar",
       "hide": "Ocultar"
     },
+    "emailDelivery": {
+      "invitationSent": "Invitacion creada y correo enviado.",
+      "invitationSkipped": "Invitacion creada. El envio de correo esta deshabilitado.",
+      "invitationFailed": "Invitacion creada, pero no se pudo enviar el correo."
+    },
     "pagination": {
       "page": "Página",
       "of": "de",
@@ -1128,7 +1133,7 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "recovery": {
       "forgotTitle": "¿Olvidaste tu contraseña?",
-      "forgotSubtitle": "Ingresa tu correo y te daremos instrucciones de recuperación si existe una cuenta.",
+      "forgotSubtitle": "Ingresa tu correo y enviaremos instrucciones de recuperacion si existe una cuenta.",
       "resetTitle": "Restablecer contraseña",
       "resetSubtitle": "Elige una nueva contraseña para tu cuenta.",
       "newPassword": "Nueva contraseña",
@@ -1139,7 +1144,7 @@
       "resetPassword": "Restablecer contraseña",
       "resetting": "Restableciendo...",
       "backToLogin": "Volver al inicio de sesión",
-      "genericSuccess": "Si existe una cuenta con ese correo, se darán instrucciones de recuperación.",
+      "genericSuccess": "Si existe una cuenta con ese correo, se enviaran instrucciones de recuperacion.",
       "success": "Contraseña restablecida correctamente.",
       "invalidOrExpired": "El enlace es inválido o expiró.",
       "passwordsDoNotMatch": "Las contraseñas no coinciden.",

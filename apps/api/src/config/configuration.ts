@@ -21,6 +21,14 @@ export default registerAs('app', () => ({
   ),
   passwordResetPublicUrl: process.env.PASSWORD_RESET_PUBLIC_URL,
 
+  emailProvider: process.env.EMAIL_PROVIDER || 'none',
+  emailDeliveryEnabled: process.env.EMAIL_DELIVERY_ENABLED || 'false',
+  emailFrom: process.env.EMAIL_FROM,
+  emailReplyTo: process.env.EMAIL_REPLY_TO,
+  emailAppName: process.env.EMAIL_APP_NAME || 'Sales AI Platform',
+  emailPublicAppUrl: process.env.EMAIL_PUBLIC_APP_URL,
+  resendApiKey: process.env.RESEND_API_KEY,
+
   googleOAuthClientId:
     process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
   googleOAuthClientSecret:

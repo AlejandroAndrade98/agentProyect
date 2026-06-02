@@ -25,6 +25,7 @@ import {
 } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/formatters';
 import type {
+  EmailDeliveryStatus,
   OrganizationAccountType,
   OrganizationStatus,
   PlatformOrganizationDetail,
@@ -57,6 +58,25 @@ function getStatusClasses(status: OrganizationStatus) {
   };
 
   return classes[status];
+}
+
+function getInvitationCreatedMessage(
+  status: EmailDeliveryStatus | undefined,
+  t: (key: string) => string,
+) {
+  if (status === 'sent') {
+    return t('common.emailDelivery.invitationSent');
+  }
+
+  if (status === 'failed') {
+    return t('common.emailDelivery.invitationFailed');
+  }
+
+  if (status === 'skipped') {
+    return t('common.emailDelivery.invitationSkipped');
+  }
+
+  return t('platform.organizationDetail.ownerInvitationCreated');
 }
 
 function StatCard({
@@ -290,7 +310,9 @@ export default function PlatformOrganizationDetailPage({
 
     setCreatedOwnerInvitation(response.ownerInvitation);
     setOwnerInvitationEmail('');
-    setSuccessMessage(t('platform.organizationDetail.ownerInvitationCreated'));
+    setSuccessMessage(
+      getInvitationCreatedMessage(response.emailDeliveryStatus, t),
+    );
 
     await loadOrganization();
   } catch (error) {

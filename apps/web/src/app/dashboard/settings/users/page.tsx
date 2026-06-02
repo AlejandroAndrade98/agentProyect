@@ -25,6 +25,7 @@ import {
 } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/formatters';
 import type {
+  EmailDeliveryStatus,
   OrganizationInvitation,
   OrganizationInvitationStatus,
   OrganizationUser,
@@ -130,6 +131,25 @@ function canManageTargetUser(
   }
 
   return false;
+}
+
+function getInvitationCreatedMessage(
+  status: EmailDeliveryStatus | undefined,
+  t: (key: string) => string,
+) {
+  if (status === 'sent') {
+    return t('common.emailDelivery.invitationSent');
+  }
+
+  if (status === 'failed') {
+    return t('common.emailDelivery.invitationFailed');
+  }
+
+  if (status === 'skipped') {
+    return t('common.emailDelivery.invitationSkipped');
+  }
+
+  return t('settings.users.invitationCreated');
 }
 
 export default function OrganizationUsersSettingsPage() {
@@ -318,10 +338,12 @@ export default function OrganizationUsersSettingsPage() {
         ...current,
         email: '',
       }));
-      setLastAcceptanceToken(response.acceptanceToken);
+      setLastAcceptanceToken(response.acceptanceToken ?? null);
       setLastInvitationEmail(response.invitation.email);
       setLastInvitationId(response.invitation.id);
-      setSuccessMessage(t('settings.users.invitationCreated'));
+      setSuccessMessage(
+        getInvitationCreatedMessage(response.emailDeliveryStatus, t),
+      );
       setInvitationPage(1);
       await loadInvitations();
     } catch (error) {

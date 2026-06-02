@@ -32,6 +32,13 @@ This template lists staging environment variables by service. Use placeholders o
 | `AUTH_RECOVERY_DEV_MODE` | Yes | API auth recovery | `false` | No | Use `true` only for controlled non-production reset-link testing. Production validation rejects it. |
 | `AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES` | Recommended | API auth recovery | `30` | No | Short reset token lifetime. |
 | `PASSWORD_RESET_PUBLIC_URL` | Recommended | API auth recovery | `https://app-staging.example.com` | No | Frontend base URL for reset links. Defaults to `FRONTEND_URL` when unset. |
+| `EMAIL_PROVIDER` | Yes | API transactional email | `resend` | No | Use `none` only for local/dev. Use `resend` for real staging/private beta emails. |
+| `EMAIL_DELIVERY_ENABLED` | Yes | API transactional email | `true` | No | Sends organization invitation and password reset emails when provider config is valid. |
+| `EMAIL_FROM` | If Resend | API transactional email | `Sales AI Platform <no-reply@staging.example.com>` | No | Must be a Resend-verified sender/domain before inviting real users. |
+| `EMAIL_REPLY_TO` | Optional | API transactional email | `support@example.com` | No | Optional support/reply address. |
+| `EMAIL_APP_NAME` | Recommended | API transactional email | `Sales AI Platform` | No | Product name used in transactional email copy. |
+| `EMAIL_PUBLIC_APP_URL` | Recommended | API transactional email | `https://app-staging.example.com` | No | Frontend base URL for invitation and reset links. Defaults to `FRONTEND_URL`. |
+| `RESEND_API_KEY` | If Resend | API transactional email | `replace_with_resend_api_key` | Yes | Secret manager only. Never print in logs or docs. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY` | Yes for Google | API connected accounts | `replace_with_32_byte_base64_key` | Yes | Must decode to exactly 32 bytes. Back it up in secret manager/password vault. |
 | `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION` | Yes for Google | API connected accounts | `v1` | No | Store with the key material; increment only with rotation plan. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Yes for Google | API connected accounts | `replace_with_google_oauth_client_id` | No | Staging Google OAuth client ID. |
@@ -109,6 +116,13 @@ BOOTSTRAP_UPDATE_EXISTING_PASSWORD=false
 AUTH_RECOVERY_DEV_MODE=false
 AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES=30
 PASSWORD_RESET_PUBLIC_URL=https://app-staging.example.com
+EMAIL_PROVIDER=resend
+EMAIL_DELIVERY_ENABLED=true
+EMAIL_FROM="Sales AI Platform <no-reply@staging.example.com>"
+EMAIL_REPLY_TO=
+EMAIL_APP_NAME=Sales AI Platform
+EMAIL_PUBLIC_APP_URL=https://app-staging.example.com
+RESEND_API_KEY=replace_with_resend_api_key
 GOOGLE_OAUTH_REDIRECT_URI=https://api-staging.example.com/api/connected-accounts/oauth/google/callback
 AI_PROVIDER=mock
 LOG_LEVEL=info

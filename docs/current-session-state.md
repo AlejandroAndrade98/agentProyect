@@ -708,8 +708,8 @@ Validation passed:
 - `corepack pnpm build`
 - `corepack pnpm check:generated`
 
-Remaining production follow-up:
-- Configure a transactional email provider to deliver password reset links with `AUTH_RECOVERY_DEV_MODE=false`.
+Production follow-up later completed in Phase 19A.3:
+- Transactional email provider support for password reset and invitations.
 
 ## Latest completed phase
 
@@ -754,6 +754,35 @@ Safety preserved:
 - No backend auth/RBAC changes.
 - No route/API contract changes.
 - No OAuth, AI, Gmail, Calendar, CRM automation, email sending, or background job behavior changed.
+
+Validation passed:
+- `git diff --check`
+- `corepack pnpm smoke:static`
+- `corepack pnpm check:generated`
+- `corepack pnpm db:validate`
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
+- `corepack pnpm --filter @sales-ai/api build`
+- `corepack pnpm build`
+
+## Latest completed phase
+
+Phase 19A.3 Transactional Email Delivery is completed and validated locally.
+
+Implemented:
+- Added backend transactional email support with Resend via Node 20 `fetch`, without adding dependencies.
+- Added `EMAIL_PROVIDER`, `EMAIL_DELIVERY_ENABLED`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_APP_NAME`, `EMAIL_PUBLIC_APP_URL`, and `RESEND_API_KEY` config.
+- Production validation rejects enabled email delivery with provider `none` or missing Resend config.
+- Organization invitations and Platform owner invitations attempt email delivery after invitation creation.
+- Password reset requests send reset email when a valid reset token is created and delivery is enabled.
+- Invitation APIs return safe `emailDeliveryStatus` and omit raw acceptance tokens in production.
+- Frontend invitation success messages show sent/skipped/failed email status.
+- Docs and static smoke checks now cover transactional email setup.
+
+Safety preserved:
+- No Gmail API is used for transactional email.
+- No marketing email behavior was added.
+- No CRM/Gmail/AI automation behavior changed.
+- Email logs do not include API keys, raw tokens, or full action URLs.
 
 Validation passed:
 - `git diff --check`

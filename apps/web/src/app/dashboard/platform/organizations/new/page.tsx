@@ -15,6 +15,7 @@ import {
   onboardPlatformOrganization,
 } from '@/lib/api-client';
 import type {
+  EmailDeliveryStatus,
   OnboardPlatformOrganizationInput,
   OnboardPlatformOrganizationResponse,
   OrganizationAccountType,
@@ -45,6 +46,25 @@ function buildDefaultSlug(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+}
+
+function getInvitationEmailDeliveryMessage(
+  status: EmailDeliveryStatus | undefined,
+  t: (key: string) => string,
+) {
+  if (status === 'sent') {
+    return t('common.emailDelivery.invitationSent');
+  }
+
+  if (status === 'failed') {
+    return t('common.emailDelivery.invitationFailed');
+  }
+
+  if (status === 'skipped') {
+    return t('common.emailDelivery.invitationSkipped');
+  }
+
+  return null;
 }
 
 export default function NewPlatformOrganizationPage() {
@@ -205,6 +225,15 @@ export default function NewPlatformOrganizationPage() {
                   createdOnboarding.ownerInvitation.email,
                 )}
               </p>
+
+              {createdOnboarding.emailDeliveryStatus ? (
+                <p className="text-sm font-medium text-emerald-800">
+                  {getInvitationEmailDeliveryMessage(
+                    createdOnboarding.emailDeliveryStatus,
+                    t,
+                  )}
+                </p>
+              ) : null}
 
               {acceptInvitationUrl ? (
                 <div className="mt-4 space-y-2">
