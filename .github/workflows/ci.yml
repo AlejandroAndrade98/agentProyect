@@ -59,6 +59,9 @@ jobs:
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: corepack pnpm db:generate
+
       - name: Static smoke checks
         run: corepack pnpm smoke:static
 
