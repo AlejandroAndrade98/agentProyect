@@ -140,6 +140,13 @@ export default function ConnectedAccountsSettingsPage() {
     Boolean(token) &&
     canConnect &&
     !currentUserAccount;
+  const canShowGoogleConnect =
+    Boolean(token) && canConnect && !currentUserAccount;
+  const canReconnectGoogle =
+    Boolean(token) &&
+    canConnect &&
+    currentUserAccount?.provider === 'GOOGLE' &&
+    currentUserAccount.status === 'DISCONNECTED';
 
   const pendingDisconnectRequests = useMemo(
     () =>
@@ -178,7 +185,9 @@ export default function ConnectedAccountsSettingsPage() {
   useEffect(() => {
   const params = new URLSearchParams(window.location.search);
 
-  if (params.get('connected') === 'google') {
+  if (params.get('reconnected') === 'google') {
+    setSuccessMessage(t('settings.connectedAccounts.googleReconnected'));
+  } else if (params.get('connected') === 'google') {
     setSuccessMessage(t('settings.connectedAccounts.googleConnected'));
   }
   }, [t]);
@@ -329,7 +338,7 @@ async function handleStartGoogleOAuth() {
         </div>
       ) : null}
 
-      {canShowDevConnectForm ? (
+      {canShowGoogleConnect ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -461,7 +470,7 @@ async function handleStartGoogleOAuth() {
         </section>
       ) : null}
 
-      {currentUserAccount ? (
+      {currentUserAccount && !canReconnectGoogle ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <p className="text-sm font-semibold text-amber-800">
             {t('settings.connectedAccounts.oneAccountTitle')}
@@ -491,6 +500,35 @@ async function handleStartGoogleOAuth() {
             <span className="w-fit rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700">
               {pendingDisconnectRequests.length}
             </span>
+          </div>
+        </section>
+      ) : null}
+
+      {canReconnectGoogle ? (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">
+                {t('settings.connectedAccounts.statuses.disconnected')}
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                {t('settings.connectedAccounts.reconnectGoogle')}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-800">
+                {t('settings.connectedAccounts.reconnectGoogleDescription')}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleStartGoogleOAuth}
+              disabled={isStartingGoogleOAuth}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isStartingGoogleOAuth
+                ? t('settings.connectedAccounts.startingGoogle')
+                : t('settings.connectedAccounts.reconnectGoogle')}
+            </button>
           </div>
         </section>
       ) : null}

@@ -26,7 +26,8 @@ export class ConnectedAccountsOAuthPublicController {
     @Query() query: GoogleOAuthCallbackDto,
     @Res() response: Response,
   ) {
-    await this.connectedAccountsService.handleGoogleOAuthCallback(query);
+    const result =
+      await this.connectedAccountsService.handleGoogleOAuthCallback(query);
 
     const frontendUrl = this.configService.get<string>('app.frontendUrl');
     const corsOrigin =
@@ -38,7 +39,9 @@ export class ConnectedAccountsOAuthPublicController {
       .replace(/\/$/, '');
 
     return response.redirect(
-      `${frontendBaseUrl}/dashboard/settings/connected-accounts?connected=google`,
+      result.wasReconnect
+        ? `${frontendBaseUrl}/dashboard/settings/connected-accounts?reconnected=google`
+        : `${frontendBaseUrl}/dashboard/settings/connected-accounts?connected=google`,
     );
   }
 }

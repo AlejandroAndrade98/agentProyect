@@ -78,6 +78,7 @@ const requiredFiles = [
   "apps/web/src/app/accept-invitation/[token]/page.tsx",
   "apps/web/src/app/dashboard/page.tsx",
   "apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx",
+  "apps/web/src/app/dashboard/settings/connected-accounts/page.tsx",
   "apps/web/src/components/AiGuardrailsNotice.tsx",
   "apps/web/src/i18n/locales/en.json",
   "apps/web/src/i18n/locales/es.json",
@@ -208,6 +209,8 @@ for (const expectedText of [
   "email.password_reset.send.success",
   "technical metadata available but collapsed by default",
   "applying crm actions requires an explicit user click",
+  "google connected account reconnect",
+  "reuses the existing tenant-scoped connected account record",
 ]) {
   if (!securityHardening.includes(expectedText)) {
     fail(`Security hardening docs missing transactional email reference: ${expectedText}`);
@@ -225,10 +228,32 @@ for (const expectedText of [
   }
 }
 
+const connectedAccountsPage = readText("apps/web/src/app/dashboard/settings/connected-accounts/page.tsx");
+for (const expectedText of [
+  "canReconnectGoogle",
+  "reconnected",
+  "reconnectGoogle",
+]) {
+  if (!connectedAccountsPage.includes(expectedText)) {
+    fail(`Connected accounts page missing reconnect marker: ${expectedText}`);
+  }
+}
+
 for (const [localeName, locale] of [
   ["English", en],
   ["Spanish", es],
 ]) {
+  const connectedAccounts = locale.settings?.connectedAccounts ?? {};
+  for (const expectedKey of [
+    "googleReconnected",
+    "reconnectGoogle",
+    "reconnectGoogleDescription",
+  ]) {
+    if (!connectedAccounts[expectedKey]) {
+      fail(`${localeName} locale missing connected account reconnect key: ${expectedKey}`);
+    }
+  }
+
   const guardrails = locale.common?.guardrails ?? {};
   for (const expectedKey of [
     "title",

@@ -76,6 +76,14 @@ Manual Gmail search/import is explicit and metadata-only:
 - Importing a dismissed email restores it intentionally.
 - Import does not run AI analysis, create Gmail drafts, send email, create CRM records, or start background jobs.
 
+### Google connected account reconnect
+
+Users can reconnect a previously disconnected Google connected account through the existing Google OAuth flow. Reconnect reuses the existing tenant-scoped connected account record for the current user instead of creating a duplicate row.
+
+On successful reconnect, encrypted Google tokens and safe account metadata are refreshed, disconnect timestamps are cleared, status returns to `CONNECTED`, and sync states return to a safe pending sync state. Existing one-Google-account-per-user enforcement remains in place.
+
+Reconnect does not change Google scopes, send emails, create Gmail drafts, create CRM records, trigger AI, or start background jobs automatically. OAuth logs must not include authorization codes, access tokens, refresh tokens, raw Google responses, email bodies, or snippets.
+
 ### AI suggestion detail safety display
 
 AI suggestion detail pages now keep technical metadata available but collapsed by default. External provider message IDs, thread IDs, connected account IDs, provider/model/token/cost fields, and raw AI metadata are kept in a `Technical details` section for audit/debug use instead of dominating the normal review flow.

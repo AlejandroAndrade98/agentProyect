@@ -243,11 +243,16 @@ export class ConnectedAccountsService {
     },
     select: {
       id: true,
+      provider: true,
       status: true,
     },
   });
 
-  if (existingAccount) {
+  const isReconnect =
+    existingAccount?.provider === ConnectedAccountProvider.GOOGLE &&
+    existingAccount.status === ConnectedAccountStatus.DISCONNECTED;
+
+  if (existingAccount && !isReconnect) {
     throw new ConflictException('User already has a connected account');
   }
 
@@ -312,14 +317,22 @@ export class ConnectedAccountsService {
     state: rawState,
   });
 
-  this.logger.info('oauth.google.start', {
-    event: 'oauth.google.start',
+  this.logger.info(
+    isReconnect
+      ? 'connected_account.oauth.google.reconnect_start'
+      : 'oauth.google.start',
+    {
+    event: isReconnect
+      ? 'connected_account.oauth.google.reconnect_start'
+      : 'oauth.google.start',
     organizationId: currentUser.organizationId,
     userId: currentUser.id,
+    connectedAccountId: existingAccount?.id,
     capabilities,
     scopeCount: scopes.length,
     expiresAt: expiresAt.toISOString(),
-  });
+    },
+  );
 
   return {
     authorizationUrl,
@@ -467,10 +480,16 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
     },
     select: {
       id: true,
+      provider: true,
+      status: true,
     },
   });
 
-  if (existingAccount) {
+  const isReconnect =
+    existingAccount?.provider === ConnectedAccountProvider.GOOGLE &&
+    existingAccount.status === ConnectedAccountStatus.DISCONNECTED;
+
+  if (existingAccount && !isReconnect) {
     await this.prisma.connectedAccountOAuthState.update({
       where: {
         id: oauthState.id,
@@ -523,10 +542,13 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
     });
 
     this.logger.warn('oauth.google.callback.failed', {
-      event: 'oauth.google.callback.failed',
+      event: isReconnect
+        ? 'connected_account.oauth.google.reconnect_failure'
+        : 'oauth.google.callback.failed',
       reason: 'token_exchange_failed',
       organizationId: oauthState.organizationId,
       userId: oauthState.userId,
+      connectedAccountId: existingAccount?.id,
       ...this.logger.toErrorFields(error),
     });
 
@@ -565,47 +587,85 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
       },
       select: {
         id: true,
+        provider: true,
+        status: true,
       },
     });
 
-    if (existingInsideTransaction) {
+    const isReconnectInsideTransaction =
+      existingInsideTransaction?.provider === ConnectedAccountProvider.GOOGLE &&
+      existingInsideTransaction.status === ConnectedAccountStatus.DISCONNECTED;
+
+    if (existingInsideTransaction && !isReconnectInsideTransaction) {
       throw new ConflictException('User already has a connected account');
     }
 
-    const createdAccount = await tx.connectedAccount.create({
-      data: {
-        organizationId: oauthState.organizationId,
-        userId: oauthState.userId,
+    const accountData = {
+      email: googleEmail,
+      displayName: googleDisplayName,
+      externalAccountId: googleExternalAccountId,
+      status: ConnectedAccountStatus.CONNECTED,
+      capabilities: oauthState.capabilities,
+      scopesJson: {
+        scopes: tokenResponse.scope
+          ? tokenResponse.scope.split(' ')
+          : undefined,
+        tokenType: tokenResponse.token_type,
+        emailVerified: googleEmailVerified,
         provider: ConnectedAccountProvider.GOOGLE,
-        email: googleEmail,
-        displayName: googleDisplayName,
-        externalAccountId: googleExternalAccountId,
-        status: ConnectedAccountStatus.CONNECTED,
-        capabilities: oauthState.capabilities,
-        scopesJson: {
-          scopes: tokenResponse.scope
-            ? tokenResponse.scope.split(' ')
-            : undefined,
-          tokenType: tokenResponse.token_type,
-          emailVerified: googleEmailVerified,
-          provider: ConnectedAccountProvider.GOOGLE,
-        },
-        encryptedAccessToken,
-        encryptedRefreshToken,
-        tokenExpiresAt,
-        tokenEncryptionVersion,
-        connectedAt: new Date(),
-        syncStates: {
-          create: oauthState.capabilities.map((capability) => ({
-            organizationId: oauthState.organizationId,
-            capability,
-            status: ConnectedAccountSyncStatus.INITIAL_SYNC_PENDING,
-            syncFrom,
-          })),
-        },
       },
-      select: connectedAccountSelect,
-    });
+      encryptedAccessToken,
+      encryptedRefreshToken,
+      tokenExpiresAt,
+      tokenEncryptionVersion,
+      connectedAt: new Date(),
+      disconnectRequestedAt: null,
+      disconnectedAt: null,
+      revokedAt: null,
+      lastError: null,
+    } satisfies Prisma.ConnectedAccountUpdateInput;
+
+    const createdAccount = existingInsideTransaction
+      ? await tx.connectedAccount.update({
+          where: {
+            id: existingInsideTransaction.id,
+          },
+          data: accountData,
+          select: connectedAccountSelect,
+        })
+      : await tx.connectedAccount.create({
+          data: {
+            organizationId: oauthState.organizationId,
+            userId: oauthState.userId,
+            provider: ConnectedAccountProvider.GOOGLE,
+            ...accountData,
+          },
+          select: connectedAccountSelect,
+        });
+
+    for (const capability of oauthState.capabilities) {
+      await tx.connectedAccountSyncState.upsert({
+        where: {
+          connectedAccountId_capability: {
+            connectedAccountId: createdAccount.id,
+            capability,
+          },
+        },
+        update: {
+          status: ConnectedAccountSyncStatus.INITIAL_SYNC_PENDING,
+          syncFrom,
+          syncCursor: null,
+          lastError: null,
+        },
+        create: {
+          organizationId: oauthState.organizationId,
+          connectedAccountId: createdAccount.id,
+          capability,
+          status: ConnectedAccountSyncStatus.INITIAL_SYNC_PENDING,
+          syncFrom,
+        },
+      });
+    }
 
     await tx.connectedAccountOAuthState.update({
       where: {
@@ -622,8 +682,12 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
       actorUserId: oauthState.userId,
       accountId: createdAccount.id,
       type: ActivityEventType.CONNECTED_ACCOUNT_CONNECTED,
-      title: 'Google account connected',
-      description: `Google account connected for ${createdAccount.email}`,
+      title: existingInsideTransaction
+        ? 'Google account reconnected'
+        : 'Google account connected',
+      description: existingInsideTransaction
+        ? `Google account reconnected for ${createdAccount.email}`
+        : `Google account connected for ${createdAccount.email}`,
       metadataJson: {
         provider: ConnectedAccountProvider.GOOGLE,
         email: createdAccount.email,
@@ -632,21 +696,32 @@ async handleGoogleOAuthCallback(query: GoogleOAuthCallbackDto) {
         syncImplemented: false,
         initialSyncWindowDays: 30,
         hasTokens: true,
+        reconnected: Boolean(existingInsideTransaction),
       },
     });
 
     return createdAccount;
   });
 
-  this.logger.info('oauth.google.callback.success', {
-    event: 'oauth.google.callback.success',
+  this.logger.info(
+    isReconnect
+      ? 'connected_account.oauth.google.reconnect_success'
+      : 'oauth.google.callback.success',
+    {
+    event: isReconnect
+      ? 'connected_account.oauth.google.reconnect_success'
+      : 'oauth.google.callback.success',
     organizationId: account.organizationId,
     userId: account.userId,
     connectedAccountId: account.id,
     capabilities: account.capabilities,
-  });
+    },
+  );
 
-  return account;
+  return {
+    account,
+    wasReconnect: isReconnect,
+  };
 }
 
   async devConnect(

@@ -12,7 +12,7 @@ This checklist prepares Google OAuth for production connected Gmail and Calendar
 | OAuth callback endpoint | `GET /api/connected-accounts/oauth/google/callback` |
 | Frontend entry point | Connected Accounts settings page calls the start endpoint, then redirects the browser to Google's authorization URL. |
 | Backend redirect URI | `GOOGLE_OAUTH_REDIRECT_URI`, with fallback alias `GOOGLE_REDIRECT_URI`; local default is `http://localhost:4000/api/connected-accounts/oauth/google/callback`. |
-| Frontend success redirect | `FRONTEND_URL` if set, otherwise first value from `CORS_ORIGIN`, ending at `/dashboard/settings/connected-accounts?connected=google`. |
+| Frontend success redirect | `FRONTEND_URL` if set, otherwise first value from `CORS_ORIGIN`, ending at `/dashboard/settings/connected-accounts?connected=google` for first connect or `?reconnected=google` for reconnect. |
 | State handling | 32-byte random state is generated, SHA-256 hashed, stored with user, organization, provider, capabilities, scopes, redirect URI, expiration, and status. Raw state is only sent to Google. |
 | State expiration | 10 minutes. Expired states are marked `EXPIRED`. |
 | One-time use | Callback rejects non-`PENDING` states and states with `usedAt`; successful callback marks the state `USED`. Starting a new OAuth flow cancels prior pending states for the same user/provider/org. |
@@ -24,6 +24,7 @@ This checklist prepares Google OAuth for production connected Gmail and Calendar
 | Token refresh | Manual sync decrypts refresh token, requests a new access token when the current token expires within 60 seconds, encrypts the new access token, and updates expiry. |
 | Disconnect request | User/admin/sales can request disconnect; status becomes `DISCONNECT_REQUESTED`. |
 | Admin disconnect | SUPER_ADMIN, OWNER, or ADMIN can disconnect; sync states pause and encrypted tokens are cleared. |
+| Reconnect | A disconnected Google connected account can be reauthorized from the Connected Accounts page. The callback reuses the existing connected account row, refreshes encrypted tokens/account metadata, clears disconnect timestamps, returns status to `CONNECTED`, and does not create a duplicate account. |
 | Gmail capability | Manual metadata sync fetches recent Gmail message metadata only; manual Gmail search/import previews and imports selected message metadata only; body is not stored; email is not sent. Gmail draft creation remains a separate explicit accepted-suggestion action. |
 | Calendar capability | Manual calendar sync fetches primary-calendar event metadata for the next 30 days; no CRM record is created automatically. |
 
@@ -119,6 +120,7 @@ Google may require app verification, and Gmail restricted scopes can require a s
 
   ```text
   https://app.your-domain.com/dashboard/settings/connected-accounts?connected=google
+  https://app.your-domain.com/dashboard/settings/connected-accounts?reconnected=google
   ```
 
 ## Token Encryption QA
@@ -134,7 +136,7 @@ Google may require app verification, and Gmail restricted scopes can require a s
 - Starting OAuth creates a pending state tied to organization/user/provider.
 - Starting a second flow cancels prior pending states for the same organization/user/provider.
 - Callback rejects missing state, invalid state, expired state, reused state, inactive user, deleted org, suspended org, and cancelled org.
-- Successful callback marks state as used and creates one connected account for the user.
+- Successful callback marks state as used and creates one connected account for the user, or reuses the user's existing disconnected Google connected account record during reconnect.
 - The raw state value is never stored; only the hash is stored.
 
 ## Reconnect and Disconnect QA
@@ -148,7 +150,7 @@ Run in staging with test users:
 5. Disconnect as OWNER/ADMIN/SUPER_ADMIN.
 6. Confirm tokens are cleared and sync states pause.
 7. Reconnect after disconnect.
-8. Confirm account connects again and sync states initialize.
+8. Confirm account connects again, sync states initialize, and no duplicate connected account row is created.
 
 ## Token Refresh QA
 

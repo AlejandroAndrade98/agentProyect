@@ -49,6 +49,7 @@ AI safety:
 - OpenAI generation exists for lead next steps, external email analysis, and external calendar analysis with safe provider error handling.
 - Accepted external email/calendar suggestions can be explicitly applied by a human to create CRM notes, tasks, or leads.
 - Main AI work surfaces use compact collapsed guardrail disclosures so safety rules remain available without dominating the default view.
+- Disconnected Google connected accounts can be reconnected from Settings without creating duplicate connected account records.
 
 ## Latest Completed Phase
 
@@ -65,6 +66,12 @@ Phase 19B.2C Collapsible Guardrails UX Cleanup is complete:
 - AI Workspace, AI Suggestions board, Synced Emails board/list, and Synced Calendar board/list now use compact collapsed guardrail disclosures.
 - Safety information remains available in expanded content.
 - No AI, Gmail draft, email sending, CRM automation, backend, Prisma, or API behavior changed.
+
+Phase 19C.1 Google Connected Account Reconnect Flow is complete:
+- Connected Accounts shows a clear reconnect action for a user's disconnected Google account.
+- Reconnect uses the existing Google OAuth flow and reuses the existing connected account record.
+- Successful reconnect restores `CONNECTED` status and safe sync pending state without creating duplicate Google account rows.
+- No scopes, email sending, Gmail draft creation, CRM automation, AI generation, Prisma schema, or deployment behavior changed.
 
 ## Immediate Roadmap
 
