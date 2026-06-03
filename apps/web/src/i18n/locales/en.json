@@ -172,7 +172,8 @@
       "hideRules": "Hide rules",
       "workspaceDescription": "This workspace centralizes review and sync work. Sync and review actions remain manual.",
       "aiSuggestionsDescription": "Review suggestions here, then open details for any explicit apply action.",
-      "syncedEmailsDescription": "AI actions on synced emails use metadata/snippets only and create suggestions for human review."
+      "syncedEmailsDescription": "AI actions on synced emails use metadata/snippets only and create suggestions for human review.",
+      "syncedCalendarDescription": "AI actions on synced calendar events use calendar metadata only and create suggestions for human review."
     }
   },
   "navigation": {

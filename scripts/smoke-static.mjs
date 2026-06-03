@@ -238,6 +238,7 @@ for (const [localeName, locale] of [
     "workspaceDescription",
     "aiSuggestionsDescription",
     "syncedEmailsDescription",
+    "syncedCalendarDescription",
   ]) {
     if (!guardrails[expectedKey]) {
       fail(`${localeName} locale missing guardrails key: ${expectedKey}`);

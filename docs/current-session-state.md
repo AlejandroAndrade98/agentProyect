@@ -62,7 +62,7 @@ Phase 19A.1 Staging Bootstrap Admin Seed is complete:
 - Deployment/env docs now document the empty-staging bootstrap flow and removal of temporary bootstrap env vars after use.
 
 Phase 19B.2C Collapsible Guardrails UX Cleanup is complete:
-- AI Workspace, AI Suggestions board, Synced Emails board, and Synced Emails list now use compact collapsed guardrail disclosures.
+- AI Workspace, AI Suggestions board, Synced Emails board/list, and Synced Calendar board/list now use compact collapsed guardrail disclosures.
 - Safety information remains available in expanded content.
 - No AI, Gmail draft, email sending, CRM automation, backend, Prisma, or API behavior changed.
 
