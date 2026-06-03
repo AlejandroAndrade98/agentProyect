@@ -912,6 +912,7 @@ const externalEmailAnalysisOutput =
   suggestion?.outputJson && isExternalEmailAnalysisOutput(suggestion.outputJson)
     ? suggestion.outputJson
     : null;
+const showLegacyExternalEmailReviewSection = false;
 const externalCalendarAnalysisOutput =
   suggestion?.outputJson &&
   isExternalCalendarEventAnalysisOutput(suggestion.outputJson)
@@ -992,6 +993,7 @@ const statusClassName = suggestion
           typeLabel={typeLabel}
           confidenceLabel={confidenceLabel}
           outputLanguageLabel={outputLanguageLabel}
+          recommendedActionLabel={suggestedActionLabel}
         />
 
         <AiSuggestionSummaryCards
@@ -1099,7 +1101,7 @@ const statusClassName = suggestion
                 </article>
               ) : null}
 
-              {isExternalEmailSuggestion || isExternalEmailReplyDraftSuggestion ? (
+              {/* Legacy technical email metadata moved to AiAdvancedMetadataSection.
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-950">
                     {t('aiSuggestions.detail.externalEmailMetadata')}
@@ -1256,7 +1258,7 @@ const statusClassName = suggestion
                     </div>
                   </div>
                 </article>
-              ) : null}
+              */}
 
               {isExternalEmailReplyDraftSuggestion ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1464,7 +1466,7 @@ const statusClassName = suggestion
                 </article>
               ) : null}
 
-              {isExternalCalendarSuggestion ? (
+              {/* Legacy technical calendar metadata moved to AiAdvancedMetadataSection.
   <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
     <h2 className="text-lg font-semibold text-slate-950">
       {t('aiSuggestions.detail.externalCalendarMetadata')}
@@ -1672,7 +1674,7 @@ const statusClassName = suggestion
       </div>
     </div>
   </article>
-              ) : null}
+              */}
 
               {isExternalCalendarSuggestion &&
               suggestion.outputJson &&
@@ -1684,7 +1686,7 @@ const statusClassName = suggestion
                         {t('aiSuggestions.detail.externalCalendarReview')}
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        {t('aiSuggestions.detail.syncedCalendarMetadata')}
+                        {t('aiSuggestions.detail.aiRecommendation')}
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
                         {t('aiSuggestions.detail.calendarReviewDescription')}
@@ -1796,7 +1798,8 @@ const statusClassName = suggestion
                 </article>
               ) : null}
 
-              {isExternalEmailSuggestion &&
+              {showLegacyExternalEmailReviewSection &&
+              isExternalEmailSuggestion &&
                 suggestion.outputJson &&
                 isExternalEmailAnalysisOutput(suggestion.outputJson) ? (
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1806,7 +1809,7 @@ const statusClassName = suggestion
                         {t('aiSuggestions.detail.externalEmailReview')}
                       </p>
                       <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                        {t('aiSuggestions.detail.syncedEmailMetadata')}
+                        {t('aiSuggestions.detail.aiRecommendation')}
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
                         {t('aiSuggestions.detail.emailReviewDescription')}
@@ -2238,7 +2241,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalCalendarAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createCalendarTaskTitle')}
@@ -2333,7 +2336,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalCalendarAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createCalendarNoteTitle')}
@@ -2428,7 +2431,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalCalendarAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createCalendarLeadTitle')}
@@ -2474,7 +2477,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalEmailAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createEmailLeadTitle')}
@@ -2520,7 +2523,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalEmailAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createEmailTaskTitle')}
@@ -2634,7 +2637,7 @@ const statusClassName = suggestion
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-medium text-blue-700">
-              {t('aiSuggestions.detail.externalEmailAction')}
+              {t('aiSuggestions.detail.applyToCrm')}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">
               {t('aiSuggestions.detail.createEmailNoteTitle')}

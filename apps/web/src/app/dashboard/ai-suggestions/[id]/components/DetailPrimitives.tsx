@@ -49,7 +49,7 @@ export function InfoTile({
         {label}
       </p>
       {children ?? (
-        <p className="mt-2 break-words text-sm font-medium text-slate-900">
+        <p className="mt-2 break-words text-base font-semibold leading-6 text-slate-950">
           {value || t('aiSuggestions.labels.notSet')}
         </p>
       )}

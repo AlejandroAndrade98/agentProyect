@@ -828,3 +828,28 @@ Validation passed:
 - `corepack pnpm --filter @sales-ai/web exec tsc --noEmit`
 - `corepack pnpm --filter @sales-ai/api build`
 - `corepack pnpm build`
+
+## Latest completed phase
+
+Phase 19B.2 AI Suggestion Detail UX Polish is completed locally.
+
+Implemented:
+- AI suggestion detail pages now prioritize user-facing context, the AI recommendation, review state, and explicit CRM actions.
+- External email suggestions show friendlier email context and recommendation sections instead of developer-oriented metadata in the main flow.
+- Technical metadata, provider/model/token/cost details, external provider IDs, connected account IDs, and raw metadata remain available in a collapsed `Technical details` section.
+- Safety indicators remain available in a compact expandable safety control.
+- CRM action wording now uses opportunity language in the UI while preserving the existing backend `Lead` model/API contracts.
+
+Safety preserved:
+- No backend behavior changed.
+- No Prisma/schema/API contract changes.
+- No AI generation behavior changed.
+- No email sending was added.
+- No automatic Gmail draft creation was added.
+- No automatic CRM record creation was added.
+- All CRM actions remain explicit human-triggered actions.
+
+Validation:
+- `git diff --check` passed.
+- `corepack pnpm --filter @sales-ai/web exec tsc --noEmit` passed.
+- `corepack pnpm smoke:static` passed.

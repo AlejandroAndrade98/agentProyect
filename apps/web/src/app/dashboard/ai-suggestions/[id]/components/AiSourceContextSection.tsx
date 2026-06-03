@@ -37,7 +37,7 @@ export function AiSourceContextSection({
                 : isExternalEmailReplyDraftSuggestion
                   ? t('aiSuggestions.detail.originalEmailAndReplyDraft')
                   : isExternalEmailSuggestion
-                    ? t('aiSuggestions.detail.syncedEmailMetadata')
+                    ? t('aiSuggestions.detail.emailContext')
                     : isExternalCalendarSuggestion
                       ? t('aiSuggestions.detail.syncedCalendarMetadata')
                       : t('aiSuggestions.detail.suggestionSource')

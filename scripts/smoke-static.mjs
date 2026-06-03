@@ -205,9 +205,39 @@ for (const expectedText of [
   "resend",
   "email.invitation.send.success",
   "email.password_reset.send.success",
+  "technical metadata available but collapsed by default",
+  "applying crm actions requires an explicit user click",
 ]) {
   if (!securityHardening.includes(expectedText)) {
     fail(`Security hardening docs missing transactional email reference: ${expectedText}`);
+  }
+}
+
+const aiSuggestionDetailPage = readText("apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx");
+for (const expectedText of [
+  "AiAdvancedMetadataSection",
+  "recommendedActionLabel",
+  "applyToCrm",
+]) {
+  if (!aiSuggestionDetailPage.includes(expectedText)) {
+    fail(`AI suggestion detail page missing UX marker: ${expectedText}`);
+  }
+}
+
+for (const [localeName, locale] of [
+  ["English", en],
+  ["Spanish", es],
+]) {
+  const detail = locale.aiSuggestions?.detail ?? {};
+  for (const expectedKey of [
+    "technicalDetails",
+    "emailContext",
+    "viewSafetyDetails",
+    "noAutomaticChangesApplied",
+  ]) {
+    if (!detail[expectedKey]) {
+      fail(`${localeName} locale missing AI detail UX key: ${expectedKey}`);
+    }
   }
 }
 

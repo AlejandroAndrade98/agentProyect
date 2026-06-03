@@ -14,6 +14,7 @@ export function AiSuggestionHero({
   typeLabel,
   confidenceLabel,
   outputLanguageLabel,
+  recommendedActionLabel,
 }: {
   suggestion: AiSuggestion;
   statusClassName: string;
@@ -21,6 +22,7 @@ export function AiSuggestionHero({
   typeLabel: string;
   confidenceLabel: string;
   outputLanguageLabel: string;
+  recommendedActionLabel: string;
 }) {
   const { t } = useI18n();
 
@@ -59,15 +61,8 @@ export function AiSuggestionHero({
               value={formatDateTime(suggestion.reviewedAt)}
             />
             <InfoTile
-              label={t('aiSuggestions.labels.provider')}
-              value={suggestion.provider}
-            />
-            <InfoTile
-              label={t('aiSuggestions.labels.model')}
-              value={String(
-                suggestion.metadataJson?.model ??
-                  t('common.emptyStates.notSet'),
-              )}
+              label={t('aiSuggestions.detail.mainRecommendedAction')}
+              value={recommendedActionLabel}
             />
             <InfoTile
               label={t('aiSuggestions.detail.outputLanguage')}

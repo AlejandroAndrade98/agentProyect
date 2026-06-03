@@ -76,6 +76,20 @@ Manual Gmail search/import is explicit and metadata-only:
 - Importing a dismissed email restores it intentionally.
 - Import does not run AI analysis, create Gmail drafts, send email, create CRM records, or start background jobs.
 
+### AI suggestion detail safety display
+
+AI suggestion detail pages now keep technical metadata available but collapsed by default. External provider message IDs, thread IDs, connected account IDs, provider/model/token/cost fields, and raw AI metadata are kept in a `Technical details` section for audit/debug use instead of dominating the normal review flow.
+
+The user-facing review flow still shows safety controls:
+
+- Human approval is required.
+- No email is sent automatically.
+- No Gmail draft is created automatically.
+- No CRM record is created automatically by AI analysis.
+- Applying CRM actions requires an explicit user click.
+
+This is a frontend display change only. It does not change AI generation, Gmail draft creation rules, email sending rules, API payload contracts, tenant scoping, or stored metadata.
+
 ### Security headers
 
 The API sets conservative security headers:

@@ -419,6 +419,9 @@ Must-have before inviting users:
 - [ ] Gmail sync works.
 - [ ] Calendar sync works.
 - [ ] `AI_PROVIDER=mock` suggestion works.
+- [ ] AI suggestion detail review is understandable for beta users, with technical metadata collapsed by default.
+- [ ] External email suggestions clearly show email context, AI recommendation, safety, and explicit CRM actions.
+- [ ] CRM action wording uses opportunity language in the UI while preserving backend Lead model/API contracts.
 - [ ] No email is sent automatically.
 - [ ] No Gmail draft is created automatically.
 - [ ] No CRM record is created automatically by AI analysis.

@@ -17,31 +17,38 @@ export function AiSafetyPanel({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+    <details className="group rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+      <summary className="flex cursor-pointer list-none flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             {t('aiSuggestions.detail.safety')}
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-blue-950">
+          </span>
+          <span className="mt-1 block text-base font-semibold text-blue-950">
             {t('aiSuggestions.detail.humanControlled')}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-900">
-            {t('aiSuggestions.detail.safetyDescription')}
-          </p>
-        </div>
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-blue-900">
+            {t('aiSuggestions.detail.noAutomaticChangesApplied')}
+          </span>
+        </span>
+        <span className="inline-flex w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 ring-1 ring-blue-100 transition group-open:bg-blue-100">
+          {t('aiSuggestions.detail.viewSafetyDetails')}
+        </span>
+      </summary>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
-          {items.map((item) => (
-            <div
-              key={item}
-              className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm font-medium text-blue-900"
-            >
-              {item}
-            </div>
-          ))}
-        </div>
+      <p className="mt-4 max-w-3xl border-t border-blue-100 pt-4 text-sm leading-6 text-blue-900">
+        {t('aiSuggestions.detail.safetyDescription')}
+      </p>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <div
+            key={item}
+            className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm font-medium text-blue-900"
+          >
+            {item}
+          </div>
+        ))}
       </div>
-    </article>
+    </details>
   );
 }
