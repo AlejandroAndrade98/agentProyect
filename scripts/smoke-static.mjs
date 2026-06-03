@@ -78,6 +78,7 @@ const requiredFiles = [
   "apps/web/src/app/accept-invitation/[token]/page.tsx",
   "apps/web/src/app/dashboard/page.tsx",
   "apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx",
+  "apps/web/src/components/AiGuardrailsNotice.tsx",
   "apps/web/src/i18n/locales/en.json",
   "apps/web/src/i18n/locales/es.json",
 ];
@@ -228,6 +229,33 @@ for (const [localeName, locale] of [
   ["English", en],
   ["Spanish", es],
 ]) {
+  const guardrails = locale.common?.guardrails ?? {};
+  for (const expectedKey of [
+    "title",
+    "summary",
+    "viewRules",
+    "hideRules",
+    "workspaceDescription",
+    "aiSuggestionsDescription",
+    "syncedEmailsDescription",
+  ]) {
+    if (!guardrails[expectedKey]) {
+      fail(`${localeName} locale missing guardrails key: ${expectedKey}`);
+    }
+  }
+
+  const safety = locale.common?.safety ?? {};
+  for (const expectedKey of [
+    "humanReviewRequired",
+    "noAutomaticEmailSending",
+    "noAutomaticCrmRecords",
+    "explicitActionRequired",
+  ]) {
+    if (!safety[expectedKey]) {
+      fail(`${localeName} locale missing safety key: ${expectedKey}`);
+    }
+  }
+
   const detail = locale.aiSuggestions?.detail ?? {};
   for (const expectedKey of [
     "technicalDetails",

@@ -12,6 +12,7 @@ Deploy a controlled staging/private beta environment that can support a small in
 - No Gmail draft is created automatically.
 - No CRM record is created automatically by AI analysis.
 - AI suggestions remain human-in-the-loop.
+- AI guardrails may appear as compact collapsed disclosures in the web UI; the safety information must remain available and the automation rules do not change.
 - Google OAuth, Gmail sync, Calendar sync, AI generation, login, and CRM reads are validated in staging before inviting users.
 
 ## Recommended First Architecture

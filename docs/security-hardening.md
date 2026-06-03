@@ -90,6 +90,14 @@ The user-facing review flow still shows safety controls:
 
 This is a frontend display change only. It does not change AI generation, Gmail draft creation rules, email sending rules, API payload contracts, tenant scoping, or stored metadata.
 
+### Collapsible AI guardrail disclosures
+
+AI Workspace, AI Suggestions board, Synced Emails board, and Synced Emails list now show compact guardrail disclosures instead of large always-visible blue guardrail cards.
+
+The collapsed summary still makes the primary rule visible: AI is human-reviewed and does not apply emails, Gmail drafts, or CRM changes automatically. Expanding the disclosure shows the detailed page-specific safety rules, including metadata/snippet-only analysis where applicable and the requirement for explicit human clicks.
+
+This is a frontend display change only. It does not change AI generation, Gmail draft creation rules, email sending rules, CRM automation rules, API payload contracts, tenant scoping, or stored metadata.
+
 ### Security headers
 
 The API sets conservative security headers:

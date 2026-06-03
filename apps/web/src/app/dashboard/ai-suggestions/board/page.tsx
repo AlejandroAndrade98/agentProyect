@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AiGuardrailsNotice } from '@/components/AiGuardrailsNotice';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
@@ -694,23 +695,16 @@ export default function AiSuggestionsBoardPage() {
         }
       />
 
-      <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-        <div className="grid gap-3 md:grid-cols-4">
-          {[
-            t('common.safety.humanReviewRequired'),
-            t('common.safety.noAutomaticEmailSending'),
-            t('common.safety.noAutomaticGmailDraft'),
-            t('common.safety.noAutomaticCrmRecords'),
-          ].map((message) => (
-            <div
-              key={message}
-              className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm font-medium text-blue-800"
-            >
-              {message}
-            </div>
-          ))}
-        </div>
-      </section>
+      <AiGuardrailsNotice
+        description={t('common.guardrails.aiSuggestionsDescription')}
+        items={[
+          t('common.safety.humanReviewRequired'),
+          t('common.safety.noAutomaticEmailSending'),
+          t('common.safety.noAutomaticGmailDraft'),
+          t('common.safety.noAutomaticCrmRecords'),
+          t('common.safety.explicitDetailActionsOnly'),
+        ]}
+      />
 
       <section className="overflow-x-auto pb-3">
         <div className="grid min-w-[1700px] gap-4 xl:grid-cols-5">

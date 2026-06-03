@@ -88,7 +88,18 @@
       "noAutomaticCrmRecords": "No se crean registros CRM automáticamente",
       "noAutomaticGmailDraft": "No se crean borradores de Gmail automáticamente",
       "metadataOnly": "Análisis solo de metadatos y fragmentos",
-      "explicitDraftAction": "Crear un borrador de Gmail requiere una acción explícita del usuario"
+      "explicitDraftAction": "Crear un borrador de Gmail requiere una acción explícita del usuario",
+      "explicitActionRequired": "Las acciones requieren un clic humano explícito",
+      "explicitDetailActionsOnly": "Las sugerencias aceptadas aplican cambios solo desde acciones explícitas en el detalle"
+    },
+    "guardrails": {
+      "title": "Reglas de seguridad",
+      "summary": "IA con revisión humana. Sin correos, borradores ni cambios CRM automáticos.",
+      "viewRules": "Ver reglas",
+      "hideRules": "Ocultar reglas",
+      "workspaceDescription": "Este espacio centraliza revisión y sincronización. Las acciones de sync y revisión siguen siendo manuales.",
+      "aiSuggestionsDescription": "Revisa sugerencias aquí y abre el detalle para cualquier acción explícita de aplicación.",
+      "syncedEmailsDescription": "Las acciones de IA sobre correos sincronizados usan solo metadatos/fragmentos y crean sugerencias para revisión humana."
     },
     "labels": {
       "yes": "Sí",

@@ -161,7 +161,18 @@
       "noAutomaticCrmRecords": "No CRM records are created automatically",
       "noAutomaticGmailDraft": "No Gmail draft is created automatically",
       "metadataOnly": "Metadata/snippet-only analysis",
-      "explicitDraftAction": "Gmail draft creation requires explicit user action"
+      "explicitDraftAction": "Gmail draft creation requires explicit user action",
+      "explicitActionRequired": "Actions require an explicit human click",
+      "explicitDetailActionsOnly": "Accepted suggestions apply changes only from explicit detail-page actions"
+    },
+    "guardrails": {
+      "title": "Safety rules",
+      "summary": "Human-reviewed AI. No automatic emails, drafts, or CRM changes.",
+      "viewRules": "View rules",
+      "hideRules": "Hide rules",
+      "workspaceDescription": "This workspace centralizes review and sync work. Sync and review actions remain manual.",
+      "aiSuggestionsDescription": "Review suggestions here, then open details for any explicit apply action.",
+      "syncedEmailsDescription": "AI actions on synced emails use metadata/snippets only and create suggestions for human review."
     }
   },
   "navigation": {

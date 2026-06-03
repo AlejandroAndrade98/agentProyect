@@ -48,6 +48,7 @@ AI safety:
 - External email/calendar AI review queue exists for synced metadata.
 - OpenAI generation exists for lead next steps, external email analysis, and external calendar analysis with safe provider error handling.
 - Accepted external email/calendar suggestions can be explicitly applied by a human to create CRM notes, tasks, or leads.
+- Main AI work surfaces use compact collapsed guardrail disclosures so safety rules remain available without dominating the default view.
 
 ## Latest Completed Phase
 
@@ -59,6 +60,11 @@ Phase 19A.1 Staging Bootstrap Admin Seed is complete:
 - The script uses `DATABASE_URL`, ignores `DATABASE_URL_HOST`, and does not print passwords, hashes, tokens, or secrets.
 - Login UI no longer pre-fills `owner@example.com`; email placeholder is neutral EN/ES.
 - Deployment/env docs now document the empty-staging bootstrap flow and removal of temporary bootstrap env vars after use.
+
+Phase 19B.2C Collapsible Guardrails UX Cleanup is complete:
+- AI Workspace, AI Suggestions board, Synced Emails board, and Synced Emails list now use compact collapsed guardrail disclosures.
+- Safety information remains available in expanded content.
+- No AI, Gmail draft, email sending, CRM automation, backend, Prisma, or API behavior changed.
 
 ## Immediate Roadmap
 

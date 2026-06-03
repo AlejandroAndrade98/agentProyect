@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AiGuardrailsNotice } from '@/components/AiGuardrailsNotice';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -849,22 +850,17 @@ export default function ExternalEmailMessagesBoardPage() {
         }
       />
 
-      <section className="grid gap-3 md:grid-cols-5">
-        {[
+      <AiGuardrailsNotice
+        description={t('common.guardrails.syncedEmailsDescription')}
+        items={[
           t('externalSync.safety.emailMetadataOnly'),
           t('externalSync.safety.noEmailSent'),
           t('externalSync.safety.noGmailDraft'),
           t('externalSync.safety.noCrmRecords'),
           t('externalSync.safety.generatedSuggestionsHumanReview'),
-        ].map((message) => (
-          <div
-            key={message}
-            className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-medium text-blue-900"
-          >
-            {message}
-          </div>
-        ))}
-      </section>
+          t('common.safety.explicitActionRequired'),
+        ]}
+      />
 
       {isImportPanelOpen ? (
         <GmailImportPanel

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AiGuardrailsNotice } from '@/components/AiGuardrailsNotice';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -557,22 +558,17 @@ export default function AiWorkspacePage() {
         description={t('aiWorkspace.subtitle')}
       />
 
-      <section className="grid gap-3 md:grid-cols-5">
-        {[
+      <AiGuardrailsNotice
+        description={t('common.guardrails.workspaceDescription')}
+        items={[
           t('common.safety.humanReviewRequired'),
           t('common.safety.metadataOnly'),
           t('common.safety.noAutomaticEmailSending'),
           t('common.safety.noAutomaticGmailDraft'),
           t('common.safety.noAutomaticCrmRecords'),
-        ].map((message) => (
-          <div
-            key={message}
-            className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-medium text-blue-900"
-          >
-            {message}
-          </div>
-        ))}
-      </section>
+          t('common.safety.explicitActionRequired'),
+        ]}
+      />
 
       {syncMessage ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
