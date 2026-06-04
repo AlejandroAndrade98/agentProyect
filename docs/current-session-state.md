@@ -73,6 +73,16 @@ Phase 19C.1 Google Connected Account Reconnect Flow is complete:
 - Successful reconnect restores `CONNECTED` status and safe sync pending state without creating duplicate Google account rows.
 - No scopes, email sending, Gmail draft creation, CRM automation, AI generation, Prisma schema, or deployment behavior changed.
 
+Phase 19C.2 Public Privacy Policy and Terms Pages is complete:
+- Added public unauthenticated `/privacy` and `/terms` pages for Google OAuth app domain readiness.
+- Google OAuth app domain values are:
+  - Home: `https://www.salesflowsai.com`
+  - Privacy: `https://www.salesflowsai.com/privacy`
+  - Terms: `https://www.salesflowsai.com/terms`
+- The pages describe Google data usage, encrypted OAuth tokens, metadata/snippet-only Gmail handling, Calendar metadata handling, human-in-the-loop AI, and no automatic email, Gmail draft, or CRM record creation.
+- Login, forgot password, and reset password pages link to Privacy Policy and Terms of Service.
+- No backend, Prisma, API, Google OAuth scope, email sending, Gmail draft, CRM automation, or AI behavior changed.
+
 ## Immediate Roadmap
 
 - Run the one-off staging bootstrap only after migrations are deployed to the empty Railway Postgres database.

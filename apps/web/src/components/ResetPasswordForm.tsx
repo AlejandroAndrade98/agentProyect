@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
 
+import { PublicLegalLinks } from '@/components/PublicLegalLinks';
 import { useI18n } from '@/i18n/useI18n';
 import { resetPassword } from '@/lib/api/auth';
 import { ApiClientError } from '@/lib/api/core';
@@ -140,6 +141,8 @@ export function ResetPasswordForm() {
         >
           {t('auth.recovery.backToLogin')}
         </Link>
+
+        <PublicLegalLinks />
       </div>
     </form>
   );

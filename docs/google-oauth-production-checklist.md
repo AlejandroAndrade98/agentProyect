@@ -33,24 +33,23 @@ This checklist prepares Google OAuth for production connected Gmail and Calendar
 1. Create or select the production Google Cloud project.
 2. Configure the OAuth consent screen.
 3. Set app name, user support email, developer contact email, logo, and production branding.
-4. Add authorized domains, for example:
-   - `your-domain.com`
-   - `api.your-domain.com`
-   - `app.your-domain.com`
-5. Add placeholders in the Google consent screen:
-   - Privacy policy URL: `https://app.your-domain.com/privacy`
-   - Terms of service URL: `https://app.your-domain.com/terms`
+4. Add authorized domains:
+   - `salesflowsai.com`
+5. Add app domain URLs in the Google consent screen:
+   - Home page URL: `https://www.salesflowsai.com`
+   - Privacy policy URL: `https://www.salesflowsai.com/privacy`
+   - Terms of service URL: `https://www.salesflowsai.com/terms`
 6. Create an OAuth 2.0 Web application client.
 7. Authorized redirect URI:
 
    ```text
-   https://api.your-domain.com/api/connected-accounts/oauth/google/callback
+   https://api.salesflowsai.com/api/connected-accounts/oauth/google/callback
    ```
 
 8. Authorized JavaScript origins are usually not required for this server-side OAuth code exchange, but if Google Cloud requires them for the web client, use exact frontend origins only:
 
    ```text
-   https://app.your-domain.com
+   https://www.salesflowsai.com
    ```
 
 ## Required Runtime Env
@@ -60,9 +59,9 @@ Use the existing canonical repo names:
 ```text
 GOOGLE_OAUTH_CLIENT_ID=<from Google Cloud>
 GOOGLE_OAUTH_CLIENT_SECRET=<from Google Cloud secret manager>
-GOOGLE_OAUTH_REDIRECT_URI=https://api.your-domain.com/api/connected-accounts/oauth/google/callback
-FRONTEND_URL=https://app.your-domain.com
-CORS_ORIGIN=https://app.your-domain.com
+GOOGLE_OAUTH_REDIRECT_URI=https://api.salesflowsai.com/api/connected-accounts/oauth/google/callback
+FRONTEND_URL=https://www.salesflowsai.com
+CORS_ORIGIN=https://www.salesflowsai.com
 CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY=<32-byte base64 key>
 CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
@@ -95,6 +94,11 @@ Google may require app verification, and Gmail restricted scopes can require a s
 - Start in testing mode with explicit test users for staging/private beta.
 - Verify consent screen copy explains Gmail metadata, calendar metadata, and Gmail draft capability.
 - Verify consent screen copy covers manual Gmail search/import as metadata-only review inbox functionality, not automatic historical import.
+- Verify the app domain URLs are publicly reachable without authentication:
+  - Home: `https://www.salesflowsai.com`
+  - Privacy: `https://www.salesflowsai.com/privacy`
+  - Terms: `https://www.salesflowsai.com/terms`
+- Verify the privacy policy describes Google user data usage, encrypted OAuth tokens, human-reviewed AI suggestions, and no automatic email, Gmail draft, or CRM record creation.
 - Do not imply emails are sent automatically. The product does not send email automatically.
 - Do not imply CRM records are created automatically. The product requires explicit human actions.
 - Move to production publishing only after verification requirements are satisfied.
@@ -113,14 +117,14 @@ Google may require app verification, and Gmail restricted scopes can require a s
 - Production callback pattern remains:
 
   ```text
-  https://api.your-domain.com/api/connected-accounts/oauth/google/callback
+  https://api.salesflowsai.com/api/connected-accounts/oauth/google/callback
   ```
 
 - Production frontend success redirect remains:
 
   ```text
-  https://app.your-domain.com/dashboard/settings/connected-accounts?connected=google
-  https://app.your-domain.com/dashboard/settings/connected-accounts?reconnected=google
+  https://www.salesflowsai.com/dashboard/settings/connected-accounts?connected=google
+  https://www.salesflowsai.com/dashboard/settings/connected-accounts?reconnected=google
   ```
 
 ## Token Encryption QA
@@ -182,6 +186,10 @@ Run in staging with test users:
 ## Production Rollout Checklist
 
 - Google OAuth consent screen configured and verified as required.
+- Google OAuth app domain fields configured:
+  - Home: `https://www.salesflowsai.com`
+  - Privacy: `https://www.salesflowsai.com/privacy`
+  - Terms: `https://www.salesflowsai.com/terms`
 - Authorized redirect URI exactly matches `GOOGLE_OAUTH_REDIRECT_URI`.
 - Secret manager stores client secret and token encryption key.
 - Production API has stable `CONNECTED_ACCOUNT_TOKEN_ENCRYPTION_KEY`.

@@ -84,6 +84,16 @@ On successful reconnect, encrypted Google tokens and safe account metadata are r
 
 Reconnect does not change Google scopes, send emails, create Gmail drafts, create CRM records, trigger AI, or start background jobs automatically. OAuth logs must not include authorization codes, access tokens, refresh tokens, raw Google responses, email bodies, or snippets.
 
+### Public privacy and terms pages
+
+The web app provides public `/privacy` and `/terms` pages for Google OAuth app domain readiness. These pages do not require authentication and document Google user data usage, Gmail metadata/snippet handling, Calendar metadata handling, encrypted OAuth token storage, human-reviewed AI suggestions, and the rule that emails, Gmail drafts, and CRM records are not created automatically.
+
+Google OAuth app domain values:
+
+- Home: `https://www.salesflowsai.com`
+- Privacy: `https://www.salesflowsai.com/privacy`
+- Terms: `https://www.salesflowsai.com/terms`
+
 ### AI suggestion detail safety display
 
 AI suggestion detail pages now keep technical metadata available but collapsed by default. External provider message IDs, thread IDs, connected account IDs, provider/model/token/cost fields, and raw AI metadata are kept in a `Technical details` section for audit/debug use instead of dominating the normal review flow.

@@ -1192,6 +1192,10 @@
     "email": "Email",
     "password": "Password",
     "forgotPassword": "Forgot password?",
+    "legal": {
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
     "recovery": {
       "forgotTitle": "Forgot password?",
       "forgotSubtitle": "Enter your email and we will send reset instructions if an account exists.",

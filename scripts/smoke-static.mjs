@@ -69,12 +69,15 @@ const requiredFiles = [
   "apps/api/src/email/email.service.ts",
   "apps/api/src/email/email.types.ts",
   "apps/web/src/app/layout.tsx",
+  "apps/web/src/app/privacy/page.tsx",
+  "apps/web/src/app/terms/page.tsx",
   "apps/web/src/app/(auth)/login/page.tsx",
   "apps/web/src/app/(auth)/forgot-password/page.tsx",
   "apps/web/src/app/(auth)/reset-password/page.tsx",
   "apps/web/src/components/LoginForm.tsx",
   "apps/web/src/components/ForgotPasswordForm.tsx",
   "apps/web/src/components/ResetPasswordForm.tsx",
+  "apps/web/src/components/PublicLegalLinks.tsx",
   "apps/web/src/app/accept-invitation/[token]/page.tsx",
   "apps/web/src/app/dashboard/page.tsx",
   "apps/web/src/app/dashboard/ai-suggestions/[id]/page.tsx",
@@ -152,9 +155,40 @@ for (const documentedAlias of [
 const en = requireJson("apps/web/src/i18n/locales/en.json");
 const es = requireJson("apps/web/src/i18n/locales/es.json");
 const loginForm = readText("apps/web/src/components/LoginForm.tsx");
+const privacyPage = readText("apps/web/src/app/privacy/page.tsx");
+const termsPage = readText("apps/web/src/app/terms/page.tsx");
+const publicLegalLinks = readText("apps/web/src/components/PublicLegalLinks.tsx");
 
 if (loginForm.includes("owner@example.com")) {
   fail("LoginForm must not contain demo owner credentials.");
+}
+
+for (const expectedText of [
+  "Google API Services User Data Policy",
+  "Limited Use requirements",
+  "OAuth tokens are encrypted at rest",
+  "does not send emails automatically",
+]) {
+  if (!privacyPage.includes(expectedText)) {
+    fail(`Privacy page missing Google/OAuth privacy marker: ${expectedText}`);
+  }
+}
+
+for (const expectedText of [
+  "AI-Generated Suggestions",
+  "Human Review Requirement",
+  "does not send emails automatically",
+  "Terms of Service",
+]) {
+  if (!termsPage.includes(expectedText)) {
+    fail(`Terms page missing beta/AI terms marker: ${expectedText}`);
+  }
+}
+
+for (const expectedText of ["/privacy", "/terms"]) {
+  if (!publicLegalLinks.includes(expectedText)) {
+    fail(`Public legal links missing route: ${expectedText}`);
+  }
 }
 
 const importantI18nNamespaces = [

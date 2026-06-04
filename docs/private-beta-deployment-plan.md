@@ -217,6 +217,10 @@ Web requirements:
 - `NEXT_PUBLIC_API_URL=https://<api-domain>/api`
 - Rebuild the web app when `NEXT_PUBLIC_API_URL` changes.
 - Keep access-token lifetimes short. The frontend refreshes an expired access token through the existing `/auth/refresh` flow and retries the failed authenticated request once.
+- Public legal pages must be reachable without authentication for Google OAuth branding:
+  - `https://www.salesflowsai.com/privacy`
+  - `https://www.salesflowsai.com/terms`
+- These pages describe Google data usage, encrypted OAuth tokens, human-in-the-loop AI, and the rule that emails, Gmail drafts, and CRM records are not created automatically.
 
 ## Database Migration Steps
 
@@ -261,6 +265,10 @@ GOOGLE_REDIRECT_URI=https://api-staging.example.com/api/connected-accounts/oauth
 Required checks:
 
 - Google Cloud authorized redirect URI exactly matches `GOOGLE_OAUTH_REDIRECT_URI`.
+- Google OAuth app domain fields point to:
+  - Home: `https://www.salesflowsai.com`
+  - Privacy: `https://www.salesflowsai.com/privacy`
+  - Terms: `https://www.salesflowsai.com/terms`
 - OAuth consent screen has the staging test user.
 - `FRONTEND_URL` is the staging web URL.
 - `CORS_ORIGIN` is the staging web URL.
@@ -417,6 +425,7 @@ Must-have before inviting users:
 - [ ] CRM read works.
 - [ ] At least one safe CRM write is tested manually.
 - [ ] Google OAuth connect works with test user.
+- [ ] Public Privacy Policy and Terms pages are reachable without login and match Google OAuth app domain settings.
 - [ ] Gmail sync works.
 - [ ] Calendar sync works.
 - [ ] `AI_PROVIDER=mock` suggestion works.

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ApiClientError } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/i18n/useI18n';
+import { PublicLegalLinks } from '@/components/PublicLegalLinks';
 
 export function LoginForm() {
   const router = useRouter();
@@ -112,6 +113,8 @@ export function LoginForm() {
         >
           {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
         </button>
+
+        <PublicLegalLinks />
       </div>
     </form>
   );

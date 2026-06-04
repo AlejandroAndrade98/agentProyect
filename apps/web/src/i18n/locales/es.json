@@ -1192,6 +1192,10 @@
     "email": "Correo",
     "password": "Contraseña",
     "forgotPassword": "¿Olvidaste tu contraseña?",
+    "legal": {
+      "privacyPolicy": "Política de privacidad",
+      "termsOfService": "Términos de servicio"
+    },
     "recovery": {
       "forgotTitle": "¿Olvidaste tu contraseña?",
       "forgotSubtitle": "Ingresa tu correo y enviaremos instrucciones de recuperacion si existe una cuenta.",

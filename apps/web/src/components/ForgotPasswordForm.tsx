@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 
+import { PublicLegalLinks } from '@/components/PublicLegalLinks';
 import { forgotPassword } from '@/lib/api/auth';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -104,6 +105,8 @@ export function ForgotPasswordForm() {
         >
           {t('auth.recovery.backToLogin')}
         </Link>
+
+        <PublicLegalLinks />
       </div>
     </form>
   );
